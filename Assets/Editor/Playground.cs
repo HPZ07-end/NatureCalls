@@ -8,6 +8,9 @@ using UnityEngine.Rendering.Universal;
 using Unity.Cinemachine;
 using NatureCalls.Player;
 using NatureCalls.Camera;
+using Unity.Netcode;
+using Unity.Netcode.Components;
+using Unity.Netcode.Transports.UTP;
 
 namespace NatureCalls.Editor
 {
@@ -99,6 +102,14 @@ namespace NatureCalls.Editor
             var controller = player.AddComponent<CharacterController>();
             controller.height = 1.8f; controller.radius = .27f;
             controller.center = new Vector3(0, .9f, 0); controller.stepOffset = .2f;
+            controller.minMoveDistance = 0; // Preserve small steps at high frame rates.
+            controller.enabled = false; // Movement enables only the local player's controller after spawn.
+            player.AddComponent<NetworkObject>();
+            var sync = player.AddComponent<NetworkTransform>();
+            sync.AuthorityMode = NetworkTransform.AuthorityModes.Owner;
+            sync.SyncRotAngleX = false; sync.SyncRotAngleZ = false;
+            sync.SyncScaleX = false; sync.SyncScaleY = false; sync.SyncScaleZ = false;
+            sync.Interpolate = true;
             player.AddComponent<Posture>();
             var movement = player.AddComponent<Movement>();
             movement.Body = new GameObject("Body").transform;
@@ -109,6 +120,7 @@ namespace NatureCalls.Editor
             BodyPart(movement.Body, "Left leg", PrimitiveType.Cube, new Vector3(-.15f, .22f, 0), new Vector3(.18f, .44f, .24f), color);
             BodyPart(movement.Body, "Right leg", PrimitiveType.Cube, new Vector3(.15f, .22f, 0), new Vector3(.18f, .44f, .24f), color);
             player.AddComponent<NatureCalls.Input.PlayerInput>().enabled = false;
+            player.AddComponent<NatureCalls.Network.Avatar>();
             var prefab = PrefabUtility.SaveAsPrefabAsset(player, "Assets/Prefabs/Player.prefab");
             Object.DestroyImmediate(player);
 
@@ -143,7 +155,20 @@ namespace NatureCalls.Editor
                 world.Spawns[i].SetParent(world.transform, false);
                 world.Spawns[i].position = positions[i];
             }
-            new GameObject("Controls").AddComponent<NatureCalls.UI.Panel>().World = world;
+            var network = new GameObject("Network");
+            var manager = network.AddComponent<NetworkManager>();
+            var transport = network.AddComponent<UnityTransport>();
+            manager.NetworkConfig = new NetworkConfig
+            {
+                PlayerPrefab = prefab, NetworkTransport = transport,
+                ConnectionApproval = true, EnableSceneManagement = false,
+                TickRate = 30, ProtocolVersion = 1
+            };
+            manager.NetworkConfig.Prefabs.NetworkPrefabsLists.Clear();
+            var session = network.AddComponent<NatureCalls.Network.Session>();
+            session.Manager = manager; session.Transport = transport; session.World = world;
+            var panel = new GameObject("Controls").AddComponent<NatureCalls.UI.Panel>();
+            panel.World = world; panel.Session = session;
         }
 
         private static void BodyPart(Transform parent, string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)

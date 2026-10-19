@@ -21,6 +21,9 @@ namespace NatureCalls.Player
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
+            // NGO instantiates before applying its approved spawn transform.
+            // Enable physics only when ownership and the initial transform are ready.
+            controller.enabled = false;
             posture = GetComponent<Posture>();
             posture.Changed += ApplyPosture;
             ApplyPosture(posture.State);

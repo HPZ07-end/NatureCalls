@@ -26,7 +26,12 @@ namespace NatureCalls.Map
         public void StopPractice()
         {
             Camera.Unbind();
-            if (OfflinePlayer != null) Destroy(OfflinePlayer.gameObject);
+            if (OfflinePlayer != null)
+            {
+                // NGO scans active objects when starting a host; Destroy is deferred.
+                OfflinePlayer.gameObject.SetActive(false);
+                Destroy(OfflinePlayer.gameObject);
+            }
             OfflinePlayer = null;
             PlayerInput.Unlock();
         }
