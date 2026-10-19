@@ -24,12 +24,25 @@ python3 -m unittest discover -s scripts/tests -v
 
 ## 当前覆盖范围
 
-- EditMode：Force Text、Visible Meta Files、所有 Assets 内 Scene 的加载及序列化对象引用/缺失脚本检查。
-- PlayMode：实际加载构建列表中的 Smoke 场景并检查 Camera。
+- EditMode（4 项）：Force Text、Visible Meta Files、所有 Scene 及 Prefab 的序列化引用/缺失脚本检查。
+- PlayMode（5 项）：Smoke 加载；Playground 墙体碰撞/高帧率位移/姿态停步；Cinemachine 多帧 Blend、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。
 - 仓库检查：路径大小写、JSON/asmdef、`.meta` 成对与 GUID 唯一性、生成目录忽略、包约束、相对 Markdown 文件链接；不请求外部链接，也不验证页面锚点。
 - 脚本单测：并发锁、虚假测试成功、Semantic Diff 格式及 baseline 边界。
-- 项目当前没有 Prefab 资产，不能声称做过真实 Prefab 行为测试；未来引入时必须添加对应验证。场景检查不证明所有运行时交互正确。
-- 未实现玩法规则，因此当前测试不是 Gameplay 验收。
+- 双 Player 验证：Development 构建通过 `scripts/multiplayer.py` 启动两个独立进程，在 localhost UnityTransport 上检查位置/朝向/姿态、所有权、独立镜头、可见远端角色、出生点与退出清理。开发探针只在显式 `-m1-probe` 参数下运行；普通游戏不自动操作角色，Release 不包含探针。
+- 自动运动调用实际 Movement/Posture 能力，不等于人工键鼠手感验收。镜头截图只覆盖固定马桶 Anchor，未穷举任意墙角和 Inspector 配置。
+- 未实现完整玩法规则，因此当前测试不是完整 Gameplay 验收。
+
+## 双客户端与手工回归
+
+构建后运行（路径以当次输出为准）：
+
+```sh
+python3 scripts/multiplayer.py Builds/macOS/<build-id>/NatureCalls.app
+```
+
+Windows 使用 `py -3 scripts/multiplayer.py Builds/Windows/NatureCalls.exe`，必须勾选 Development Build；Release 没有探针，不能用于此命令。脚本为两个自身创建的进程收集 JSON、PNG 和 Player 日志，超时失败会结束这两个进程，不操作 Editor。每端断言和退出码必须同时通过。测试使用短暂分配的本机 UDP 端口，不配置 Cloud。
+
+MPPM GUI、2–4 人、真实 LAN、Relay、Mac/Windows 互联分别人工记录。按 [PLAYGROUND](PLAYGROUND.md) 启动，逐端验证 WASD/鼠标/C/E/Esc，观察远端移动和蹲下，确认 A 的镜头变化不影响 B；Client Leave 后 Host 只剩自己的角色，Host 离开后 Client 获得断开反馈。再测试重新加入、无效 Join Code、房间满员与端口不可达。未执行项不能因脚本通过而勾选。
 
 ## Semantic Diff
 

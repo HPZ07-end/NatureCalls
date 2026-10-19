@@ -28,6 +28,8 @@
 - `Input/PlayerInput`：Input System 将本地键鼠转化为移动、观察、姿态与交互调用。
 - `Camera/CameraController`：唯一实际 Camera + CinemachineBrain，两个 CinemachineCamera 的优先级和 Blend；仅绑定本地角色。
 - `Facility/Toilet`：距离检测、姿态 Anchor 与内部可见目标；没有正式设施占用或冲水状态。
+- `Network/Session`：官方 MPS Session + Relay 的创建/加入/离开、匿名认证与错误状态；独立提供无需云端的 NGO 直连诊断入口。
+- `Network/Avatar`：Owner 本地控制、NetworkTransform、姿态 NetworkVariable、出生颜色与镜头绑定生命周期。
 - `Map/Playground`：原型资源引用、4 个出生位置与离线练习。
 - `Editor/Playground`：用 Unity API 创建场景、材质、URP 设置和 Prefab。
 
@@ -41,9 +43,33 @@
 
 Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance/Height/Pitch、Shoulder Offset、Transition Duration、Camera Collision Layers/Radius。当前没有墙体全局隐藏。C 可在任意位置测试姿态；要验证马桶内部构图，请走到马桶附近按 E。
 
-## 验证状态
+## 本地双客户端（无需 Unity Cloud）
 
-尚在实现中。最终实测日志、截图、联机覆盖和人工配置步骤将在本任务验收后补充。单机编译、自动测试、本地直连、Relay 与真实 Mac/Windows 互联必须分别记录，不能互相替代。
+1. 打开 Playground，选择 Window → Multiplayer → Multiplayer Play Mode，启用 Player 2，再进入 Play。也可使用一个 Editor + 一个独立 Development Player，或两个独立 Player。
+2. 两端 Esc 打开菜单，展开 `Local / LAN test tools (no Relay)`。
+3. 主端点 `Local Host`；另一端地址 `127.0.0.1`，点 `Local Join`。不同机器改为主端局域网 IP，保持端口 7777；如系统询问防火墙/本地网络权限，由操作者决定授权。
+4. 点击各自游戏画面操作，只控制该端角色。切换窗口先 Esc；失焦会释放鼠标。C 测姿态，E 在马桶附近对齐。角色为不同颜色。
+5. `Leave` 断开；回到 `Offline practice` 可继续单机。Host 退出不迁移主机，Client 获得断开反馈。
+
+直接连接使用官方 NGO/UnityTransport，是无云端诊断路径，不提供 Join Code、互联网穿透或 Session 服务。仅本机双进程已自动验证；MPPM GUI、真实 LAN 和 Windows 组合仍需人工验收。MPPM 的 Library/虚拟玩家数据不进入 Git。
+
+## Relay / Join Code 的最少人工配置
+
+当前用户没有 Unity Cloud 项目，仓库未填写或伪造 Project ID。已有 Hub 登录/Editor 许可不等于已创建 Cloud 项目。
+
+1. 团队在 Unity Cloud 中创建/选择共同项目及组织；登录、组织权限、服务条款和可能的计费启用由人类负责人处理。
+2. Editor → Edit → Project Settings → Services 关联该 Cloud Project；按 Dashboard 提示启用 Multiplayer 所需的 Relay/Lobby，确保 Authentication 可匿名登录。双方使用同一个项目和环境；场景 `Session.EnvironmentName` 默认 `production`。
+3. 关联后通过 Editor 保存必要项目设置，检查 diff 只包含共享标识与预期设置；不提交 Token、账号缓存或密钥。所有构建需重新生成以包含项目标识。
+4. Host 选择 `Create Host Session`，把显示的 **Session join code** 发给队友；Client 输入后 `Join Session`。不是手工创建 Relay allocation 或复制底层 Relay Code。
+5. 分别测试 Mac Host → Windows Client 和 Windows Host → Mac Client，记录同一 Git SHA、操作、错误及退出结果。
+
+代码通过 MPS `CreateSessionAsync(...WithRelayNetwork())` / `JoinSessionByCodeAsync` 使用官方连接生命周期；不同时手动 StartHost 干预 SDK。每进程使用独立匿名认证 profile，便于同机测试；不是正式账号系统。未关联 Cloud 会显示原因并保留离线角色；空 Code 会提示输入。真实服务权限、配额、过期 Code、服务端异常仍需关联后验收。
+
+## 验证状态与限制
+
+实际日志及测试结果见 [M1 验收记录](m1-2026-10-20.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。
+
+原型以可调镜头验证为目标，没有设施占用管理，多个玩家可能同时使用同一 Anchor；不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，未来设施、Tidiness 与胜负状态走 Host 权威。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。C 在任意地点切换不保证都有马桶构图；E Anchor 是本次可复现的可见性测试位置。
 
 ## 官方依据
 

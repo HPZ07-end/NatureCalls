@@ -22,7 +22,7 @@
 
 当前 macOS 专属部分只有 Homebrew 安装示例、Mac Editor 探测路径、`build-macos` 的 ARM64 `.app` 构建，以及本次 Mac 的验收记录。Mac 架构设置只在 `BuildMac` 调用期间临时生效，结束后恢复；`UNITY_STANDALONE_OSX` 条件编译隔离该段 API。没有把 `/Users/...` 路径写入资源、项目配置或工作区设置。
 
-Unity 会在 `.meta`/`.asset` 的空值后生成空格。保留原始序列化，Git 仅对这两类文件放宽行尾空格检查；源码和文档仍检查空白错误。不要让编辑器自动整理 Unity YAML 造成无关差异。
+Unity 会在 `.meta`/`.asset`/`.unity`/`.prefab`/`.mat` 的空值后生成空格。保留原始序列化，Git 仅对这些序列化文件放宽行尾空格检查；源码和文档仍检查空白错误。不要让编辑器自动整理 Unity YAML 造成无关差异。
 
 ## Windows 队友首次加入
 
@@ -41,7 +41,7 @@ py -3 scripts/unity.py detect
 
 4. Hub → Projects → Add project from disk，选择包含 `Assets`、`Packages`、`ProjectSettings` 的仓库根目录。等待首次导入结束。不要选择 `Assets` 子目录，也不要使用另一个模板重新创建工程。
 5. 在 VS Code 安装项目推荐扩展；Unity → Edit → Preferences → External Tools，选择 Visual Studio Code，然后 Regenerate project files。
-6. 双击 `Assets/Scenes/Smoke.unity`。菜单 `NatureCalls/Validate` 检查配置；Window → General → Test Runner 中分别运行 EditMode 和 PlayMode。`Smoke` 是基础设施场景，`Sandbox` 是保留的编辑器工作场景，当前只有 Smoke 被列入构建。
+6. M1 合并前先 `git switch feat/multiplayer-playground`（需要先 fetch）；打开 `Assets/Scenes/Playground.unity`。菜单 `NatureCalls/Validate` 检查配置；Window → General → Test Runner 中分别运行 EditMode 和 PlayMode。Playground 是首个构建场景，Smoke/Sandbox 保留。操作及两端联机见 [PLAYGROUND](PLAYGROUND.md)。
 7. 保存并关闭这个项目的 Unity GUI 后，可在 PowerShell 自动化验证：
 
 ```powershell
@@ -64,8 +64,8 @@ py -3 scripts/unity.py detect
 ## 构建与验证边界
 
 - macOS：`python3 scripts/unity.py build-macos` 构建 ARM64 Development `.app`，适合本机 Apple Silicon 验证；不是 Windows 可执行文件。
-- Windows：在 Unity File → Build Profiles 中选择/添加 Windows 平台，选择 x86_64，确认 Scene List 包含 `Assets/Scenes/Smoke.unity`，构建到 `Builds/Windows/`。缺少平台支持时通过 Hub 添加。当前没有自动化 Windows 构建命令，不要求 Windows 队友运行 `build-macos`。
-- 现有 EditMode 测试检查 Force Text、Visible Meta Files；PlayMode 测试检查 Smoke 场景加载和摄像机。它们不代表游戏规则、联网或真实玩法已经实现。
+- Windows：在 Unity File → Build Profiles 中选择/添加 Windows 平台，选择 x86_64，确认 Scene List 首项为 `Assets/Scenes/Playground.unity`，构建到 `Builds/Windows/`。缺少平台支持时通过 Hub 添加。当前没有自动化 Windows 构建命令，不要求 Windows 队友运行 `build-macos`。
+- 现有 EditMode/PlayMode 覆盖设置、资源、角色、镜头及 Host 生命周期；双进程验证与平台验收边界见 [TESTING](TESTING.md)。不能把本机直连成功写成 Relay 或 Windows 已通过。
 - GitHub Actions 在 Linux、macOS、Windows 上只运行仓库检查与 Python 脚本测试。绿色 CI 不等于三个系统上的 Unity 都已通过；Windows 的 Unity 导入、运行测试和 `.exe` 构建仍需 Windows 队友实测并记录。
 - 同一份工程不能同时由 Unity GUI 和 batchmode 打开。脚本会拒绝已占用的项目；不要为了运行脚本删锁或强行结束队友/自己的编辑器。
 

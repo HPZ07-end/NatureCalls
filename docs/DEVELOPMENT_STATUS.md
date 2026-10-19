@@ -1,20 +1,20 @@
 # 实际开发状态
 
-更新日期：2026-10-19。原始基线 `e43122a22c61623e57930c34932912bbcdca4a9a`；本次治理实现提交 `f6dbd8ea5614a567f6309111aa73de39948b4abc` 位于 `chore/repository-governance`，尚待 [PR #1](https://github.com/HPZ07-end/NatureCalls/pull/1) Review/集成。不得把分支上的文档视为已经进入公共分支。
+更新日期：2026-10-20。治理 [PR #1](https://github.com/HPZ07-end/NatureCalls/pull/1) 已合并到 `dev`，提交 `ebdfa31879363864f9fa1b26ca0c2dab5084f447`。M1 从该基线建立 `feat/multiplayer-playground`；本次实现等待独立 PR Review，不自动合并。
 
 | 类别 | 实际状态 |
 | --- | --- |
-| 已实现 | Unity 工程、Smoke/Sandbox、跨平台 Editor 路径检测、配置/编译验证、EditMode/PlayMode、Mac ARM64 构建、仓库检查 |
-| 本次已编写 | Glossary 初始基线、文档体系、PR/Semantic Diff 检查与同步工具、场景引用测试、候选版本配置；以 PR 为集成边界 |
-| 正在推进 | Stage 1 治理 PR 的验证与团队 Review；不是 Gameplay 编码 |
-| 已规划 | Stage 2/3、经批准的 Gameplay 闭环、Map 配置、LAN、同 Commit 的 Mac/Windows 验收和发布 |
-| 尚未确定 | 玩家数量、数值与阈值、基线未详述的失败/惩罚细节、事故规则、网络技术方案、子树负责人；由人类讨论，不沿用 C3 自动补全 |
-| 尚未实现 | 玩家操作、设施交互、运行时规则/状态、游戏 UI、LAN、实际美术/音频/动画内容 |
+| 已实现 | 原有配置/编译/测试/构建工具、语义治理；新增 URP Playground、Player/Toilet Prefab、第一人称移动、姿态与第三人称 Blend、Anchor 交互、Host/Join/Leave UI、NGO 位置/朝向/姿态同步、本地双 Player 验证工具 |
+| 已编写但缺服务验收 | MPS Session + Relay Join Code、匿名认证及连接失败反馈；Cloud 尚未关联，不能声称真实 Relay 联机成功 |
+| 正在推进 | M1 功能分支 Review、MPPM GUI/人工键鼠手感、Cloud 关联、Windows 与真实跨设备验收 |
+| 已规划 | 依实际需求进行 Stage 2/3、正式 Gameplay 闭环、Map 配置、共享规则的 Host 权威、跨平台联调和发布 |
+| 尚未确定 | 正式玩法数值/阈值、失败惩罚细节、事故规则、子树负责人；由人类讨论，不沿用 C3 自动补全 |
+| 尚未实现 | Urgency/Tidiness 等玩法规则、正式设施状态与占用、冲水堵塞、排泄物生成、背包、完整大厅/匹配、Host 迁移、正式美术/音频/动画 |
 
-原始基线已有真实 Mac 导入、EditMode 2/2、PlayMode 1/1、ARM64 构建通过记录，见 [首次验收](setup-2026-10-19.md)。本次重新验证：Mac 导入/编译通过，EditMode **3/3**、PlayMode **1/1**，ARM64 新构建成功，脚本测试 **17/17**。详细日志与覆盖边界见 [治理记录](governance-2026-10-19.md)。
+M1 的 2–4 人、第一人称/如厕第三人称与官方网络技术栈来自本次明确授权，已以 `Semantic-Diff: changed` 扩展 [Glossary](../GLOSSARY.md)。姿态不是正式 Toileting 系统，没有新增未批准的失败条件。
 
-Windows 的 Unity 导入/测试/构建、跨系统 LAN、Mac 构建人工运行、签名/公证均未验收。CI 的三个 OS 仅覆盖 Python/仓库检查。
+实际 Unity 测试、构建及双进程结果以 [M1 验收记录](m1-2026-10-20.md) 为准。Windows Unity、真实 LAN/Relay、签名/公证尚未验收；CI 的三个 OS 仅覆盖 Python/仓库检查。之前的基础设施结果保留在 [首次验收](setup-2026-10-19.md) 与 [治理记录](governance-2026-10-19.md)。
 
-当前仅 Stage 1；空 Core `.asmdef` 早已存在但没有规则实现，不代表 Stage 2 完成。后续路线与课程截止日期见 [ROADMAP](ROADMAP.md)。
+当前仍为 Stage 1。为 Editor/测试引用增加一个总运行时程序集，没有拆分各模块程序集；既有 Core 仍为空，不代表 Stage 2 完成。后续路线与课程截止日 **2026-12-21** 见 [ROADMAP](ROADMAP.md)。游戏版本保持 `0.1.0-alpha.1`，不增加发布 Tag。
 
-GitHub Actions 的 Semantic Diff 及 Linux/macOS/Windows 仓库检查已在治理实现提交上成功。服务端 main/dev 保护写入 API 返回 404，保护未生效；默认分支仍为 dev1019，因此旧分支暂保留。用户确认 TMM 是显示名称，准确 GitHub 登录名待补充，CODEOWNERS 与 Review 请求待配置。
+本任务未修改 GitHub 默认分支或保护规则；2026-10-20 读取到默认分支仍为 `dev1019`。旧治理记录中的权限限制不能视为已经解除，本次不绕过 Review 或更改长期分支。
