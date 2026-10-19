@@ -1,0 +1,5 @@
+# No active ownership rules: do not add an account without verified write access.
+# The user nominated the display name TMM; the exact GitHub login is pending.
+# Verify the real login and write access before requesting the member's review.
+# Then add GLOSSARY.md ownership via PR and enable required code owner review.
+# Also consider ownership of this file, CONTRIBUTING, workflows and semantic.py.
