@@ -32,13 +32,71 @@ namespace NatureCalls.Tests
         public IEnumerator Unload()
         {
             if (world != null) world.StopPractice();
+            var manager = Unity.Netcode.NetworkManager.Singleton;
+            if (manager != null)
+            {
+                if (manager.IsListening) manager.Shutdown();
+                Object.Destroy(manager.gameObject);
+                yield return null;
+            }
             if (scene.IsValid() && scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
+        }
+        [UnityTest]
+        public IEnumerator LocalHostOwnsOneCameraAndLeavesCleanly()
+        {
+            var session = Object.FindFirstObjectByType<NatureCalls.Network.Session>();
+            Assert.That(session.StartDirect(true), Is.True);
+            float deadline = Time.time + 5;
+            while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
+            var avatar = session.Manager.LocalClient.PlayerObject;
+            Assert.That(avatar, Is.Not.Null);
+            yield return null;
+            Assert.That(world.OfflinePlayer, Is.Null);
+            Assert.That(world.Camera.Target, Is.EqualTo(avatar.GetComponent<Movement>()));
+            Assert.That(UnityEngine.Camera.allCamerasCount, Is.EqualTo(1));
+            avatar.GetComponent<Posture>().Set(PostureState.Squatting);
+            yield return null;
+            Assert.That(avatar.GetComponent<NatureCalls.Network.Avatar>().SharedPosture.Value, Is.EqualTo(PostureState.Squatting));
+            var leave = session.LeaveAsync();
+            while (!leave.IsCompleted) yield return null;
+            yield return null;
+            yield return null;
+            Assert.That(session.Manager.IsListening, Is.False);
+            Assert.That(world.Camera.Target, Is.Null);
+            Assert.That(Object.FindObjectsByType<NatureCalls.Network.Avatar>(FindObjectsSortMode.None), Is.Empty);
+        }
+
+        [UnityTest]
+        public IEnumerator RelayFailurePreservesOfflinePractice()
+        {
+            var session = Object.FindFirstObjectByType<NatureCalls.Network.Session>();
+            var player = world.OfflinePlayer;
+            var join = session.ConnectRelayAsync(false, "");
+            while (!join.IsCompleted) yield return null;
+            Assert.That(session.Status, Does.Contain("Enter a Session join code"));
+            Assert.That(session.Busy, Is.False);
+            Assert.That(session.Active, Is.False);
+            Assert.That(world.Camera.Target, Is.EqualTo(player));
+            if (!System.Guid.TryParse(Application.cloudProjectId, out _))
+            {
+                var host = session.ConnectRelayAsync(true);
+                while (!host.IsCompleted) yield return null;
+                Assert.That(session.Status, Does.Contain("Unity Cloud is not linked"));
+                Assert.That(session.Busy, Is.False);
+                Assert.That(session.Active, Is.False);
+                Assert.That(world.OfflinePlayer, Is.EqualTo(player));
+                Assert.That(world.Camera.Target, Is.EqualTo(player));
+            }
         }
         [UnityTest]
         public IEnumerator MovementStopsAtWallAndSquattingStopsMovement()
         {
             var player = world.OfflinePlayer;
             var controller = player.GetComponent<CharacterController>();
+            Assert.That(controller.minMoveDistance, Is.Zero, "Small high-frame-rate steps must not be discarded.");
+            var initial = player.transform.position;
+            for (int step = 0; step < 1000; step++) player.Move(Vector2.right, .0001f);
+            Assert.That(player.transform.position.x - initial.x, Is.GreaterThan(.3f), "High-frame-rate movement must accumulate.");
             controller.enabled = false;
             player.transform.position = new Vector3(4, 0, -5);
             controller.enabled = true;
