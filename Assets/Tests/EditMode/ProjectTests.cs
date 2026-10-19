@@ -21,6 +21,36 @@ namespace NatureCalls.Tests
         }
 
         [Test]
+        public void PrefabsHaveNoMissingReferences()
+        {
+            var guids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" });
+            Assert.That(guids.Length, Is.GreaterThanOrEqualTo(2), "Player and Toilet prefabs must be generated.");
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var root = PrefabUtility.LoadPrefabContents(path);
+                try
+                {
+                    foreach (var component in root.GetComponentsInChildren<Component>(true))
+                    {
+                        Assert.That(component, Is.Not.Null, "Missing script: " + path);
+                        using (var serialized = new SerializedObject(component))
+                        {
+                            var property = serialized.GetIterator();
+                            while (property.Next(true))
+                            {
+                                if (property.propertyType != SerializedPropertyType.ObjectReference) continue;
+                                Assert.That(property.objectReferenceValue != null || property.objectReferenceInstanceIDValue == 0,
+                                    Is.True, path + ": " + component.name + "." + property.propertyPath);
+                            }
+                        }
+                    }
+                }
+                finally { PrefabUtility.UnloadPrefabContents(root); }
+            }
+        }
+
+        [Test]
         public void ScenesHaveNoMissingReferences()
         {
             var guids = AssetDatabase.FindAssets("t:Scene", new[] { "Assets" });

@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/Playground.unity
+    guid: 684000b3f93bf4ea9a8e2f77b2f298e3
+  - enabled: 1
     path: Assets/Scenes/Smoke.unity
     guid: 4983eccc2ed3e495599d007409af0bae
   m_configObjects: {}
