@@ -1,0 +1,5 @@
+# Pending: the human team must assign real GitHub handles with repository access.
+# No ownership rules are active. Do not invent usernames or leave invalid rules.
+# After agreement, assign GLOSSARY.md to the human semantic owner(s).
+# Also consider ownership of this file, CONTRIBUTING, workflows and semantic.py.
+# Enable required code owner review in main/dev protection after valid owners exist.
