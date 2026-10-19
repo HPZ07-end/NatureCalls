@@ -5,7 +5,7 @@
 | 状态 | 游戏版本 / Tag | Commit 与说明 |
 | --- | --- | --- |
 | Bootstrap（非发布） | Player Settings 原值 `1.0`，无 Tag | `e43122a22c61623e57930c34932912bbcdca4a9a`；main/dev 共用的原始完整基础设施基线 |
-| 候选（待 Review/集成） | Player Settings `0.1.0-alpha.1`；拟用 `v0.1.0-alpha.1`，尚未创建 | 治理任务分支通过 Unity API 设置；精确提交见治理 PR 的版本修改 Commit |
+| 候选（待 Review/集成） | Player Settings `0.1.0-alpha.1`；拟用 `v0.1.0-alpha.1`，尚未创建 | `f6dbd8ea5614a567f6309111aa73de39948b4abc`；通过 Unity API 设置，见 [PR #1](https://github.com/HPZ07-end/NatureCalls/pull/1) |
 
 没有给旧 main 的 `1.0` 配置打 `v0.1.0-alpha.1`，也不会把未 Review 的任务提交伪装成稳定发布。此候选表示基础设施 alpha，不表示可玩 Demo。
 

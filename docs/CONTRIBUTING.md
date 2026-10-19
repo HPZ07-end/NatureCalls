@@ -50,7 +50,7 @@ Human Approval:
 
 使用 [PR 模板](../.github/PULL_REQUEST_TEMPLATE.md) 记录目的、范围、Semantic Diff、公共接口、资产、测试、平台/LAN、风险和未完成事项。至少一名**其他成员** Review；语义变化还必须由人类负责人明确作语义审批，普通代码 Review 不自动等同于语义审批。
 
-负责人未指定，见 [CODEOWNERS](../.github/CODEOWNERS)。团队指定有仓库访问权限的真实账号后再写有效规则；不能虚构团队账号，也不能将作者自己当作其他 Reviewer。
+负责人尚未有效配置，见 [CODEOWNERS](../.github/CODEOWNERS) 和 [权限记录](governance-2026-10-19.md)。团队确认真实账号并核实具有 Write 权限后再写有效规则；不能虚构团队账号，也不能将作者自己当作其他 Reviewer。
 
 合并前 fetch 最新基线，复查语义、冲突和当前 PR head 的 CI。发生新提交时重新确认 Review 是否仍有效。采用 merge commit 或 squash，合并 Commit 正文必须保留：
 

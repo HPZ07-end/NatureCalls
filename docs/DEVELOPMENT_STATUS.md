@@ -1,6 +1,6 @@
 # 实际开发状态
 
-更新日期：2026-10-19。原始基线 `e43122a22c61623e57930c34932912bbcdca4a9a`；本次治理在 `chore/repository-governance`，尚待 PR Review/集成。不得把分支上的文档视为已经进入公共分支。
+更新日期：2026-10-19。原始基线 `e43122a22c61623e57930c34932912bbcdca4a9a`；本次治理实现提交 `f6dbd8ea5614a567f6309111aa73de39948b4abc` 位于 `chore/repository-governance`，尚待 [PR #1](https://github.com/HPZ07-end/NatureCalls/pull/1) Review/集成。不得把分支上的文档视为已经进入公共分支。
 
 | 类别 | 实际状态 |
 | --- | --- |
@@ -16,3 +16,5 @@
 Windows 的 Unity 导入/测试/构建、跨系统 LAN、Mac 构建人工运行、签名/公证均未验收。CI 的三个 OS 仅覆盖 Python/仓库检查。
 
 当前仅 Stage 1；空 Core `.asmdef` 早已存在但没有规则实现，不代表 Stage 2 完成。后续路线与课程截止日期见 [ROADMAP](ROADMAP.md)。
+
+GitHub Actions 的 Semantic Diff 及 Linux/macOS/Windows 仓库检查已在治理实现提交上成功。服务端 main/dev 保护写入 API 返回 404，保护未生效；默认分支仍为 dev1019，因此旧分支暂保留。用户确认 TMM 是显示名称，准确 GitHub 登录名待补充，CODEOWNERS 与 Review 请求待配置。
