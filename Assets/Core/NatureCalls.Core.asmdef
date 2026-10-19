@@ -1,0 +1,5 @@
+{
+  "name": "NatureCalls.Core",
+  "rootNamespace": "NatureCalls.Core",
+  "noEngineReferences": true
+}

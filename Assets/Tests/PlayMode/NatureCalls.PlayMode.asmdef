@@ -1,0 +1,5 @@
+{
+  "name": "NatureCalls.PlayMode",
+  "rootNamespace": "NatureCalls.Tests",
+  "optionalUnityReferences": ["TestAssemblies"]
+}

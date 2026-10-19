@@ -1,0 +1,6 @@
+{
+  "name": "NatureCalls.EditMode",
+  "rootNamespace": "NatureCalls.Tests",
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

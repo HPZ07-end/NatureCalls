@@ -1,0 +1,5 @@
+{
+  "name": "NatureCalls.Editor",
+  "rootNamespace": "NatureCalls.Editor",
+  "includePlatforms": ["Editor"]
+}
