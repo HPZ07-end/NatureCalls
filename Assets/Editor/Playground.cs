@@ -19,6 +19,23 @@ namespace NatureCalls.Editor
         public const string ScenePath = "Assets/Scenes/Playground.unity";
         private static Material floor, wall, ceramic, water, brown, stain;
 
+        [MenuItem("NatureCalls/Center Playground Camera")]
+        public static void CenterCamera()
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                throw new System.OperationCanceledException("Camera update cancelled.");
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var rig = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<CameraController>(true)).Single();
+            Undo.RecordObject(rig, "Center Playground camera");
+            rig.ThirdPersonDistance = 1.6f;
+            rig.ThirdPersonHeight = .8f;
+            rig.ThirdPersonPitch = 50;
+            rig.ShoulderOffset = 0;
+            EditorUtility.SetDirty(rig);
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Could not save centered camera.");
+        }
+
         [MenuItem("NatureCalls/Generate Playground")]
         public static void Create()
         {

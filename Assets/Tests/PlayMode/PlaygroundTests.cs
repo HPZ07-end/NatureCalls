@@ -138,6 +138,11 @@ namespace NatureCalls.Tests
             Assert.That(intermediateFrames, Is.GreaterThan(1), "Expected a real multi-frame Cinemachine blend.");
             Assert.That(world.Camera.ThirdPerson.Priority.Value, Is.GreaterThan(world.Camera.FirstPerson.Priority.Value));
             Capture(camera, "squatting.png");
+            var offset = player.transform.InverseTransformPoint(camera.transform.position);
+            Assert.That(Mathf.Abs(offset.x), Is.LessThan(.03f), "Third-person camera must be centered behind the player.");
+            Assert.That(offset.z, Is.InRange(-1.3f, -.7f), "Centered camera must stay close behind the player.");
+            Assert.That(Mathf.Abs(Mathf.DeltaAngle(camera.transform.eulerAngles.y, player.transform.eulerAngles.y)), Is.LessThan(.1f));
+            Assert.That(camera.WorldToViewportPoint(player.Body.position).x, Is.EqualTo(.5f).Within(.02f));
             var viewport = camera.WorldToViewportPoint(toilet.Interior.position);
             Assert.That(viewport.x, Is.InRange(.05f, .95f));
             Assert.That(viewport.y, Is.InRange(.05f, .95f));

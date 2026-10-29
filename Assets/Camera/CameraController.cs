@@ -14,10 +14,10 @@ namespace NatureCalls.Camera
         public Transform Eye;
         public Transform Shoulder;
         [Range(1, 2.1f)] public float EyeHeight = 1.65f;
-        [Range(.5f, 5)] public float ThirdPersonDistance = 2.6f;
-        [Range(.3f, 3)] public float ThirdPersonHeight = 1.15f;
-        [Range(10, 70)] public float ThirdPersonPitch = 35;
-        [Range(-2, 2)] public float ShoulderOffset = 1f;
+        [Range(.5f, 5)] public float ThirdPersonDistance = 1.6f;
+        [Range(.3f, 3)] public float ThirdPersonHeight = .8f;
+        [Range(10, 70)] public float ThirdPersonPitch = 50;
+        [Range(-2, 2)] public float ShoulderOffset = 0;
         [Range(.05f, 2)] public float TransitionDuration = .65f;
         public LayerMask CameraCollisionLayers = 1;
         [Range(.05f, .4f)] public float CameraRadius = .15f;

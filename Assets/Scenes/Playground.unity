@@ -2055,10 +2055,10 @@ MonoBehaviour:
   Eye: {fileID: 1281199917}
   Shoulder: {fileID: 1935840659}
   EyeHeight: 1.65
-  ThirdPersonDistance: 2.6
-  ThirdPersonHeight: 1.15
-  ThirdPersonPitch: 35
-  ShoulderOffset: 1
+  ThirdPersonDistance: 1.6
+  ThirdPersonHeight: 0.8
+  ThirdPersonPitch: 50
+  ShoulderOffset: 0
   TransitionDuration: 0.65
   CameraCollisionLayers:
     serializedVersion: 2

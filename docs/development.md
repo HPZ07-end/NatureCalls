@@ -80,3 +80,11 @@ py -3 scripts/unity.py detect
 先检查已有软件，缺失时可用 Homebrew 安装 `git git-lfs gh python`，应用使用 `unity-hub visual-studio-code` cask。不要在 Windows 安装 Homebrew。VS Code 推荐 C#、C# Dev Kit、Unity 三个扩展，ID 见 `.vscode/extensions.json`；每人本机安装并生成工程文件。
 
 Hub 中安装锁定的 Editor，优先 GUI；旧 Hub headless CLI 已弃用，工程自动化直接调用 Editor。基础 Mac Mono 构建不要求先装所有平台模块，IL2CPP/Xcode 在确需该构建链时安装。许可、账号和管理员授权由本人完成。
+
+## 阅读代码与 IDE
+
+用 VS Code 的 File → Open Folder 打开整个仓库根目录。推荐扩展已写入 `.vscode/extensions.json`：C#、C# Dev Kit、Microsoft Unity。Unity 的 Preferences → External Tools 选择 Visual Studio Code 并 Regenerate project files；之后在 Editor 内双击 `.cs` 会打开对应源码。集成包仍使用 `com.unity.ide.visualstudio`，不是已弃用的 `com.unity.ide.vscode`，配置依据见 [VS Code 官方 Unity 指南](https://code.visualstudio.com/docs/other/unity)。
+
+阅读顺序：先看 [Glossary](../GLOSSARY.md) 的玩法定义，再看 [ARCHITECTURE](ARCHITECTURE.md) 的组件依赖，然后从 `Assets/Input/PlayerInput.cs` 跟进 `Player/Movement.cs`、`Player/Posture.cs` 与 `Camera/CameraController.cs`。网络从 `Network/Session.cs`、`Network/Avatar.cs` 开始；初始化入口为 `Map/Playground.cs`，场景生成位于 `Editor/Playground.cs`。上述省略 `Assets/` 前缀的组件路径均位于 Assets 目录。
+
+Unity Editor 用于查看 Scene、Prefab、Inspector 引用及 Play Mode；VS Code 用于读写 C# 和调试。Mac 上可用 Cmd+P 查找文件、F12 跳到定义，通过右键 Find All References 查看调用。不要编辑 Library 下的缓存，也不要为了调参数手改场景 YAML。

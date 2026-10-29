@@ -1,6 +1,6 @@
 # 实际开发状态
 
-更新日期：2026-10-20。治理 [PR #1](https://github.com/HPZ07-end/NatureCalls/pull/1) 已合并到 `dev`，提交 `ebdfa31879363864f9fa1b26ca0c2dab5084f447`。M1 从该基线建立 `feat/multiplayer-playground`；本次实现等待独立 PR Review，不自动合并。
+更新日期：2026-10-30。治理 [PR #1](https://github.com/HPZ07-end/NatureCalls/pull/1) 已合并到 `dev`，提交 `ebdfa31879363864f9fa1b26ca0c2dab5084f447`。M1 从该基线建立 `feat/multiplayer-playground`；本次实现等待独立 PR Review，不自动合并。
 
 | 类别 | 实际状态 |
 | --- | --- |
@@ -18,3 +18,5 @@ M1 的 2–4 人、第一人称/如厕第三人称与官方网络技术栈来自
 当前仍为 Stage 1。为 Editor/测试引用增加一个总运行时程序集，没有拆分各模块程序集；既有 Core 仍为空，不代表 Stage 2 完成。后续路线与课程截止日 **2026-12-21** 见 [ROADMAP](ROADMAP.md)。游戏版本保持 `0.1.0-alpha.1`，不增加发布 Tag。
 
 本任务未修改 GitHub 默认分支或保护规则；2026-10-20 读取到默认分支仍为 `dev1019`。旧治理记录中的权限限制不能视为已经解除，本次不绕过 Review 或更改长期分支。
+
+2026-10-30 按用户反馈将 Squatting 镜头调整为正后方居中近景，距离 1.6、目标高度 0.8、俯角 50°、横向偏移 0；不变更角色或网络状态机制。源码、已有场景与生成默认值同时更新，最新回归记录见 [PLAYGROUND](PLAYGROUND.md)。原 10 月 20 日验收记录保留为历史快照。

@@ -17,7 +17,7 @@
 
 ## 打开和重建
 
-打开 `Assets/Scenes/Playground.unity`，Play。点击 UI 右侧游戏画面锁定鼠标，WASD 移动、鼠标观察、C 切换姿态、靠近测试马桶后 E 对齐、Esc 释放鼠标。已有 Smoke/Sandbox 场景保留。
+先在 Unity Hub 中打开仓库根目录对应的 NatureCalls 工程，再在 **Editor 的 Project 面板**双击 `Assets/Scenes/Playground.unity`，点击 Play；不是在 Finder 中双击场景文件来启动工程。点击 UI 右侧游戏画面锁定鼠标，WASD 移动、鼠标观察、C 切换姿态、靠近测试马桶后 E 对齐、Esc 释放鼠标。已有 Smoke/Sandbox 场景保留。
 
 `python3 scripts/unity.py playground`（Windows：`py -3 scripts/unity.py playground`）通过 Editor API **重建原型 Playground、Player/Toilet Prefab 和原型材质**，只在明确需要恢复生成场景时运行；不要用它覆盖人工修改的原型。普通队友使用已提交场景即可，不需要补接组件。脚本保存原 GUID、不改旧场景，构建列表将 Playground 放在第一位。
 
@@ -37,11 +37,15 @@
 
 ## 镜头
 
-第一人称使用眼部目标、Hard Lock To Target 和 Rotate With Follow Target。第三人称使用独立肩部目标与 Cinemachine Third Person Follow，内置障碍物处理只检测世界层。原型玩家在 Ignore Raycast 层，墙壁/设备仍有物理碰撞。
+第一人称使用眼部目标、Hard Lock To Target 和 Rotate With Follow Target。第三人称使用居中的跟随目标与 Cinemachine Third Person Follow，内置障碍物处理只检测世界层。原型玩家在 Ignore Raycast 层，墙壁/设备仍有物理碰撞。
 
 两台 Cinemachine Camera 只是虚拟镜头，每个进程只有一个实际 Camera/AudioListener。切换使用 EaseInOut Blend；离开的目标保持原姿势，避免 E 对齐或站起时瞬间反转。第一人称本地 Body Renderer 隐藏，第三人称移出身体后恢复；不修改共享资产、物理墙体或其他玩家渲染状态。
 
+2026-10-30 按用户反馈改为正后方居中近景：Third Person Distance **1.6**、Third Person Height **0.8**、Third Person Pitch **50°**、Shoulder Offset **0**。距离是 Cinemachine 沿观察方向的距离，高度是跟随目标高度；保留俯角以看见马桶内部。Shoulder Offset 是横向偏移参数，不表示把摄像机绑在人物肩膀上；当前默认没有左右偏移。
+
 Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance/Height/Pitch、Shoulder Offset、Transition Duration、Camera Collision Layers/Radius。当前没有墙体全局隐藏。C 可在任意位置测试姿态；要验证马桶内部构图，请走到马桶附近按 E。
+
+旧场景需要应用上述参数时，可以运行菜单 `NatureCalls/Center Playground Camera`；关闭 Editor 后也可用 `python3 scripts/unity.py camera`（Windows 用 `py -3`）。这只保存 Playground 的四个镜头参数，不重新生成地形、Prefab 或材质。已更新的仓库场景无需再次运行。
 
 ## 本地双客户端（无需 Unity Cloud）
 
@@ -70,6 +74,16 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 实际日志及测试结果见 [M1 验收记录](m1-2026-10-20.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。
 
 原型以可调镜头验证为目标，没有设施占用管理，多个玩家可能同时使用同一 Anchor；不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，未来设施、Tidiness 与胜负状态走 Host 权威。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。C 在任意地点切换不保证都有马桶构图；E Anchor 是本次可复现的可见性测试位置。
+
+## 2026-10-30 居中镜头回归
+
+按用户最新反馈将侧后方远景改为正后方近景；语义变化为 `NatureCalls/Gameplay/Player/Posture/Squatting`，批准来源记录于 Glossary。
+
+- Editor API 更新只改变场景四个镜头字段，场景 GUID 和其他对象引用保留。
+- PlayMode **5/5 通过**，新增实际镜头的横向居中、后方距离、朝向和人物屏幕中心断言；原马桶内部可见、全身入镜、Blend、返回方向断言仍通过。已查看实际 `squatting.png`。
+- 导入/编译通过；EditMode **4/4**、Python **17/17** 通过。
+- 本机日志：`Artifacts/20261029T151517Z-ce5a2d-camera/`、`Artifacts/20261029T151919Z-059aea-test-playmode/`、`Artifacts/20261029T152006Z-3e0dc2-test-editmode/`。目录使用 UTC，以上对应本地 10 月 30 日。
+- 原有三份未提交渲染设置保持原样，不包含在修复提交中。本次不重复验证 Relay/Windows/双进程联机，也不重建旧 `.app`；用更新后的 Editor 场景进行人工手感复验，旧构建不会自动获得新镜头。
 
 ## 官方依据
 
