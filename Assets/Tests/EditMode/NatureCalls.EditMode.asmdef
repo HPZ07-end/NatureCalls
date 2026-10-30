@@ -1,6 +1,18 @@
 {
   "name": "NatureCalls.EditMode",
   "rootNamespace": "NatureCalls.Tests",
-  "includePlatforms": ["Editor"],
-  "optionalUnityReferences": ["TestAssemblies"]
+  "includePlatforms": [
+    "Editor"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "references": [
+    "NatureCalls.Runtime",
+    "Unity.Cinemachine",
+    "Unity.Netcode.Runtime",
+    "Unity.InputSystem",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
+  ]
 }

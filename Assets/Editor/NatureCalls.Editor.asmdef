@@ -1,6 +1,16 @@
 {
   "name": "NatureCalls.Editor",
   "rootNamespace": "NatureCalls.Editor",
-  "references": ["NatureCalls.UI"],
-  "includePlatforms": ["Editor"]
+  "includePlatforms": [
+    "Editor"
+  ],
+  "references": [
+    "NatureCalls.UI",
+    "NatureCalls.Runtime",
+    "Unity.Cinemachine",
+    "Unity.Netcode.Runtime",
+    "Unity.InputSystem",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
+  ]
 }

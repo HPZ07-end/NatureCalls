@@ -21,7 +21,7 @@ namespace NatureCalls.Tests
             Assert.That(loadedScene.isLoaded, Is.True);
             var cameras = 0;
             foreach (var root in loadedScene.GetRootGameObjects())
-                cameras += root.GetComponentsInChildren<Camera>().Length;
+                cameras += root.GetComponentsInChildren<UnityEngine.Camera>().Length;
             Assert.That(cameras, Is.GreaterThan(0));
         }
 
