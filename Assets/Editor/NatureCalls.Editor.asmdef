@@ -1,5 +1,6 @@
 {
   "name": "NatureCalls.Editor",
   "rootNamespace": "NatureCalls.Editor",
+  "references": ["NatureCalls.UI"],
   "includePlatforms": ["Editor"]
 }
