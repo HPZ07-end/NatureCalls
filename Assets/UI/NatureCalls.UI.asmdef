@@ -1,7 +1,9 @@
 {
   "name": "NatureCalls.UI",
   "rootNamespace": "NatureCalls.UI",
-  "references": [],
+  "references": [
+    "NatureCalls.Runtime"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
