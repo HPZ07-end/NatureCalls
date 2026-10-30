@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,6 +35,16 @@ def check(require_generated=False):
                 json.loads(path.read_text(encoding="utf-8"))
             except (ValueError, UnicodeError) as error:
                 errors.append(f"{name}: {error}")
+        if path.suffix == ".md":
+            # Repository Markdown paths only; external URLs are not network-probed in CI.
+            markdown = re.sub(r"```.*?```", "", path.read_text(encoding="utf-8"), flags=re.DOTALL)
+            for link in re.findall(r"\[[^\]]*\]\(([^\s)]+)\)", markdown):
+                target = urlsplit(link.strip("<>"))
+                if target.scheme or target.netloc or not target.path:
+                    continue
+                destination = path.parent / unquote(target.path)
+                if not destination.exists():
+                    errors.append(f"Broken Markdown path in {name}: {link}")
         if name.startswith("Assets/") and path.suffix == ".meta":
             asset = Path(str(path)[:-5])
             if not asset.exists():

@@ -18,7 +18,7 @@
 | `Build/`、`Builds/`、`Artifacts/` | 忽略 | 平台构建产物、测试 XML 和日志；需要共享时单独作为 CI artifact/发布包提供 |
 | `.csproj`、`.sln`、个人 `.vscode/settings.json` | 忽略 | Unity/VS Code 在本机生成，不复制 Mac 的绝对路径给 Windows |
 | Unity 登录、许可、GitHub 凭证 | 不提交 | 每人独立完成登录和授权 |
-| `docs/C3.pdf`、`docs/C3.md` | 提交 | 设计依据；PDF 约 162 KB，普通 Git 足够，无需 LFS |
+| `docs/C3.pdf`、`docs/C3.md` | 提交 | 历史资料；语义以 Glossary 为准；PDF 约 162 KB，普通 Git 足够，无需 LFS |
 
 当前 macOS 专属部分只有 Homebrew 安装示例、Mac Editor 探测路径、`build-macos` 的 ARM64 `.app` 构建，以及本次 Mac 的验收记录。Mac 架构设置只在 `BuildMac` 调用期间临时生效，结束后恢复；`UNITY_STANDALONE_OSX` 条件编译隔离该段 API。没有把 `/Users/...` 路径写入资源、项目配置或工作区设置。
 
@@ -31,7 +31,7 @@ Unity 会在 `.meta`/`.asset` 的空值后生成空格。保留原始序列化�
 3. 用 PowerShell 克隆开发分支。建议使用较短的普通本地目录，减少路径长度和同步软件干扰：
 
 ```powershell
-git clone --branch dev1019 https://github.com/HPZ07-end/NatureCalls.git
+git clone --branch dev https://github.com/HPZ07-end/NatureCalls.git
 cd NatureCalls
 git lfs install --local
 git lfs pull
@@ -71,10 +71,12 @@ py -3 scripts/unity.py detect
 
 ## 日常协作
 
-开始工作前先确认所在分支和工作区状态，保存改动后再拉取。一个任务一个分支，经 PR 审核合并；不要直接推送自己未理解的 Unity 自动修改。
+统一遵循 [CONTRIBUTING](CONTRIBUTING.md)；实现约束见 [IMPLEMENTATION](IMPLEMENTATION.md)，完整验证与日志说明见 [TESTING](TESTING.md)。
 
-资源重命名和移动优先在 Unity 内操作，确保 `.meta` 一起变化。Windows 通常不区分文件名大小写，因此资源路径必须精确匹配；需要只改大小写时使用中间名分两次移动并检查 Git 差异。场景与 Prefab 约定负责人，避免同时修改同一资源。
+语义以 [GLOSSARY](../GLOSSARY.md) 为唯一权威。[C3](C3.md) 保留为历史设计转录，不把其中未纳入基线的机制视为开发承诺。
 
-将来的 PSD、FBX、音频等大文件，按实际素材规模选择 LFS；当前不为文本场景、Prefab、`.meta` 或小型设计 PDF 配置 LFS。新增 LFS 模式必须一起提交 `.gitattributes` 并用 `git lfs ls-files` 核实。
+## Mac 安装补充
 
-玩法讨论以 [C3 设计案](C3.md) 为依据：4 人是首版建议，人数、本地同屏/联网、部分资源用途仍待确定。文档转换不把待定方案变成开发承诺。
+先检查已有软件，缺失时可用 Homebrew 安装 `git git-lfs gh python`，应用使用 `unity-hub visual-studio-code` cask。不要在 Windows 安装 Homebrew。VS Code 推荐 C#、C# Dev Kit、Unity 三个扩展，ID 见 `.vscode/extensions.json`；每人本机安装并生成工程文件。
+
+Hub 中安装锁定的 Editor，优先 GUI；旧 Hub headless CLI 已弃用，工程自动化直接调用 Editor。基础 Mac Mono 构建不要求先装所有平台模块，IL2CPP/Xcode 在确需该构建链时安装。许可、账号和管理员授权由本人完成。
