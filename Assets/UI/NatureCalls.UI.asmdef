@@ -1,0 +1,5 @@
+{
+  "name": "NatureCalls.UI",
+  "rootNamespace": "NatureCalls.UI",
+  "references": ["NatureCalls.Player"]
+}

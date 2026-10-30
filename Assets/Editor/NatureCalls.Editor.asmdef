@@ -1,5 +1,10 @@
 {
   "name": "NatureCalls.Editor",
   "rootNamespace": "NatureCalls.Editor",
+  "references": [
+    "NatureCalls.Player",
+    "NatureCalls.Environment",
+    "NatureCalls.UI"
+  ],
   "includePlatforms": ["Editor"]
 }

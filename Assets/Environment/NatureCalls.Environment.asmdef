@@ -1,0 +1,5 @@
+{
+  "name": "NatureCalls.Environment",
+  "rootNamespace": "NatureCalls.Environment",
+  "references": ["NatureCalls.Player", "NatureCalls.UI"]
+}
