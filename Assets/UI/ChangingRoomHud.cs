@@ -35,13 +35,13 @@ namespace NatureCalls.UI
         {
             if (outfitController == null)
                 return;
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
+            if (UnityEngine.Input.GetKeyDown(KeyCode.LeftArrow) || UnityEngine.Input.GetKeyDown(KeyCode.A))
                 outfitController.PreviewNext(-1);
-            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
+            if (UnityEngine.Input.GetKeyDown(KeyCode.RightArrow) || UnityEngine.Input.GetKeyDown(KeyCode.D))
                 outfitController.PreviewNext(1);
-            if (Input.GetKeyDown(KeyCode.Return))
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Return))
                 confirmAction?.Invoke();
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
                 cancelAction?.Invoke();
         }
 

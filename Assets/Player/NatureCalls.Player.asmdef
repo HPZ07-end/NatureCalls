@@ -1,5 +1,0 @@
-{
-  "name": "NatureCalls.Player",
-  "rootNamespace": "NatureCalls.Player",
-  "references": ["NatureCalls.Core"]
-}

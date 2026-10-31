@@ -1,6 +1,6 @@
 using System.IO;
 using System.Linq;
-using NatureCalls.Environment;
+using NatureCalls.Facility;
 using NatureCalls.Player;
 using NatureCalls.UI;
 using UnityEditor;
@@ -13,13 +13,20 @@ namespace NatureCalls.Editor
     public static class ChangingRoomSceneBuilder
     {
         private const string ScenePath = "Assets/Scenes/ChangingRoom.unity";
-        private const string MaterialFolder = "Assets/Environment/ChangingRoom/Materials";
+        private const string MaterialFolder = "Assets/Facility/ChangingRoom/Materials";
+        private const string PlayerPrefabPath = "Assets/Prefabs/ChangingRoomPlayer.prefab";
 
         [MenuItem("NatureCalls/Changing Room/Build Scene")]
         public static void BuildScene()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 return;
+
+            BuildSceneForAutomation();
+        }
+
+        public static void BuildSceneForAutomation()
+        {
 
             EnsureFolders();
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -33,7 +40,6 @@ namespace NatureCalls.Editor
             var accent = Material("Accent", new Color(0.13f, 0.82f, 0.85f));
             var magenta = Material("Magenta", new Color(0.92f, 0.2f, 0.58f));
             var platformMaterial = Material("Platform", new Color(0.16f, 0.36f, 0.48f));
-            var playerMaterial = Material("Player", new Color(0.18f, 0.48f, 0.95f));
 
             Cube("Floor", architecture.transform, new Vector3(0f, -0.25f, 0f), new Vector3(18f, 0.5f, 14f), dark);
             Cube("BackWall", architecture.transform, new Vector3(0f, 3f, 5.75f), new Vector3(18f, 6f, 0.5f), wall);
@@ -60,24 +66,13 @@ namespace NatureCalls.Editor
             CreateDisplay("Display_Repair", new Vector3(4.6f, 0f, 3.7f), new Color(1f, 0.45f, 0.1f), architecture.transform);
             CreateDisplay("Display_Party", new Vector3(6f, 0f, 3.7f), new Color(0.95f, 0.24f, 0.58f), architecture.transform);
 
-            var player = new GameObject("Player");
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
+            if (playerPrefab == null)
+                throw new FileNotFoundException("Generate the shared changing-room player prefab first.", PlayerPrefabPath);
+            var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab, scene);
+            player.name = "Player";
             player.transform.SetParent(gameplay.transform);
             player.transform.position = new Vector3(0f, 0f, -4.6f);
-            var characterController = player.AddComponent<CharacterController>();
-            characterController.center = new Vector3(0f, 1f, 0f);
-            characterController.height = 2f;
-            characterController.radius = 0.45f;
-            player.AddComponent<SimplePlayerController>();
-
-            var visual = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            visual.name = "AvatarVisual";
-            visual.transform.SetParent(player.transform);
-            visual.transform.localPosition = new Vector3(0f, 1f, 0f);
-            visual.transform.localScale = new Vector3(0.8f, 1f, 0.8f);
-            Object.DestroyImmediate(visual.GetComponent<Collider>());
-            visual.GetComponent<Renderer>().sharedMaterial = playerMaterial;
-            var outfit = player.AddComponent<PlayerOutfitController>();
-            SetObjectReference(outfit, "bodyRenderer", visual.GetComponent<Renderer>());
 
             var hudObject = new GameObject("ChangingRoomHUD");
             hudObject.transform.SetParent(gameplay.transform);
@@ -88,7 +83,7 @@ namespace NatureCalls.Editor
             var cameraObject = new GameObject("Main Camera");
             cameraObject.tag = "MainCamera";
             cameraObject.transform.position = new Vector3(0f, 6.5f, -13.5f);
-            var camera = cameraObject.AddComponent<Camera>();
+            var camera = cameraObject.AddComponent<UnityEngine.Camera>();
             camera.fieldOfView = 55f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.025f, 0.035f, 0.06f);
@@ -157,15 +152,16 @@ namespace NatureCalls.Editor
         private static Material Material(string name, Color color)
         {
             var path = MaterialFolder + "/" + name + ".mat";
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (existing != null)
             {
+                existing.shader = shader;
                 existing.color = color;
                 EditorUtility.SetDirty(existing);
                 return existing;
             }
 
-            var shader = Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit");
             var material = new Material(shader) { name = name, color = color };
             AssetDatabase.CreateAsset(material, path);
             return material;
@@ -175,7 +171,7 @@ namespace NatureCalls.Editor
         {
             var folders = new[]
             {
-                "Assets/Environment/ChangingRoom",
+                "Assets/Facility/ChangingRoom",
                 MaterialFolder
             };
             foreach (var folder in folders)

@@ -48,6 +48,18 @@ namespace NatureCalls.Editor
             Validate();
         }
 
+        public static void Playground()
+        {
+            NatureCalls.Editor.Playground.Create();
+            Validate();
+        }
+
+        public static void Camera()
+        {
+            NatureCalls.Editor.Playground.CenterCamera();
+            Validate();
+        }
+
         [MenuItem("NatureCalls/Validate")]
         public static void Validate()
         {

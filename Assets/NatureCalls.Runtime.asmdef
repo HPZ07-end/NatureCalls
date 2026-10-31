@@ -1,0 +1,16 @@
+{
+  "name": "NatureCalls.Runtime",
+  "rootNamespace": "NatureCalls",
+  "references": [
+    "NatureCalls.Core",
+    "Unity.InputSystem",
+    "Unity.Cinemachine",
+    "Unity.Netcode.Runtime",
+    "Unity.Networking.Transport",
+    "Unity.Services.Core",
+    "Unity.Services.Authentication",
+    "Unity.Services.Multiplayer",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.Services.Core.Environments"
+  ]
+}

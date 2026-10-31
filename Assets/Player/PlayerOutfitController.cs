@@ -5,7 +5,7 @@ namespace NatureCalls.Player
 {
     public sealed class PlayerOutfitController : MonoBehaviour
     {
-        [SerializeField] private Renderer bodyRenderer;
+        [SerializeField] private PlayerAppearance appearance;
         [SerializeField] private string[] outfitNames = { "Default Blue", "Cleanup Green", "Repair Orange", "Party Pink" };
         [SerializeField] private Color[] outfitColors =
         {
@@ -16,7 +16,6 @@ namespace NatureCalls.Player
         };
 
         private OutfitSelection selection;
-        private Material runtimeMaterial;
 
         public int PreviewIndex => selection.PreviewIndex;
         public string PreviewName => outfitNames[selection.PreviewIndex];
@@ -24,15 +23,10 @@ namespace NatureCalls.Player
 
         private void Awake()
         {
+            if (appearance == null)
+                appearance = GetComponent<PlayerAppearance>();
             selection = new OutfitSelection(Mathf.Min(outfitNames.Length, outfitColors.Length));
-            runtimeMaterial = bodyRenderer.material;
             Apply(0);
-        }
-
-        private void OnDestroy()
-        {
-            if (runtimeMaterial != null)
-                Destroy(runtimeMaterial);
         }
 
         public void BeginSelection()
@@ -60,7 +54,7 @@ namespace NatureCalls.Player
 
         private void Apply(int index)
         {
-            runtimeMaterial.color = outfitColors[index];
+            appearance.ApplyOutfit(index, outfitColors[index]);
         }
     }
 }

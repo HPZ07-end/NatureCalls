@@ -1,5 +1,15 @@
 {
   "name": "NatureCalls.PlayMode",
   "rootNamespace": "NatureCalls.Tests",
-  "optionalUnityReferences": ["TestAssemblies"]
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "references": [
+    "NatureCalls.Runtime",
+    "Unity.Cinemachine",
+    "Unity.Netcode.Runtime",
+    "Unity.InputSystem",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
+  ]
 }
