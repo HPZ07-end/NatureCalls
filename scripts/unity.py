@@ -73,6 +73,16 @@ def check_results(path):
     return {"total": len(cases), "passed": len(cases)}
 
 
+def use_nographics(platform=None, environment=None):
+    """Use headless graphics by default off Windows; allow an explicit override."""
+    platform = sys.platform if platform is None else platform
+    environment = os.environ if environment is None else environment
+    override = environment.get("UNITY_NOGRAPHICS")
+    if override is not None:
+        return override.strip().lower() in {"1", "true", "yes", "on"}
+    return platform != "win32"
+
+
 def run(action, timeout):
     editor = editor_path()
     with project_lock():
@@ -83,10 +93,12 @@ def run(action, timeout):
         build = ROOT / "Builds/macOS" / stamp / "NatureCalls.app"
         command = [str(editor), "-batchmode", "-projectPath", str(ROOT), "-logFile", str(directory / "editor.log")]
         if action in ("setup", "validate", "playground", "camera"):
-            command += ["-nographics", "-quit", "-executeMethod", "NatureCalls.Editor.Automation." +
+            if use_nographics():
+                command += ["-nographics"]
+            command += ["-quit", "-executeMethod", "NatureCalls.Editor.Automation." +
                         {"setup": "Setup", "playground": "Playground", "camera": "Camera", "validate": "Validate"}[action]]
         elif action in ("test-editmode", "test-playmode"):
-            if action == "test-editmode":
+            if action == "test-editmode" and use_nographics():
                 command += ["-nographics"]
             # Test Framework exits itself; -quit can exit before tests finish.
             command += ["-runTests", "-testPlatform", "EditMode" if action == "test-editmode" else "PlayMode",
