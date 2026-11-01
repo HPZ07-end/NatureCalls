@@ -14,7 +14,7 @@ namespace NatureCalls.Editor
     {
         private const string ScenePath = "Assets/Scenes/ChangingRoom.unity";
         private const string MaterialFolder = "Assets/Facility/ChangingRoom/Materials";
-        private const string PlayerPrefabPath = "Assets/Prefabs/ChangingRoomPlayer.prefab";
+        private const string PlayerPrefabPath = "Assets/Prefabs/Characters/ChangingRoomPlayer.prefab";
 
         [MenuItem("NatureCalls/Changing Room/Build Scene")]
         public static void BuildScene()
