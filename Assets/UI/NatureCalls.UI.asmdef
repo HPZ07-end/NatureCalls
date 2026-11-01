@@ -2,7 +2,8 @@
   "name": "NatureCalls.UI",
   "rootNamespace": "NatureCalls.UI",
   "references": [
-    "NatureCalls.Runtime"
+    "NatureCalls.Runtime",
+    "Unity.Netcode.Runtime"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
