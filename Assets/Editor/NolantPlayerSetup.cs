@@ -26,6 +26,10 @@ namespace NatureCalls.Editor
         private static Movement inputProbeMovement;
         private static Vector3 inputProbeStart;
         private static int inputProbeFrames;
+        private static Movement jumpProbeMovement;
+        private static float jumpProbeStartY;
+        private static float jumpProbeMaxY;
+        private static int jumpProbeFrames;
 
         [MenuItem("NatureCalls/Configure Nolant WASD Player")]
         public static void Configure()
@@ -181,6 +185,40 @@ namespace NatureCalls.Editor
             var end = inputProbeMovement != null ? inputProbeMovement.transform.position : inputProbeStart;
             Debug.Log($"WASD_INPUT_PROBE_OK|frames={inputProbeFrames}|from={Format(inputProbeStart)}|to={Format(end)}|distance={Vector3.Distance(inputProbeStart, end):F3}");
             inputProbeMovement = null;
+        }
+
+        [MenuItem("NatureCalls/Run Space Jump Probe")]
+        public static void RunSpaceJumpProbe()
+        {
+            if (!EditorApplication.isPlaying) throw new InvalidOperationException("Enter Play Mode first.");
+            var map = UnityEngine.Object.FindFirstObjectByType<NatureCalls.Map.Playground>();
+            if (map == null || map.OfflinePlayer == null) throw new InvalidOperationException("Offline practice player is not active.");
+            if (Keyboard.current == null) throw new InvalidOperationException("The Input System has no current keyboard.");
+
+            EditorApplication.update -= TickSpaceJumpProbe;
+            jumpProbeMovement = map.OfflinePlayer;
+            jumpProbeStartY = jumpProbeMovement.transform.position.y;
+            jumpProbeMaxY = jumpProbeStartY;
+            jumpProbeFrames = 0;
+            InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(Key.Space));
+            EditorApplication.update += TickSpaceJumpProbe;
+        }
+
+        private static void TickSpaceJumpProbe()
+        {
+            jumpProbeFrames++;
+            if (jumpProbeMovement != null) jumpProbeMaxY = Mathf.Max(jumpProbeMaxY, jumpProbeMovement.transform.position.y);
+            if (jumpProbeFrames == 2 && Keyboard.current != null)
+                InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+            if (jumpProbeFrames < 40) return;
+
+            EditorApplication.update -= TickSpaceJumpProbe;
+            var rise = jumpProbeMaxY - jumpProbeStartY;
+            var success = jumpProbeMovement != null && rise > .2f;
+            Debug.Log($"SPACE_JUMP_INPUT_PROBE_{(success ? "OK" : "FAILED")}|frames={jumpProbeFrames}|" +
+                $"startY={jumpProbeStartY:F3}|maxY={jumpProbeMaxY:F3}|rise={rise:F3}");
+            jumpProbeMovement = null;
+            if (!success) throw new InvalidOperationException("Space did not produce a grounded player jump through the InputAction.");
         }
 
         private static Bounds RendererBounds(Transform root)

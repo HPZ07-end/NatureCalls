@@ -142,10 +142,16 @@ namespace NatureCalls.Editor
                     UnityEngine.Object.DestroyImmediate(collider, true);
                 var oldGroup = contents.transform.Find(ColliderGroupName);
                 if (oldGroup != null) UnityEngine.Object.DestroyImmediate(oldGroup.gameObject);
+                var oldCubicleGroup = cubicle.Find(ColliderGroupName);
+                if (oldCubicleGroup != null) UnityEngine.Object.DestroyImmediate(oldCubicleGroup.gameObject);
 
-                var bounds = LocalRendererBounds(contents.transform, cubicle.GetComponentsInChildren<Renderer>(true));
+                var doorLeaf = cubicle.Find("door");
+                var wallRenderers = cubicle.GetComponentsInChildren<Renderer>(true)
+                    .Where(renderer => doorLeaf == null || (renderer.transform != doorLeaf && !renderer.transform.IsChildOf(doorLeaf)))
+                    .ToArray();
+                var bounds = LocalRendererBounds(cubicle, wallRenderers);
                 var group = new GameObject(ColliderGroupName).transform;
-                group.SetParent(contents.transform, false);
+                group.SetParent(cubicle, false);
                 var thickness = Mathf.Clamp(Mathf.Min(bounds.size.x, bounds.size.z) * .06f, .06f, .10f);
                 CreateBox(group, "Left wall collider",
                     new Vector3(bounds.min.x + thickness * .5f, bounds.center.y, bounds.center.z),
@@ -154,7 +160,7 @@ namespace NatureCalls.Editor
                     new Vector3(bounds.max.x - thickness * .5f, bounds.center.y, bounds.center.z),
                     new Vector3(thickness, bounds.size.y, bounds.size.z));
                 CreateBox(group, "Back wall collider",
-                    new Vector3(bounds.center.x, bounds.center.y, bounds.max.z - thickness * .5f),
+                    new Vector3(bounds.center.x, bounds.center.y, bounds.min.z + thickness * .5f),
                     new Vector3(bounds.size.x, bounds.size.y, thickness));
 
                 if (PrefabUtility.SaveAsPrefabAsset(contents, StallPrefabPath) == null)

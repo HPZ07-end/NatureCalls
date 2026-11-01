@@ -77,9 +77,9 @@ namespace NatureCalls.Editor
 
             var storage = NewGroup("Storage and paper", root);
             Place(shelf, storage, "Back-left shelf", new Vector3(-2.859f, 0, 3.385f), 0);
-            Place(paper, storage, "Paper roll 1", new Vector3(-3.059f, 1.05f, 3.285f), 0);
-            Place(paper, storage, "Paper roll 2", new Vector3(-2.759f, 1.05f, 3.285f), 0);
-            Place(paper, storage, "Paper roll 3", new Vector3(-2.909f, 1.05f, 3.555f), 90);
+            PlacePaper(paper, storage, "Paper roll 1", new Vector3(-3.059f, 1.05f, 3.285f), 0);
+            PlacePaper(paper, storage, "Paper roll 2", new Vector3(-2.759f, 1.05f, 3.285f), 0);
+            PlacePaper(paper, storage, "Paper roll 3", new Vector3(-2.909f, 1.05f, 3.555f), 90);
             Place(shelf, storage, "Front shelf near urinals", new Vector3(2.33f, 0, -5.738f), 90);
 
             EditorSceneManager.MarkSceneDirty(scene);
@@ -158,6 +158,14 @@ namespace NatureCalls.Editor
             instance.transform.SetParent(parent, false);
             instance.transform.SetPositionAndRotation(position, Quaternion.Euler(0, yRotation, 0));
             AddColliderIfMissing(instance);
+            return instance;
+        }
+
+        private static GameObject PlacePaper(GameObject prefab, Transform parent, string name, Vector3 position, float yRotation)
+        {
+            var instance = Place(prefab, parent, name, position, yRotation);
+            if (instance.GetComponent<NatureCalls.Facility.PaperRoll>() == null)
+                Undo.AddComponent<NatureCalls.Facility.PaperRoll>(instance);
             return instance;
         }
 
