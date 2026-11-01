@@ -1,10 +1,10 @@
 # 实际开发状态
 
-更新日期：2026-10-30。治理 [PR #1](https://github.com/HPZ07-end/NatureCalls/pull/1) 已合并到 `dev`，提交 `ebdfa31879363864f9fa1b26ca0c2dab5084f447`。M1 从该基线建立 `feat/multiplayer-playground`；本次实现等待独立 PR Review，不自动合并。
+更新日期：2026-11-01。治理 [PR #1](https://github.com/HPZ07-end/NatureCalls/pull/1) 已合并到 `dev`，提交 `ebdfa31879363864f9fa1b26ca0c2dab5084f447`。M1 从该基线建立 `feat/multiplayer-playground`；本次实现等待独立 PR Review，不自动合并。
 
 | 类别 | 实际状态 |
 | --- | --- |
-| 已实现 | 原有配置/编译/测试/构建工具、语义治理；新增 URP Playground、Player/Toilet Prefab、第一人称移动、姿态与第三人称 Blend、Anchor 交互、Host/Join/Leave UI、NGO 位置/朝向/姿态同步、本地双 Player 验证工具 |
+| 已实现 | 原有配置/编译/测试/构建工具、语义治理；新增 URP Playground、Player/Toilet Prefab、第一人称移动、姿态与第三人称 Blend、Anchor 交互、Host/Join/Leave UI、NGO 位置/朝向/姿态同步、本地双 Player 验证工具；独立 DressingRoom 灰盒、无网络的本地练习玩家/相机、镜子范围内 E 键换装面板入口、门前 E 键进入独立 LobbyUI 场景、固定的 Lobby 返回准备房入口、本地四人自动开始 Mock 与回归测试 |
 | 已编写但缺服务验收 | MPS Session + Relay Join Code、匿名认证及连接失败反馈；Cloud 尚未关联，不能声称真实 Relay 联机成功 |
 | 正在推进 | M1 功能分支 Review、MPPM GUI/人工键鼠手感、Cloud 关联、Windows 与真实跨设备验收 |
 | 已规划 | 依实际需求进行 Stage 2/3、正式 Gameplay 闭环、Map 配置、共享规则的 Host 权威、跨平台联调和发布 |
@@ -20,3 +20,5 @@ M1 的 2–4 人、第一人称/如厕第三人称与官方网络技术栈来自
 本任务未修改 GitHub 默认分支或保护规则；2026-10-20 读取到默认分支仍为 `dev1019`。旧治理记录中的权限限制不能视为已经解除，本次不绕过 Review 或更改长期分支。
 
 2026-10-30 按用户反馈将 Squatting 镜头调整为正后方居中近景，距离 1.6、目标高度 0.8、俯角 50°、横向偏移 0；不变更角色或网络状态机制。源码、已有场景与生成默认值同时更新，最新回归记录见 [PLAYGROUND](PLAYGROUND.md)。原 10 月 20 日验收记录保留为历史快照。
+
+2026-11-01 已获用户确认：DressingRoom 为独立换装准备场景；玩家进门后进入联机大厅，房间达到四名玩家时自动开始正式游戏。本次完成准备场景的本地镜子互动与换装 UI 占位，以及门前 E 键进入独立 LobbyUI 场景和四人自动开始 Mock；不包含真实外观替换、真实联机、跨客户端房间加入或进入正式游戏场景。

@@ -108,6 +108,22 @@ namespace NatureCalls.Tests
             Assert.That(Vector2.Distance(new Vector2(start.x, start.z), new Vector2(player.transform.position.x, player.transform.position.z)), Is.LessThan(.01f));
         }
         [UnityTest]
+        public IEnumerator InputStillUsesToiletWhenNoMirrorIsNearby()
+        {
+            var player = world.OfflinePlayer;
+            Toilet toilet = null;
+            foreach (var root in scene.GetRootGameObjects()) if (root.TryGetComponent(out Toilet found)) toilet = found;
+            Assert.That(toilet, Is.Not.Null);
+            var controller = player.GetComponent<CharacterController>();
+            controller.enabled = false;
+            player.transform.position = toilet.Anchor.position - Vector3.forward * .3f;
+            controller.enabled = true;
+
+            Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryInteract(), Is.True);
+            Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Squatting));
+            yield return null;
+        }
+        [UnityTest]
         public IEnumerator CameraBlendsAndInteriorIsVisible()
         {
             var player = world.OfflinePlayer;
