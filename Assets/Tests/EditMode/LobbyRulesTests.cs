@@ -20,6 +20,17 @@ namespace NatureCalls.Tests
         }
 
         [Test]
+        public void LanRoomCodesSkipSelfAssignedAddresses()
+        {
+            foreach (var address in NatureCalls.Network.Session.LocalAddresses())
+            {
+                Assert.That(System.Net.IPAddress.TryParse(address, out var parsed), Is.True, address);
+                Assert.That(parsed.AddressFamily, Is.EqualTo(System.Net.Sockets.AddressFamily.InterNetwork), address);
+                Assert.That(address, Does.Not.StartWith("169.254."), "Self-assigned addresses are unreachable room codes.");
+            }
+        }
+
+        [Test]
         public void MapSelectionKeepsExplicitChoicesAndResolvesRandom()
         {
             Assert.That(MapSelection.Resolve(1, 3, _ => throw new InvalidOperationException()), Is.EqualTo(1));

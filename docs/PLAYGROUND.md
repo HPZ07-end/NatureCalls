@@ -94,7 +94,8 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 校园网等公共网络的注意事项：
 
 - 直连要求两台电脑之间 UDP 7777 可达。很多校园 Wi-Fi 开启了终端隔离，或把设备放在不同子网/NAT 后面，这时加入方会超时。能 `ping` 通不代表 UDP 一定放行。
-- 房主有多块网卡（有线与无线、VPN、虚拟网卡）时，大厅显示的是第一个可用 IPv4，不一定是对方能访问的那个；以系统网络设置中的实际地址为准。
+- 房主有多块网卡（有线与无线、VPN、虚拟网卡、Tailscale）时，大厅先显示最可能可达的地址（有网关的网卡、局域网网段优先），其余列在「其他」后面；跳过 `169.254.x.x` 自分配地址（没连上网络的网卡）。仍不确定时以系统网络设置中的实际地址为准，两台电脑地址的前三段应相同（如都是 `172.20.10.x`）。
+- 加入方报 `Failed to connect to server` 且 Editor 日志出现 `Baselib failed to send`：数据包没能从本机发出，通常是填的地址不在本机能到达的网段（例如 `169.254.x.x`）。macOS 15 及以后还需在「隐私与安全性 → 本地网络」中允许 Unity。
 - 直连不通时：两人连同一个手机热点或路由器；或用组网工具（如 Tailscale、ZeroTier）后输入其虚拟局域网地址；或关联 Unity Cloud 后使用 Relay Join Code（见下一节）。
 
 直接打开 Playground 场景时没有连接菜单，只有离线练习和左上角「退出」；不经过大厅的双进程直连诊断使用 `scripts/multiplayer.py`（见 [TESTING](TESTING.md)）。

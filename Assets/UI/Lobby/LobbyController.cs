@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using NatureCalls.Core;
 using NatureCalls.Map;
@@ -231,7 +232,7 @@ namespace NatureCalls.UI
 
         private void RefreshRoom(LobbyRoom room, Session session)
         {
-            view.RoomCode.text = "房间号：" + (session.IsRelay ? session.JoinCode : Session.LocalAddress() + "（局域网）");
+            view.RoomCode.text = "房间号：" + (session.IsRelay ? session.JoinCode : LanRoomCode());
             var catalog = LocalCatalog;
             for (int slot = 0; slot < view.Slots.Length; slot++)
             {
@@ -263,6 +264,14 @@ namespace NatureCalls.UI
         }
 
         // ---- Helpers ----
+
+        // The best guess first; other candidates (second adapter, Tailscale) follow in case it is the wrong one.
+        private static string LanRoomCode()
+        {
+            var addresses = Session.LocalAddresses();
+            if (addresses.Length == 0) return "未找到局域网地址（检查网络连接）";
+            return addresses[0] + "（局域网）" + (addresses.Length > 1 ? "  其他：" + string.Join("、", addresses.Skip(1)) : "");
+        }
 
         private static LobbyRoom Room => LobbyRoom.Current;
         private static bool InRoom => LobbyRoom.Current != null;

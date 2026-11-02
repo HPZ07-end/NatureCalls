@@ -174,18 +174,35 @@ namespace NatureCalls.Network
             }
             finally { Busy = false; }
         }
-        /// <summary>The first IPv4 LAN address, shown as the room code of a direct (no Relay) room.</summary>
-        public static string LocalAddress()
+        /// <summary>The most likely reachable IPv4 address, shown as the room code of a direct (no Relay) room.</summary>
+        public static string LocalAddress() => LocalAddresses().FirstOrDefault() ?? "127.0.0.1";
+
+        /// <summary>
+        /// Usable IPv4 addresses, best first: adapters with a gateway, then private LAN ranges, then the rest
+        /// (e.g. Tailscale). Self-assigned 169.254.x.x addresses (adapters without a network) are skipped.
+        /// </summary>
+        public static string[] LocalAddresses()
         {
+            var found = new List<(string address, int rank)>();
             foreach (var adapter in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (adapter.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up ||
                     adapter.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
-                foreach (var address in adapter.GetIPProperties().UnicastAddresses)
-                    if (address.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                        return address.Address.ToString();
+                System.Net.NetworkInformation.IPInterfaceProperties properties;
+                try { properties = adapter.GetIPProperties(); } catch (Exception) { continue; }
+                bool hasGateway;
+                try { hasGateway = properties.GatewayAddresses.Any(gateway => gateway.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork); }
+                catch (Exception) { hasGateway = false; }
+                foreach (var unicast in properties.UnicastAddresses)
+                {
+                    if (unicast.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) continue;
+                    var bytes = unicast.Address.GetAddressBytes();
+                    if (bytes[0] == 169 && bytes[1] == 254) continue;
+                    bool lan = bytes[0] == 10 || (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) || (bytes[0] == 192 && bytes[1] == 168);
+                    found.Add((unicast.Address.ToString(), (hasGateway ? 0 : 2) + (lan ? 0 : 1)));
+                }
             }
-            return "127.0.0.1";
+            return found.OrderBy(item => item.rank).Select(item => item.address).Distinct().ToArray();
         }
         public bool StartDirect(bool host, string address = "127.0.0.1")
         {
