@@ -6,6 +6,7 @@ using PlayerInput = NatureCalls.Input.PlayerInput;
 namespace NatureCalls.Network
 {
     [RequireComponent(typeof(NetworkObject), typeof(Movement), typeof(Posture))]
+    [RequireComponent(typeof(PlayerAppearance))]
     public sealed class Avatar : NetworkBehaviour
     {
         public NetworkVariable<PostureState> SharedPosture = new(PostureState.Standing,
@@ -13,6 +14,7 @@ namespace NatureCalls.Network
         public NetworkVariable<int> ColorIndex = new(0);
         private Movement movement;
         private Posture posture;
+        private PlayerAppearance appearance;
         private Map.Playground world;
         private static readonly Color[] Colors = { new(.12f, .5f, .9f), new(.95f, .35f, .15f), new(.65f, .3f, .85f), new(.15f, .75f, .4f) };
 
@@ -20,6 +22,7 @@ namespace NatureCalls.Network
         {
             movement = GetComponent<Movement>();
             posture = GetComponent<Posture>();
+            appearance = GetComponent<PlayerAppearance>();
             world = FindFirstObjectByType<Map.Playground>();
             if (IsServer) ColorIndex.Value = FindFirstObjectByType<Session>().Slot(OwnerClientId);
             ColorIndex.OnValueChanged += ColorChanged;
@@ -36,9 +39,7 @@ namespace NatureCalls.Network
         private void PostureChanged(PostureState previous, PostureState current) { posture.Set(current); }
         private void ColorChanged(int previous, int current)
         {
-            var block = new MaterialPropertyBlock();
-            block.SetColor("_BaseColor", Colors[Mathf.Abs(current) % Colors.Length]);
-            foreach (var renderer in movement.Body.GetComponentsInChildren<Renderer>()) renderer.SetPropertyBlock(block);
+            appearance.ApplyIdentityColor(Colors[Mathf.Abs(current) % Colors.Length]);
         }
         public override void OnNetworkDespawn()
         {

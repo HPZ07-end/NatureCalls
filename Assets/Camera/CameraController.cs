@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Unity.Cinemachine;
 using NatureCalls.Player;
@@ -7,6 +9,7 @@ namespace NatureCalls.Camera
     [DefaultExecutionOrder(-20)]
     public sealed class CameraController : MonoBehaviour
     {
+        public const int LocalBodyLayer = 30;
         public UnityEngine.Camera Output;
         public CinemachineBrain Brain;
         public CinemachineCamera FirstPerson;
@@ -24,10 +27,13 @@ namespace NatureCalls.Camera
         public Movement Target { get; private set; }
         private Posture posture;
         private Renderer[] body;
+        private Dictionary<GameObject, int> originalBodyLayers;
+        private int outputCullingMask;
         private CinemachineThirdPersonFollow follow;
 
         private void Awake()
         {
+            outputCullingMask = Output.cullingMask;
             follow = ThirdPerson.GetComponent<CinemachineThirdPersonFollow>();
             Unbind();
         }
@@ -37,6 +43,9 @@ namespace NatureCalls.Camera
             Target = target;
             posture = target.GetComponent<Posture>();
             body = target.Body.GetComponentsInChildren<Renderer>();
+            originalBodyLayers = body.Select(renderer => renderer.gameObject).Distinct()
+                .ToDictionary(item => item, item => item.layer);
+            foreach (var item in originalBodyLayers.Keys) item.layer = LocalBodyLayer;
             Eye.SetPositionAndRotation(target.transform.position + Vector3.up * EyeHeight, target.ViewRotation);
             FirstPerson.gameObject.SetActive(true);
             ThirdPerson.gameObject.SetActive(true);
@@ -49,7 +58,11 @@ namespace NatureCalls.Camera
         {
             if (posture != null) posture.Changed -= SetPosture;
             if (body != null) foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
+            if (originalBodyLayers != null)
+                foreach (var pair in originalBodyLayers) if (pair.Key != null) pair.Key.layer = pair.Value;
+            Output.cullingMask = outputCullingMask;
             Target = null; posture = null; body = null;
+            originalBodyLayers = null;
             FirstPerson.gameObject.SetActive(false);
             ThirdPerson.gameObject.SetActive(false);
             Brain.enabled = false;
@@ -67,9 +80,10 @@ namespace NatureCalls.Camera
         {
             if (Target == null) return;
             UpdateTargets();
-            // Per-renderer visibility affects only this process, never network state or physics.
+            // Hide only from the local first-person output. Mirror cameras still render this layer.
             bool hidden = !posture.IsSquatting || Vector3.Distance(Output.transform.position, Eye.position) < .65f;
-            foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = hidden;
+            Output.cullingMask = hidden ? outputCullingMask & ~(1 << LocalBodyLayer) : outputCullingMask;
+            foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
         }
         public void UpdateTargets()
         {

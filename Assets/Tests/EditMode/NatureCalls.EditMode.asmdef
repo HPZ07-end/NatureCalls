@@ -8,6 +8,7 @@
     "TestAssemblies"
   ],
   "references": [
+    "NatureCalls.Core",
     "NatureCalls.Runtime",
     "Unity.Cinemachine",
     "Unity.Netcode.Runtime",

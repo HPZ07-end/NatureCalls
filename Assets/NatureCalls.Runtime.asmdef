@@ -2,6 +2,7 @@
   "name": "NatureCalls.Runtime",
   "rootNamespace": "NatureCalls",
   "references": [
+    "NatureCalls.Core",
     "Unity.InputSystem",
     "Unity.Cinemachine",
     "Unity.Netcode.Runtime",
