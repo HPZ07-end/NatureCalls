@@ -7,12 +7,12 @@
 ## 打开工程
 
 1. 安装 Unity Hub 和 **6000.3.26f1**，本人完成登录与许可。Mac/Windows 使用同一补丁版本。
-2. 克隆仓库，切换团队的 `dev` 分支（M1 合并前使用 `feat/multiplayer-playground`）；在根目录运行 `git lfs install --local`、`git lfs pull`。
+2. 克隆仓库，切换团队的 `dev` 分支；在根目录运行 `git lfs install --local`、`git lfs pull`。
 3. Hub → Add project from disk，选择包含 `Assets`、`Packages`、`ProjectSettings` 的根目录。
 4. 打开 `Assets/Scenes/Playground.unity`，点击 Play。点击菜单右侧画面后用 WASD / 鼠标操作，Space 跳跃、C 切姿态、E 拾取卷纸或操作隔间门/马桶、R 丢掷卷纸、Esc 释放鼠标。
 5. 双客户端：展开 `Local / LAN test tools`，一端 `Local Host`，另一端填 `127.0.0.1` 后 `Local Join`。跨机器改填 Host 局域网地址。Relay Join Code 需要先配置 Cloud，见 [Playground 指南](docs/PLAYGROUND.md)。
 
-平台安装、VS Code 和命令行入口见 [development](docs/development.md)。
+平台安装、VS Code 和命令行入口见 [development](docs/DEVELOPMENT.md)。
 
 ## 工程概览
 
@@ -21,7 +21,6 @@
 ## 文档导航
 
 - 共同语义：[GLOSSARY](GLOSSARY.md)；Agent 入口：[AGENTS](AGENTS.md)。
-- 原型启动、联机与镜头：[PLAYGROUND](docs/PLAYGROUND.md)。
-- 开发：[CONTRIBUTING](docs/CONTRIBUTING.md) · [IMPLEMENTATION](docs/IMPLEMENTATION.md) · [TESTING](docs/TESTING.md)。
-- 计划与记录：[ROADMAP](docs/ROADMAP.md) · [DEVELOPMENT_STATUS](docs/DEVELOPMENT_STATUS.md) · [RELEASES](docs/RELEASES.md) · [治理记录](docs/governance-2026-10-19.md)。
-- 历史资料：[C3 转录](docs/C3.md) · [原始 PDF](docs/C3.pdf) · [首次环境验收](docs/setup-2026-10-19.md)。历史设计不覆盖 Glossary。
+- 全部技术文档及放置规则：[docs 索引](docs/README.md)。
+- 常用：[PLAYGROUND](docs/PLAYGROUND.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [CONTRIBUTING](docs/CONTRIBUTING.md) · [TESTING](docs/TESTING.md) · [DEVELOPMENT_STATUS](docs/DEVELOPMENT_STATUS.md)。
+- 历史资料：[C3 转录](docs/history/C3.md) 与 `docs/records/` 下的验收记录。历史设计不覆盖 Glossary。

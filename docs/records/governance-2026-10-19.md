@@ -12,7 +12,7 @@
 
 `Semantic-Diff: baseline`。人类批准来源：2026-10-19 用户「NatureCalls — Repository & Semantic Governance v1」Part 2.3 的完整语义树。此请求提供初始语义授权，不冒充另一名团队成员的 PR Review。
 
-根概念 NatureCalls，下设 Gameplay、Infrastructure、Content、Development；各子树完整保留用户给定定义，详见 [唯一规范树](../GLOSSARY.md)。不将 Core 强塞入树，不补完人数、阈值等未定机制。
+根概念 NatureCalls，下设 Gameplay、Infrastructure、Content、Development；各子树完整保留用户给定定义，详见 [唯一规范树](../../GLOSSARY.md)。不将 Core 强塞入树，不补完人数、阈值等未定机制。
 
 采用 Facility 标准名称，空目录 Environment 通过 `AssetDatabase.MoveAsset` 改名；GUID `ae4baf54d6ca246548d6ad882c66b5c8` 保留。Smoke/Sandbox 路径及内容保留。一次性 Editor 工具执行后已删除，不引入长期迁移层。Player Settings 通过 Unity API 改为 `0.1.0-alpha.1`；Editor 版本不变。
 
@@ -54,7 +54,7 @@ Windows Unity、LAN、Mac app 人工启动及发布签名未执行。[Semantic c
 4. 团队指定真实语义负责人账号后，PR 更新 `.github/CODEOWNERS`；再启用 Require review from Code Owners。语义审批仍需明确文字引用，不能仅凭普通批准勾选认定。
 5. 核实 main/dev API `protected: true`、保护字段与 required checks 均匹配；保存响应作为证据。若套餐/权限不支持，记录未生效并执行人工 PR 门禁，不能声称服务器强制执行。
 
-合并前仍需一名其他成员 Review。本次不自行合并，Tag 仍为候选，见 [RELEASES](RELEASES.md)。
+合并前仍需一名其他成员 Review。本次不自行合并，Tag 仍为候选，见 [RELEASES](../RELEASES.md)。
 
 ## 最终文档与目录职责
 

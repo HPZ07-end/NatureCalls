@@ -74,19 +74,9 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 ## 验证状态与限制
 
-实际日志及测试结果见 [M1 验收记录](m1-2026-10-20.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。
+实际日志及测试结果见 [M1 验收记录](records/m1-2026-10-20.md)，2026-10-30 居中镜头回归见 [开发记录](records/status-log.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。
 
 原型以可调镜头验证为目标，没有设施占用管理，多个玩家可能同时使用同一 Anchor；不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，未来设施、Tidiness 与胜负状态走 Host 权威。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。C 在任意地点切换不保证都有马桶构图；E Anchor 是本次可复现的可见性测试位置。
-
-## 2026-10-30 居中镜头回归
-
-按用户最新反馈将侧后方远景改为正后方近景；语义变化为 `NatureCalls/Gameplay/Player/Posture/Squatting`，批准来源记录于 Glossary。
-
-- Editor API 更新只改变场景四个镜头字段，场景 GUID 和其他对象引用保留。
-- PlayMode **5/5 通过**，新增实际镜头的横向居中、后方距离、朝向和人物屏幕中心断言；原马桶内部可见、全身入镜、Blend、返回方向断言仍通过。已查看实际 `squatting.png`。
-- 导入/编译通过；EditMode **4/4**、Python **17/17** 通过。
-- 本机日志：`Artifacts/20261029T151517Z-ce5a2d-camera/`、`Artifacts/20261029T151919Z-059aea-test-playmode/`、`Artifacts/20261029T152006Z-3e0dc2-test-editmode/`。目录使用 UTC，以上对应本地 10 月 30 日。
-- 原有三份未提交渲染设置保持原样，不包含在修复提交中。本次不重复验证 Relay/Windows/双进程联机，也不重建旧 `.app`；用更新后的 Editor 场景进行人工手感复验，旧构建不会自动获得新镜头。
 
 ## 官方依据
 

@@ -27,8 +27,8 @@ E 键交互没有统一接口，由 `PlayerInput.TryInteract` 依次尝试：最
 
 网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable，出生颜色为 Server-write。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 状态只在本地进程变化，联机时各端不一致。未来共享设施、Tidiness、胜负规则采用 Host-authoritative 方向，本次没有实现。M1 关闭 NGO Scene Management，因为所有客户端使用同一个已提交的 Playground 场景；DressingRoom → LobbyUI 是本地场景切换，不经过网络，LobbyUI 也不会进入 Playground。以后增加联机关卡切换需另行设计与测试。
 
-DressingRoom（镜子 + DressingMirror）与 ChangingRoom（换装台 + ChangingRoomPlatform + `ChangingRoomPlayer`）是两套并存的换装原型；Glossary 只定义 DressingRoom，两者取舍待人类决定。ChangingRoom 的 Prefab 约定见 [Player 接口约定](player/README.md)。
+DressingRoom（镜子 + DressingMirror）与 ChangingRoom（换装台 + ChangingRoomPlatform + `ChangingRoomPlayer`）是两套并存的换装原型；Glossary 只定义 DressingRoom，两者取舍待人类决定。ChangingRoom 的 Prefab 约定见 [Player 接口约定](PLAYER.md)。
 
 标准名称采用 Player、Posture、Facility、Input、Network、Map；Camera 是技术模块，不强行加入语义树。不另建 Networking/Environment 或 Toileting 状态的同义层。旧 Smoke/Sandbox 保留。组件细节、镜头参数与官方 API 依据见 [PLAYGROUND](PLAYGROUND.md)。
 
-阅读一次 C 键切换：从 `Assets/Input/PlayerInput.cs` 的 Update 进入 `Posture.Toggle`，Changed 通知让 Movement 更新身体/碰撞体，CameraController 更新两台 Cinemachine 镜头的优先级；NGO Avatar 在联机时发布拥有者的姿态状态。镜头距离、目标高度、俯角和横向偏移在场景 Local camera 的 Inspector 调整，默认正后方居中。IDE 打开与跳转步骤见 [开发指南](development.md)。
+阅读一次 C 键切换：从 `Assets/Input/PlayerInput.cs` 的 Update 进入 `Posture.Toggle`，Changed 通知让 Movement 更新身体/碰撞体，CameraController 更新两台 Cinemachine 镜头的优先级；NGO Avatar 在联机时发布拥有者的姿态状态。镜头距离、目标高度、俯角和横向偏移在场景 Local camera 的 Inspector 调整，默认正后方居中。IDE 打开与跳转步骤见 [开发指南](DEVELOPMENT.md)。

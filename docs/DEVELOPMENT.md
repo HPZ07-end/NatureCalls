@@ -18,7 +18,7 @@
 | `Build/`、`Builds/`、`Artifacts/` | 忽略 | 平台构建产物、测试 XML 和日志；需要共享时单独作为 CI artifact/发布包提供 |
 | `.csproj`、`.sln`、个人 `.vscode/settings.json` | 忽略 | Unity/VS Code 在本机生成，不复制 Mac 的绝对路径给 Windows |
 | Unity 登录、许可、GitHub 凭证 | 不提交 | 每人独立完成登录和授权 |
-| `docs/C3.pdf`、`docs/C3.md` | 提交 | 历史资料；语义以 Glossary 为准；PDF 约 162 KB，普通 Git 足够，无需 LFS |
+| `docs/history/C3.pdf`、`docs/history/C3.md` | 提交 | 历史资料；语义以 Glossary 为准；PDF 约 162 KB，普通 Git 足够，无需 LFS |
 
 当前 macOS 专属部分只有 Homebrew 安装示例、Mac Editor 探测路径、`build-macos` 的 ARM64 `.app` 构建，以及本次 Mac 的验收记录。Mac 架构设置只在 `BuildMac` 调用期间临时生效，结束后恢复；`UNITY_STANDALONE_OSX` 条件编译隔离该段 API。没有把 `/Users/...` 路径写入资源、项目配置或工作区设置。
 
@@ -41,7 +41,7 @@ py -3 scripts/unity.py detect
 
 4. Hub → Projects → Add project from disk，选择包含 `Assets`、`Packages`、`ProjectSettings` 的仓库根目录。等待首次导入结束。不要选择 `Assets` 子目录，也不要使用另一个模板重新创建工程。
 5. 在 VS Code 安装项目推荐扩展；Unity → Edit → Preferences → External Tools，选择 Visual Studio Code，然后 Regenerate project files。
-6. M1 合并前先 `git switch feat/multiplayer-playground`（需要先 fetch）；打开 `Assets/Scenes/Playground.unity`。菜单 `NatureCalls/Validate` 检查配置；Window → General → Test Runner 中分别运行 EditMode 和 PlayMode。Playground 是首个构建场景，Smoke/Sandbox 保留。操作及两端联机见 [PLAYGROUND](PLAYGROUND.md)。
+6. 确认位于 `dev`（或自己的功能分支）后打开 `Assets/Scenes/Playground.unity`。菜单 `NatureCalls/Validate` 检查配置；Window → General → Test Runner 中分别运行 EditMode 和 PlayMode。Playground 是首个构建场景，Smoke/Sandbox 保留。操作及两端联机见 [PLAYGROUND](PLAYGROUND.md)。
 7. 保存并关闭这个项目的 Unity GUI 后，可在 PowerShell 自动化验证：
 
 ```powershell
@@ -73,7 +73,7 @@ py -3 scripts/unity.py detect
 
 统一遵循 [CONTRIBUTING](CONTRIBUTING.md)；实现约束见 [IMPLEMENTATION](IMPLEMENTATION.md)，完整验证与日志说明见 [TESTING](TESTING.md)。
 
-语义以 [GLOSSARY](../GLOSSARY.md) 为唯一权威。[C3](C3.md) 保留为历史设计转录，不把其中未纳入基线的机制视为开发承诺。
+语义以 [GLOSSARY](../GLOSSARY.md) 为唯一权威。[C3](history/C3.md) 保留为历史设计转录，不把其中未纳入基线的机制视为开发承诺。
 
 ## Mac 安装补充
 
