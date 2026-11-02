@@ -16,4 +16,4 @@
 3. 检查 Tag 本地/远程均不存在，创建 annotated Tag（如 `git tag -a v0.1.0-alpha.1 <verified-sha>`），消息记录版本、SHA、验收与 PR 引用，正常推送该 Tag。
 4. 用 `git rev-parse v0.1.0-alpha.1^{commit}` 和远程 peeled tag 核实对应关系，补入此表；后续变更走 PR。已有 Tag 不移动，修正使用新版本。
 
-当前阻碍是治理 PR 尚需其他成员 Review、dev→main 集成及最终 main 验收。版本候选本身已与任务分支 Player Settings 同步；正式 Tag 留待满足条件后建立。
+治理 PR #1 已合入 dev；当前阻碍是 dev→main 集成及最终 main 验收。版本候选本身已与任务分支 Player Settings 同步；正式 Tag 留待满足条件后建立。

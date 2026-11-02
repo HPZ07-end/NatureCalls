@@ -1,6 +1,6 @@
 # 测试与跨平台验证
 
-Unity **6000.3.26f1**。Mac 使用 `python3`，Windows PowerShell 使用 `py -3`；Python 3.10+ 标准库即可。安装/路径说明见 [development](development.md)。
+Unity **6000.3.26f1**。Mac 使用 `python3`，Windows PowerShell 使用 `py -3`；Python 3.10+ 标准库即可。安装/路径说明见 [development](DEVELOPMENT.md)。
 
 ## 本地命令
 
@@ -26,8 +26,10 @@ python3 -m unittest discover -s scripts/tests -v
 
 ## 当前覆盖范围
 
-- EditMode（4 项）：Force Text、Visible Meta Files、所有 Scene 及 Prefab 的序列化引用/缺失脚本检查。
-- PlayMode（5 项）：Smoke 加载；Playground 墙体碰撞/高帧率位移/姿态停步；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。
+以下按测试方法计数（2026-11-02 读取源码，未代表一次实际运行结果）。
+
+- EditMode（7 项）：Force Text、Visible Meta Files、所有 Scene 及 Prefab 的序列化引用/缺失脚本检查、ChangingRoom 使用共享 Player 契约；`OutfitSelection` 循环切换与取消恢复。
+- PlayMode（10 项）：DressingRoom 镜子与门的距离判定和 LobbyUI 目标、无镜子时 E 仍交互马桶；Lobby 返回准备房入口与四人自动开始 Mock；Smoke 加载；Playground 墙体碰撞/高帧率位移/姿态停步；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。
 - 仓库检查：路径大小写、JSON/asmdef、`.meta` 成对与 GUID 唯一性、生成目录忽略、包约束、相对 Markdown 文件链接；不请求外部链接，也不验证页面锚点。
 - 脚本单测：并发锁、虚假测试成功、Semantic Diff 格式及 baseline 边界。
 - 双 Player 验证：Development 构建通过 `scripts/multiplayer.py` 启动两个独立进程，在 localhost UnityTransport 上检查位置/朝向/姿态、所有权、独立镜头、可见远端角色、出生点与退出清理。开发探针只在显式 `-m1-probe` 参数下运行；普通游戏不自动操作角色，Release 不包含探针。
@@ -66,4 +68,4 @@ Windows 在 File → Build Profiles 选择 Windows x86_64，检查 Scene List，
 
 每次验收记录 Commit、OS/架构、Editor、用例数、产物、日志位置、结果。Mac/Windows 尽量测试同一 SHA；Network 修改记录 Host OS/SHA、Client OS/SHA、连接和状态同步的真实结果。没运行就明确写未验证。
 
-Actions 的 `repository` 在 Linux/macOS/Windows 运行仓库检查与 Python 单测；`semantic-diff` 检查 PR 语义记录。没有 Unity runner/许可配置，绿色 Actions 不表示 Unity 跨平台通过。实际执行结果见 [治理记录](governance-2026-10-19.md) 与 [开发状态](DEVELOPMENT_STATUS.md)。
+Actions 的 `repository` 在 Linux/macOS/Windows 运行仓库检查与 Python 单测；`semantic-diff` 检查 PR 语义记录。没有 Unity runner/许可配置，绿色 Actions 不表示 Unity 跨平台通过。实际执行结果见 [治理记录](records/governance-2026-10-19.md) 与 [开发状态](DEVELOPMENT_STATUS.md)。

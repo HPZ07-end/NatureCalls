@@ -50,7 +50,7 @@ Human Approval:
 
 使用 [PR 模板](../.github/PULL_REQUEST_TEMPLATE.md) 记录目的、范围、Semantic Diff、公共接口、资产、测试、平台/LAN、风险和未完成事项。至少一名**其他成员** Review；语义变化还必须由人类负责人明确作语义审批，普通代码 Review 不自动等同于语义审批。
 
-负责人尚未有效配置，见 [CODEOWNERS](../.github/CODEOWNERS) 和 [权限记录](governance-2026-10-19.md)。团队确认真实账号并核实具有 Write 权限后再写有效规则；不能虚构团队账号，也不能将作者自己当作其他 Reviewer。
+负责人尚未有效配置，见 [CODEOWNERS](../.github/CODEOWNERS) 和 [权限记录](records/governance-2026-10-19.md)。团队确认真实账号并核实具有 Write 权限后再写有效规则；不能虚构团队账号，也不能将作者自己当作其他 Reviewer。
 
 合并前 fetch 最新基线，复查语义、冲突和当前 PR head 的 CI。发生新提交时重新确认 Review 是否仍有效。采用 merge commit 或 squash，合并 Commit 正文必须保留：
 
@@ -90,4 +90,4 @@ Mac/Windows 尽可能验证同一 Commit，记录平台与 SHA。Network 修改�
 | Actions `semantic-diff` | 对 PR 的真实 base/head 和最新正文执行同一检查；不验证人类批准真实性 |
 | GitHub 服务端保护 | 管理员启用后才阻止直推/无 Review 合并/失败检查等 |
 
-当前实际启用状态及管理员设置步骤见 [治理记录](governance-2026-10-19.md)。仅在 CI 已真实成功后，才选择其精确 job 名为 required check；不要设置尚不存在的 Unity CI。Review 还应审查 workflow/检查脚本本身的修改，不能让 PR 修改检查器来规避规范。
+当前实际启用状态及管理员设置步骤见 [治理记录](records/governance-2026-10-19.md)。仅在 CI 已真实成功后，才选择其精确 job 名为 required check；不要设置尚不存在的 Unity CI。Review 还应审查 workflow/检查脚本本身的修改，不能让 PR 修改检查器来规避规范。

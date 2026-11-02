@@ -1,6 +1,6 @@
 # Player 共享模型与接口约定
 
-本文是当前阶段 Player 预制体、外观接口和 Git 集成的实现参考。规范语义仍以仓库根目录的 [`GLOSSARY.md`](../../GLOSSARY.md) 为准；本文只约束技术结构，不确认新的玩法机制。
+本文是当前阶段 Player 预制体、外观接口和 Git 集成的实现参考。规范语义仍以仓库根目录的 [`GLOSSARY.md`](../GLOSSARY.md) 为准；本文只约束技术结构，不确认新的玩法机制。
 
 ## 当前结构
 
@@ -93,7 +93,7 @@ Lobby 模块维护：
 
 ```text
 Assets/UI/Lobby/
-Assets/UI/LobbyUI.unity
+Assets/UI/Lobby/LobbyUI.unity
 ```
 
 修改公共 Player 契约前应通知其他功能负责人，并单独提交，不与大量 Scene 或 UI 修改混在同一提交中。
@@ -117,25 +117,10 @@ Assets/UI/LobbyUI.unity
 
 ## Git 工作流
 
-功能开发使用以下顺序：
+分支命名、同步与合并流程统一遵循 [CONTRIBUTING](CONTRIBUTING.md)。Player 相关的额外约定：
 
-```text
-main（稳定版本）
-  └─ dev（团队已集成并验证的开发版本）
-       ├─ feat/multiplayer-playground
-       ├─ feat/ui-lobby-flow
-       └─ feat/Dressing-Room
-```
-
-1. 功能分支开始和集成前先 fetch。
-2. 公共基础功能先合入 `dev`。
-3. 已推送的功能分支使用 `git merge origin/dev` 同步，不强制 rebase 或改写历史。
-4. 解决 `.asmdef`、Packages 和 Build Settings 冲突时保留双方真实依赖。
-5. Unity GUI 保存并关闭后再运行 batchmode 验证。
-6. 功能验证通过后推送原功能分支并通过 PR 合入 `dev`。
-7. `dev` 达到阶段目标并完成团队验证后再合入 `main`。
-
-禁止直接覆盖其他人的 `feat/*` 分支，也禁止为了消除冲突而重新生成已有资产 GUID。
+- 解决 `.asmdef`、Packages 和 Build Settings 冲突时保留双方真实依赖。
+- 禁止直接覆盖其他人的 `feat/*` 分支，也禁止为了消除冲突而重新生成已有资产 GUID。
 
 ## 验证指标
 
@@ -159,7 +144,3 @@ py -3 scripts/unity.py test-playmode
 ```
 
 若 `py -3` 未登记已安装解释器，可以使用明确的 Python 可执行文件运行相同脚本；报告中必须记录实际使用的解释器。Unity 版本固定为 `6000.3.26f1`。
-
-## Semantic Diff
-
-`none`。本次只统一 Player 技术接口、资产复用和模块术语，不新增或确认换装、联网换装、角色数量等玩法语义。
