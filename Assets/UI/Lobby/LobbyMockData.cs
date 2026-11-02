@@ -60,8 +60,21 @@ namespace NatureCalls.UI
             Players.Add(new LobbyPlayer(string.IsNullOrWhiteSpace(nickname) ? "玩家1" : nickname, true, false, "经典蓝"));
         }
 
+        public void ClearRoom()
+        {
+            RoomCode = string.Empty;
+            HasRoom = false;
+            GameStarted = false;
+            Players.Clear();
+        }
+
         public bool TryJoin(string roomCode, string nickname, out string message)
         {
+            if (!HasRoom)
+            {
+                message = "请先创建房间；真实加入会在联机服务接入后提供。";
+                return false;
+            }
             if (string.Equals(roomCode, "FULL4", StringComparison.OrdinalIgnoreCase))
             {
                 message = "房间已满（Mock）";
@@ -81,7 +94,14 @@ namespace NatureCalls.UI
             }
 
             Players.Add(new LobbyPlayer(string.IsNullOrWhiteSpace(nickname) ? "新玩家" : nickname, false, false, "经典蓝"));
-            message = "已加入房间（Mock）";
+            if (Players.Count == MaxPlayers)
+            {
+                GameStarted = true;
+                message = "房间已满 4 人，模拟游戏自动开始。";
+                return true;
+            }
+
+            message = "已加入房间（Mock），等待玩家（" + Players.Count + "/" + MaxPlayers + "）。";
             return true;
         }
 
@@ -102,6 +122,11 @@ namespace NatureCalls.UI
 
         public bool TryStart(out string message)
         {
+            if (Players.Count < MaxPlayers)
+            {
+                message = "等待玩家（" + Players.Count + "/" + MaxPlayers + "）。";
+                return false;
+            }
             if (Players.Count == 0 || !Players[0].IsHost)
             {
                 message = "只有房主可以开始游戏";

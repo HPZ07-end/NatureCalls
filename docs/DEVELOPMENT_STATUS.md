@@ -4,7 +4,7 @@
 
 | 类别 | 实际状态 |
 | --- | --- |
-| 已实现 | 原有配置/编译/测试/构建工具、语义治理；新增 URP Playground、Player/Toilet Prefab、第一人称移动、姿态与第三人称 Blend、Anchor 交互、Host/Join/Leave UI、NGO 位置/朝向/姿态同步、本地双 Player 验证工具 |
+| 已实现 | 原有配置/编译/测试/构建工具、语义治理；新增 URP Playground、Player/Toilet Prefab、第一人称移动、姿态与第三人称 Blend、Anchor 交互、Host/Join/Leave UI、NGO 位置/朝向/姿态同步、本地双 Player 验证工具；独立 DressingRoom 灰盒、无网络的本地练习玩家/相机、镜子范围内 E 键换装面板入口、门前 E 键进入独立 LobbyUI 场景、固定的 Lobby 返回准备房入口、本地四人自动开始 Mock 与回归测试 |
 | 已编写但缺服务验收 | MPS Session + Relay Join Code、匿名认证及连接失败反馈；Cloud 尚未关联，不能声称真实 Relay 联机成功 |
 | 正在推进 | M1 功能分支 Review、MPPM GUI/人工键鼠手感、Cloud 关联、Windows 与真实跨设备验收 |
 | 已规划 | 依实际需求进行 Stage 2/3、正式 Gameplay 闭环、Map 配置、共享规则的 Host 权威、跨平台联调和发布 |
@@ -40,3 +40,5 @@ M1 的 2–4 人、第一人称/如厕第三人称与官方网络技术栈来自
 同日继续校正 `WCStall.prefab` 的门体装配：门扇横向中心与隔间墙体中心对齐，底部落到隔间地面；门扇按自身厚度向隔间内侧嵌入，使外侧表面与入口边缘贴齐、中心面不再与墙体入口边缘重合。门碰撞 pivot 随门扇位置重建，三个隔间仍复用同一 Prefab。该调整只修复 Map/Art 空间摆放，`Semantic-Diff: none`。
 
 2026-11-02 将三个 `WCStall` 实例按实际 Renderer Bounds 作为整体对齐到 8m 房间地面中心，并保留实例间距。保留用户调整后的三个 Cubicle/门框实例位置与旋转，只将门扇沿门框局部深度轴平移，使门外表面贴合门框平面；各自独立的碰撞 pivot 按实际门扇世界姿态重建。原先错误留在 `WCStall` 根坐标系中的三面墙 Collider 改为 Cubicle 子对象并按 Cubicle 局部 Bounds 重建，后墙位于 `min.z`，`max.z` 门口保持开放；因此 Collider 会随门框平移和旋转，不再侵入相邻隔间入口。门状态切换后立即同步物理 Transform，避免重复开关后视觉门与碰撞位置不一致。运行时回归覆盖三扇门各两轮“外侧打开、通过入口、关闭、关门阻挡”。这是已批准 Door/Input 行为与 Map/Art 的修复，`Semantic-Diff: none`。
+
+2026-11-01 已获用户确认：DressingRoom 为独立换装准备场景；玩家进门后进入联机大厅，房间达到四名玩家时自动开始正式游戏。本次完成准备场景的本地镜子互动与换装 UI 占位，以及门前 E 键进入独立 LobbyUI 场景和四人自动开始 Mock；不包含真实外观替换、真实联机、跨客户端房间加入或进入正式游戏场景。

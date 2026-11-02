@@ -12,6 +12,12 @@ EditorBuildSettings:
     path: Assets/Scenes/Smoke.unity
     guid: 4983eccc2ed3e495599d007409af0bae
   - enabled: 1
+    path: Assets/Scenes/DressingRoom.unity
+    guid: 949d1634b40f24622b3011036bc37978
+  - enabled: 1
+    path: Assets/UI/Lobby/LobbyUI.unity
+    guid: 39ed3cce06b3e49a38cbb08f757302e6
+  - enabled: 1
     path: Assets/Scenes/ChangingRoom.unity
     guid: d4783b1338e59dc42a53e4f1308d9edc
   m_configObjects: {}

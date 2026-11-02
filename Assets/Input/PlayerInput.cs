@@ -1,7 +1,9 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using NatureCalls.Player;
 using NatureCalls.Facility;
+using NatureCalls.Map;
 
 namespace NatureCalls.Input
 {
@@ -41,7 +43,7 @@ namespace NatureCalls.Input
             if (!movement.Controlled) return;
             if (release.WasPressedThisFrame()) Unlock();
             if (CaptureMouse && Application.isFocused && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
-                Mouse.current.position.ReadValue().x > 360)
+                Mouse.current.position.ReadValue().x > 360 && !IsPointerOverUi())
             { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             bool accept = Application.isFocused && (Captured || !CaptureMouse);
             if (accept)
@@ -49,15 +51,25 @@ namespace NatureCalls.Input
                 movement.Look(look.ReadValue<Vector2>());
                 if (jump.WasPressedThisFrame()) movement.Jump();
                 if (toggle.WasPressedThisFrame()) posture.Toggle();
-                if (interact.WasPressedThisFrame())
-                {
-                    if (!TryPickupNearestPaperRoll() && !TryInteractNearestStallDoor())
-                        foreach (var toilet in FindObjectsByType<Toilet>(FindObjectsSortMode.None))
-                            if (toilet.Enter(movement)) break;
-                }
+                if (interact.WasPressedThisFrame()) TryInteract();
                 if (throwRoll.WasPressedThisFrame()) TryThrowCarriedPaperRoll();
             }
             movement.Move(accept ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
+        }
+
+        private static bool IsPointerOverUi() => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+
+        public bool TryInteract()
+        {
+            if (TryPickupNearestPaperRoll()) return true;
+            foreach (var mirror in FindObjectsByType<DressingMirror>(FindObjectsSortMode.None))
+                if (mirror.Interact(movement)) return true;
+            if (TryInteractNearestStallDoor()) return true;
+            foreach (var door in FindObjectsByType<LobbyDoor>(FindObjectsSortMode.None))
+                if (door.Interact(movement)) return true;
+            foreach (var toilet in FindObjectsByType<Toilet>(FindObjectsSortMode.None))
+                if (toilet.Enter(movement)) return true;
+            return false;
         }
 
         private bool TryPickupNearestPaperRoll()

@@ -21,6 +21,7 @@ def glossary(revision):
 
 
 def validate(body, before, after, *, established=False, target="dev"):
+    body = body.replace("\r\n", "\n").replace("\r", "\n")
     declarations = re.findall(r"^Semantic-Diff:\s*([^\r\n]+)$", body, re.MULTILINE)
     if len(declarations) != 1 or declarations[0].strip() not in {"none", "changed", "baseline"}:
         raise ValueError("Require exactly one Semantic-Diff: none|changed|baseline declaration.")
