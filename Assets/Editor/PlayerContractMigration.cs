@@ -10,8 +10,8 @@ namespace NatureCalls.Editor
 {
     public static class PlayerContractMigration
     {
-        private const string PlayerPrefabPath = "Assets/Prefabs/Player.prefab";
-        private const string ChangingRoomPlayerPrefabPath = "Assets/Prefabs/ChangingRoomPlayer.prefab";
+        private const string PlayerPrefabPath = "Assets/Prefabs/Characters/Player.prefab";
+        private const string ChangingRoomPlayerPrefabPath = "Assets/Prefabs/Characters/ChangingRoomPlayer.prefab";
         private const string LegacyEnvironmentPath = "Assets/Environment";
         private const string FacilityChangingRoomPath = "Assets/Facility/ChangingRoom";
 
