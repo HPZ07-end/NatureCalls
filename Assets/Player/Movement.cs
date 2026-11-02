@@ -20,7 +20,9 @@ namespace NatureCalls.Player
         private Posture posture;
         private float verticalSpeed;
         private Quaternion returnRotation;
-        private bool aligned;
+        private Vector3 returnPosition;
+        /// <summary>The toilet anchor the player is seated at, or null.</summary>
+        public Transform Seat { get; private set; }
 #if UNITY_EDITOR
         private bool loggedFirstMove;
 #endif
@@ -73,11 +75,15 @@ namespace NatureCalls.Player
         {
             if (!Controlled || posture.IsSquatting) return;
             returnRotation = transform.rotation;
-            aligned = true;
+            returnPosition = transform.position;
+            Seat = anchor;
             controller.enabled = false;
             transform.SetPositionAndRotation(anchor.position, anchor.rotation);
             controller.enabled = true;
             posture.Set(PostureState.Squatting);
+#if UNITY_EDITOR
+            Debug.Log($"TOILET_SEATED|player={name}|seat=({anchor.position.x:F2},{anchor.position.z:F2})|from=({returnPosition.x:F2},{returnPosition.z:F2})");
+#endif
         }
         private void ApplyPosture(PostureState state)
         {
@@ -85,10 +91,17 @@ namespace NatureCalls.Player
             controller.height = squat ? SquattingHeight : StandingHeight;
             controller.center = new Vector3(0, controller.height / 2, 0);
             if (Body != null) Body.localScale = new Vector3(1, squat ? .56f : 1, 1);
-            if (!squat && aligned)
+            if (!squat && Seat != null)
             {
-                transform.rotation = returnRotation;
-                aligned = false;
+                // Stand up where the player was before sitting: the seat itself sits against the bowl.
+                bool enabled = controller.enabled;
+                controller.enabled = false;
+                transform.SetPositionAndRotation(returnPosition, returnRotation);
+                controller.enabled = enabled;
+                Seat = null;
+#if UNITY_EDITOR
+                Debug.Log($"TOILET_STOOD_UP|player={name}|at=({returnPosition.x:F2},{returnPosition.z:F2})");
+#endif
             }
         }
     }

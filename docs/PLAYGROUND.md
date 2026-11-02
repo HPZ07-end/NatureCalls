@@ -75,6 +75,8 @@
 
 Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance/Height/Pitch、Shoulder Offset、Transition Duration、Camera Collision Layers/Radius。当前没有墙体全局隐藏。C 可在任意位置测试姿态；要验证马桶内部构图，请走到马桶附近按 E。
 
+坐在马桶上（E 对齐坐下）时，隔间太窄放不下正后方镜头，第三人称改为从上方俯视：Inspector 的 Seated Distance（默认 1.9）与 Seated Pitch（默认 80°）控制距离和俯角；任意位置按 C 进入的如厕姿态仍用正后方镜头。再按 E 站起时回到坐下前的位置。
+
 旧场景需要应用上述参数时，可以运行菜单 `NatureCalls/Center Playground Camera`；关闭 Editor 后也可用 `python3 scripts/unity.py camera`（Windows 用 `py -3`）。这只保存 Playground 的四个镜头参数，不重新生成地形、Prefab 或材质。已更新的仓库场景无需再次运行。
 
 ## 多人联机实测（无需 Unity Cloud）

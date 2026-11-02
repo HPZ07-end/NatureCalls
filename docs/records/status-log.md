@@ -52,3 +52,10 @@
 - 同日补充：地图内 IMGUI `Panel` 菜单（返回 DressingRoom 时会闪现开发菜单）替换为 uGUI 左上角「退出」按钮 `MatchExit`（`Assets/UI/MatchHud.prefab`），Playground 增加 EventSystem，删除 `Panel.cs`；`lobby-flow` 改为保留已有 Canvas/HUD 实例，重复运行不再改动场景。单人离线测试用例增加「退出回到 DressingRoom」断言。EditMode 10 项 9 通过（`Artifacts/20261102T143109Z-582048-test-editmode/`），PlayMode 9 项 5 通过（`Artifacts/20261102T143306Z-92f41c-test-playmode/`），失败项与上条相同。
 - 同日补充（测试修复与马桶交互）：Playground 重建时 WCStall 马桶丢失了 Toilet 交互组件，「靠近马桶按 E 进入如厕姿态」在地图里实际不可用。新增 `Editor/ToiletAnchorSetup`（`python3 scripts/unity.py toilet-anchors`）为 `WCStall.prefab` 的马桶补上 Toilet、座位前的姿态 Anchor 与马桶开口处的 Interior 标记；实测座位 Anchor 距门轴 0.89m，门交互半径 1.5m。按用户决定（Glossary 已记录）隔间内马桶优先于门，坐下后再按 E 站起；由此隔间内无法用 E 操作门，记为已知问题。测试修复：场景检查只覆盖 `Assets/Scenes`；镜头数只统计屏幕摄像机（测试与双进程探针）；撞墙测试从场景测量；马桶测试改为在子对象中查找并先开门。结果：EditMode 10/10（`Artifacts/20261102T151349Z-6e81f8-test-editmode/`），PlayMode 9 项 8 通过（`Artifacts/20261102T151355Z-7aafe4-test-playmode/`），仅 `CameraBlendsAndInteriorIsVisible` 失败（隔间内坐下镜头被挤到头部，截图 `squatting.png`）；重新构建后双进程探针两端全部通过（`Artifacts/20261102T151441Z-4864a6-multiplayer/`）。`toilet-anchors` 运行记录：`Artifacts/20261102T151338Z-fef4f9-toilet-anchors/`。
 
+## 2026-11-03 马桶站起、俯视镜头与跳跃越界记录
+
+- 用户反馈坐上马桶后再按 E 无法离开。排查发现上一版马桶 Anchor 按 `WCStall.prefab` 内的布局计算，而 Playground 中三个隔间实例覆盖了布局（实例中马桶靠后墙、门朝房间），导致 Anchor 落在隔间外、与房间后墙碰撞体重叠，站起后被卡住。`ToiletAnchorSetup` 改为在 Playground 实例上沿隔间纵深轴测量，并逐个验证 Anchor 位于隔间内、站立胶囊体不与任何碰撞体重叠（三个隔间均通过，距门轴 0.94m）。站起时回到坐下前的位置。
+- 按用户同意，坐在马桶上时第三人称改为俯视（`CameraController.SeatedDistance`/`SeatedPitch`）；Glossary Squatting 已更新并记录批准来源。
+- 测试：`CameraBlendsAndInteriorIsVisible` 改为验证俯视镜头，身体遮挡改用烘焙网格射线检测，第一人称隐藏身体改为检查摄像机 Culling Mask（镜子仍可渲染本地身体）；马桶测试增加「站起后回到原位并能走出隔间」。EditMode 10/10（`Artifacts/20261102T153838Z-a88c19-test-editmode/`），PlayMode 9/9（`Artifacts/20261102T153821Z-aee617-test-playmode/`），重新构建后双进程探针两端通过（`Artifacts/20261102T153855Z-da88a4-multiplayer/`），`toilet-anchors` 记录 `Artifacts/20261102T153611Z-e15ec4-toilet-anchors/`。
+- 记录玩家测出的跳跃越界问题（未修复）：跳上小便池可以跳出房间；跳上卷纸架可以跳进隔间或跳出房间；跳上马桶可以跳出隔间并卡在隔间顶部的杆子上。
+
