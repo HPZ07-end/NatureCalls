@@ -17,7 +17,7 @@
 
 ## 打开和重建
 
-先在 Unity Hub 中打开仓库根目录对应的 NatureCalls 工程，再在 **Editor 的 Project 面板**双击 `Assets/Scenes/Playground.unity`，点击 Play；不是在 Finder 中双击场景文件来启动工程。点击 UI 右侧游戏画面锁定鼠标，WASD 移动、鼠标观察、C 切换姿态、靠近测试马桶后 E 对齐、Esc 释放鼠标。已有 Smoke/Sandbox 场景保留。
+先在 Unity Hub 中打开仓库根目录对应的 NatureCalls 工程，再在 **Editor 的 Project 面板**双击 `Assets/Scenes/Playground.unity`，点击 Play；不是在 Finder 中双击场景文件来启动工程。点击 Game 视图取得键盘焦点后，WASD 移动、Space 跳跃、鼠标观察、C 切换姿态、靠近卷纸后 E 拾取、R 向前丢掷携带中的卷纸、靠近隔间门或测试马桶后 E 交互。跳跃只允许在站立且着地时触发。隔间门打开时 E 关闭；关闭时隔间外 E 打开、隔间内 E 上锁；锁住后隔间外操作被拒绝、隔间内 E 解锁并打开。卷纸交互优先于门和马桶交互，每名玩家同时最多携带一个卷纸；丢掷后卷纸恢复物理运动并可再次拾取，当前不提供使用或消耗规则。当前 Player 使用导入的 `Peasant Nolant Brown` 嵌套 Prefab及 URP/Lit 兼容材质，离线练习无需连接 Unity Cloud。已有 Smoke/Sandbox 场景保留。
 
 `python3 scripts/unity.py playground`（Windows：`py -3 scripts/unity.py playground`）通过 Editor API **重建原型 Playground、Player/Toilet Prefab 和原型材质**，只在明确需要恢复生成场景时运行；不要用它覆盖人工修改的原型。普通队友使用已提交场景即可，不需要补接组件。脚本保存原 GUID、不改旧场景，构建列表将 Playground 放在第一位。
 
@@ -25,9 +25,12 @@
 
 - `Player/Posture`：可供交互系统调用的姿态切换与通知；不依赖摄像机。
 - `Player/Movement`：CharacterController、角色朝向、俯仰、姿态下的身体与碰撞体调整。
-- `Input/PlayerInput`：Input System 将本地键鼠转化为移动、观察、姿态与交互调用。
+- `Input/PlayerInput`：Input System 将本地键鼠转化为移动、跳跃、观察、姿态与交互调用。
 - `Camera/CameraController`：唯一实际 Camera + CinemachineBrain，两个 CinemachineCamera 的优先级和 Blend；仅绑定本地角色。
 - `Facility/Toilet`：距离检测、姿态 Anchor 与内部可见目标；没有正式设施占用或冲水状态。
+- `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
+- `Facility/PlanarMirror`：为每个 WC 镜面实例创建独立运行时 RenderTexture；第一人称主摄像机隐藏本地身体时，镜面摄像机仍可渲染本地 Brown 角色。
+- `Facility/PaperRoll`：检测附近玩家并记录拾取者；拾取后随玩家保留并关闭场景渲染与碰撞，R 丢掷后恢复渲染、碰撞及 Rigidbody 运动。
 - `Network/Session`：官方 MPS Session + Relay 的创建/加入/离开、匿名认证与错误状态；独立提供无需云端的 NGO 直连诊断入口。
 - `Network/Avatar`：Owner 本地控制、NetworkTransform、姿态 NetworkVariable、出生颜色与镜头绑定生命周期。
 - `Map/Playground`：原型资源引用、4 个出生位置与离线练习。

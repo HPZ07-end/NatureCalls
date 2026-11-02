@@ -63,5 +63,19 @@ class LockTests(unittest.TestCase):
         self.assertFalse((unity.ROOT / "Artifacts/unity.lock").exists())
 
 
+class GraphicsModeTests(unittest.TestCase):
+    def test_windows_uses_graphics_by_default(self):
+        self.assertFalse(unity.use_nographics("win32", {}))
+
+    def test_non_windows_uses_nographics_by_default(self):
+        self.assertTrue(unity.use_nographics("darwin", {}))
+
+    def test_environment_can_enable_nographics_on_windows(self):
+        self.assertTrue(unity.use_nographics("win32", {"UNITY_NOGRAPHICS": "true"}))
+
+    def test_environment_can_disable_nographics_on_non_windows(self):
+        self.assertFalse(unity.use_nographics("linux", {"UNITY_NOGRAPHICS": "0"}))
+
+
 if __name__ == "__main__":
     unittest.main()

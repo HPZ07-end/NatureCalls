@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using NatureCalls.Player;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -47,6 +48,32 @@ namespace NatureCalls.Tests
                     }
                 }
                 finally { PrefabUtility.UnloadPrefabContents(root); }
+            }
+        }
+
+        [Test]
+        public void ChangingRoomUsesSharedPlayerContract()
+        {
+            var player = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Player.prefab");
+            var changingRoomPlayer = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/ChangingRoomPlayer.prefab");
+
+            Assert.That(player, Is.Not.Null, "Shared Player prefab is missing.");
+            Assert.That(changingRoomPlayer, Is.Not.Null, "Changing-room Player variant is missing.");
+            Assert.That(PrefabUtility.GetCorrespondingObjectFromSource(changingRoomPlayer), Is.EqualTo(player));
+
+            var root = PrefabUtility.LoadPrefabContents("Assets/Prefabs/Player.prefab");
+            try
+            {
+                var movement = root.GetComponent<Movement>();
+                var appearance = root.GetComponent<PlayerAppearance>();
+                Assert.That(movement, Is.Not.Null);
+                Assert.That(appearance, Is.Not.Null);
+                Assert.That(movement.Body, Is.Not.Null);
+                Assert.That(appearance.Body, Is.EqualTo(movement.Body));
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
             }
         }
 

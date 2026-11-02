@@ -2,6 +2,7 @@ using UnityEngine;
 using NatureCalls.Camera;
 using NatureCalls.Player;
 using PlayerInput = NatureCalls.Input.PlayerInput;
+using System.Linq;
 
 namespace NatureCalls.Map
 {
@@ -22,6 +23,12 @@ namespace NatureCalls.Map
             OfflinePlayer.SetControl(true);
             instance.GetComponent<PlayerInput>().enabled = true;
             Camera.Bind(OfflinePlayer);
+#if UNITY_EDITOR
+            var listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            Debug.Log($"OFFLINE_PLAYER_READY|position=({OfflinePlayer.transform.position.x:F3},{OfflinePlayer.transform.position.y:F3},{OfflinePlayer.transform.position.z:F3})|" +
+                $"controlled={OfflinePlayer.Controlled}|inputEnabled={instance.GetComponent<PlayerInput>().enabled}|bodyRenderers={OfflinePlayer.Body.GetComponentsInChildren<Renderer>().Length}|" +
+                $"listeners={string.Join(",", listeners.Select(listener => listener.gameObject.name + ":" + listener.enabled + ":" + listener.gameObject.scene.name))}");
+#endif
         }
         public void StopPractice()
         {
