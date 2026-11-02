@@ -119,7 +119,7 @@ namespace NatureCalls.Editor
                 RemoveComponent<NetworkTransform>(root);
                 RemoveComponent<NetworkObject>(root);
                 var appearance = root.GetComponent<PlayerAppearance>();
-                var outfit = root.GetComponent<PlayerOutfitController>() ?? root.AddComponent<PlayerOutfitController>();
+                var outfit = GetOrAdd<PlayerOutfitController>(root);
                 SetReference(outfit, "appearance", appearance);
                 root.GetComponent<PlayerInput>().CaptureMouse = true;
                 PrefabUtility.SaveAsPrefabAsset(root, DressingRoomPlayerPath);
@@ -163,7 +163,7 @@ namespace NatureCalls.Editor
             try
             {
                 if (root.GetComponent<NetworkObject>() == null) root.AddComponent<NetworkObject>();
-                var room = root.GetComponent<LobbyRoom>() ?? root.AddComponent<LobbyRoom>();
+                var room = GetOrAdd<LobbyRoom>(root);
                 SetReference(room, "maps", maps);
                 PrefabUtility.SaveAsPrefabAsset(root, LobbyRoomPath);
             }
@@ -557,7 +557,7 @@ namespace NatureCalls.Editor
         }
 
         private static void Height(GameObject target, float height) =>
-            (target.GetComponent<LayoutElement>() ?? target.AddComponent<LayoutElement>()).preferredHeight = height;
+            GetOrAdd<LayoutElement>(target).preferredHeight = height;
 
         private static Button MakeButton(Transform parent, string name, string label) =>
             MakeButton(parent, name, label, Vector2.zero, new Vector2(400, 64), bottom: false, inLayout: true);
@@ -614,6 +614,14 @@ namespace NatureCalls.Editor
             var parent = Path.GetDirectoryName(path).Replace('\\', '/');
             EnsureFolder(parent);
             AssetDatabase.CreateFolder(parent, Path.GetFileName(path));
+        }
+
+        private static T GetOrAdd<T>(Component owner) where T : Component => GetOrAdd<T>(owner.gameObject);
+        private static T GetOrAdd<T>(GameObject owner) where T : Component
+        {
+            // GetComponent can return Unity's fake null in the Editor, which ?? does not treat as null.
+            var found = owner.GetComponent<T>();
+            return found != null ? found : owner.AddComponent<T>();
         }
     }
 }

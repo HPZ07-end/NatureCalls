@@ -23,7 +23,7 @@
 
 依赖流：Input → Movement/Posture/Facility/Map 交互对象；Camera 读取 Movement/Posture；Avatar 将 NGO 共享状态映射到角色，并只绑定本地 Camera；Session 管理连接和出生，UI 调用 Session、LobbyRoom 与 Match。Posture 不引用 Camera 或网络。未来正式如厕系统可调用 Posture/Movement 的现有能力。
 
-E 键交互没有统一接口，由 `PlayerInput.TryInteract` 依次尝试：最近可拾取 PaperRoll → DressingMirror → 最近 StallDoor → LobbyDoor → Toilet，首个成功者生效。新增可交互设施时需要在此加入并确定优先级。
+E 键交互没有统一接口，由 `PlayerInput.TryInteract` 依次尝试：如厕姿态中则站起 → 最近可拾取 PaperRoll → DressingMirror → 位于隔间内时先试 Toilet → 最近 StallDoor → LobbyDoor → Toilet，首个成功者生效。新增可交互设施时需要在此加入并确定优先级。
 
 ## 游戏流程
 

@@ -54,6 +54,12 @@ namespace NatureCalls.Editor
             Validate();
         }
 
+        public static void ToiletAnchors()
+        {
+            ToiletAnchorSetup.Configure();
+            Validate();
+        }
+
         public static void LobbyFlow()
         {
             LobbyFlowBuilder.Build();

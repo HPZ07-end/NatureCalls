@@ -112,7 +112,8 @@ namespace NatureCalls.Tests
         [Test]
         public void ScenesHaveNoMissingReferences()
         {
-            var guids = AssetDatabase.FindAssets("t:Scene", new[] { "Assets" });
+            // Project scenes only; third-party demo scenes (e.g. Assets/WC/DemoScene) reference packages we do not use.
+            var guids = AssetDatabase.FindAssets("t:Scene", new[] { "Assets/Scenes" });
             Assert.That(guids.Length, Is.GreaterThan(0), "No scene assets were found.");
             foreach (var guid in guids)
             {

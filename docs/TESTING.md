@@ -28,8 +28,8 @@ python3 -m unittest discover -s scripts/tests -v
 
 以下按测试方法计数（2026-11-02 实际运行，见 [开发记录](records/status-log.md)）。
 
-- EditMode（10 项）：Force Text、Visible Meta Files、所有 Scene 及 Prefab 的序列化引用/缺失脚本检查、DressingRoomPlayer 使用共享 Player 契约且不带网络组件、Lobby 资源接线（LobbyRoom 已注册、Network Prefab、启动场景与地图均在构建列表）；`OutfitSelection` 循环切换与取消恢复；`LobbyRules` 2–4 人与准备条件、`MapSelection` 随机地图。已知失败：第三方 `Assets/WC/DemoScene/000.unity` 缺失脚本（2026-11-01 起即失败）。
-- PlayMode（9 项）：DressingRoom 镜子换装改变外观并记住；门打开虚化 Lobby、单人离线测试选地图后加载 Playground 并穿着外观；Host 建房后单人不能开始、Lobby 中不生成角色、选图后加载地图并同步外观；无镜子时 E 仍交互马桶；Smoke 加载；Playground 墙体碰撞/高帧率位移/姿态停步；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。 已知失败：Playground 的墙体位置、唯一镜头数、马桶查找相关 4 项与当前 8m×10m 地图和镜面摄像机不符（2026-11-01 起即失败，本次未修改）。
+- EditMode（10 项）：Force Text、Visible Meta Files、`Assets/Scenes` 下项目场景及所有 Prefab 的序列化引用/缺失脚本检查（第三方演示场景不在范围内）、DressingRoomPlayer 使用共享 Player 契约且不带网络组件、Lobby 资源接线（LobbyRoom 已注册、Network Prefab、启动场景与地图均在构建列表）；`OutfitSelection` 循环切换与取消恢复；`LobbyRules` 2–4 人与准备条件、`MapSelection` 随机地图。
+- PlayMode（9 项）：DressingRoom 镜子换装改变外观并记住；门打开虚化 Lobby、单人离线测试选地图后加载 Playground 并穿着外观；Host 建房后单人不能开始、Lobby 中不生成角色、选图后加载地图并同步外观；无镜子时 E 仍交互马桶；Smoke 加载；Playground 墙体碰撞/高帧率位移/姿态停步；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。 Playground 测试从场景读取墙体位置与隔间马桶，只统计渲染到屏幕的摄像机（镜面摄像机渲染到贴图）；马桶测试先从门外开门再站到座位前，验证隔间内 E 先坐下、再按 E 站起。已知失败：`CameraBlendsAndInteriorIsVisible`，隔间内坐下时镜头被墙/门框挤到角色头部，见 [开发状态](DEVELOPMENT_STATUS.md)。
 - 仓库检查：路径大小写、JSON/asmdef、`.meta` 成对与 GUID 唯一性、生成目录忽略、包约束、相对 Markdown 文件链接；不请求外部链接，也不验证页面锚点。
 - 脚本单测：并发锁、虚假测试成功、Semantic Diff 格式及 baseline 边界。
 - 双 Player 验证：Development 构建通过 `scripts/multiplayer.py` 启动两个独立进程，在 localhost UnityTransport 上检查位置/朝向/姿态、所有权、独立镜头、可见远端角色、出生点与退出清理。开发探针只在显式 `-m1-probe` 参数下运行；普通游戏不自动操作角色，Release 不包含探针。

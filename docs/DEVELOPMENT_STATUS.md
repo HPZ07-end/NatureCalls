@@ -15,4 +15,7 @@
 
 分支与集成：M1 已合入 `dev`；`main` 仍只有 Bootstrap 提交。GitHub 默认分支为 `main`（2026-11-02 读取）。`dev`/`main` 均未启用服务端分支保护，Review 要求目前只由 [CONTRIBUTING](CONTRIBUTING.md) 约定。
 
-已知问题：Playground 的 4 项 PlayMode 测试（墙体位置、唯一镜头数、马桶查找）与当前地图和镜面摄像机不符，双进程探针的 `singleCamera` 断言同因失败；EditMode 场景检查因第三方 `WC/DemoScene/000.unity` 缺失脚本失败。均自 2026-11-01 起存在。Windows Unity、真实 LAN/Relay、签名/公证尚未验收；CI 的三个 OS 仅覆盖 Python/仓库检查。
+已知问题：
+- 隔间内马桶优先于门（用户 2026-11-02 决定）：站在隔间里按 E 总是坐下而不是操作门，因此无法从隔间内用 E 关门、上锁或开门；门被外面的人关上后，里面的人会被困住。暂不处理。
+- 在 WC 隔间里坐下时，第三人称镜头被隔间墙/门框挤到角色头部，看不到马桶（PlayMode `CameraBlendsAndInteriorIsVisible` 失败）。需要决定窄隔间里的镜头方案（如镜头穿过隔板、隔板对镜头透明或改为俯视）。
+Windows Unity、真实 LAN/Relay、签名/公证尚未验收；CI 的三个 OS 仅覆盖 Python/仓库检查。
