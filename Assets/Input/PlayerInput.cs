@@ -43,7 +43,7 @@ namespace NatureCalls.Input
             if (!movement.Controlled) return;
             if (release.WasPressedThisFrame()) Unlock();
             if (CaptureMouse && Application.isFocused && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
-                Mouse.current.position.ReadValue().x > 360 && !IsPointerOverUi())
+                !IsPointerOverUi())
             { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             bool accept = Application.isFocused && (Captured || !CaptureMouse);
             if (accept)
@@ -61,14 +61,30 @@ namespace NatureCalls.Input
 
         public bool TryInteract()
         {
+            // A second E while seated stands back up.
+            if (posture.IsSquatting) { posture.Set(PostureState.Standing); return true; }
             if (TryPickupNearestPaperRoll()) return true;
             foreach (var mirror in FindObjectsByType<DressingMirror>(FindObjectsSortMode.None))
                 if (mirror.Interact(movement)) return true;
+            // Inside a stall the toilet comes before the door.
+            if (IsInsideStall() && TryEnterToilet()) return true;
             if (TryInteractNearestStallDoor()) return true;
             foreach (var door in FindObjectsByType<LobbyDoor>(FindObjectsSortMode.None))
                 if (door.Interact(movement)) return true;
+            return TryEnterToilet();
+        }
+
+        private bool TryEnterToilet()
+        {
             foreach (var toilet in FindObjectsByType<Toilet>(FindObjectsSortMode.None))
                 if (toilet.Enter(movement)) return true;
+            return false;
+        }
+
+        private bool IsInsideStall()
+        {
+            foreach (var door in FindObjectsByType<StallDoor>(FindObjectsSortMode.None))
+                if (door.CanInteract(movement) && door.IsInside(movement)) return true;
             return false;
         }
 

@@ -4,6 +4,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using NatureCalls.Player;
@@ -13,6 +14,7 @@ namespace NatureCalls.Network
     // Explicit development-build probe only. No test controller exists in normal play or release builds.
     public sealed class Probe : MonoBehaviour
     {
+        private const string PlaygroundScene = "Assets/Scenes/Playground.unity";
         [Serializable]
         private sealed class Report
         {
@@ -38,13 +40,21 @@ namespace NatureCalls.Network
         {
             if (!System.Environment.GetCommandLineArgs().Contains("-m1-probe")) return;
             var probe = new GameObject("Explicit multiplayer verification").AddComponent<Probe>();
+            DontDestroyOnLoad(probe.gameObject);
             probe.reportPath = Argument("-m1-report");
             probe.report = new Report { role = Argument("-m1-role"), status = "running" };
         }
         private IEnumerator Start()
         {
             yield return null;
-            session = FindFirstObjectByType<Session>();
+            // The build opens on the DressingRoom; the probe exercises direct play on the Playground map.
+            if (SceneManager.GetActiveScene().path != PlaygroundScene)
+            {
+                SceneManager.LoadScene(PlaygroundScene, LoadSceneMode.Single);
+                yield return null;
+                yield return null;
+            }
+            session = Session.Instance;
             if (session == null || string.IsNullOrEmpty(reportPath)) { Finish("Missing probe arguments or Session."); yield break; }
             if (ushort.TryParse(Argument("-m1-port"), out var port)) session.Port = port;
             if (!session.StartDirect(report.role == "host")) { Finish(session.Status); yield break; }
@@ -70,7 +80,7 @@ namespace NatureCalls.Network
             own.GetComponent<NatureCalls.Input.PlayerInput>().enabled = false; // Deterministic input drives the same public abilities.
             report.ownership = movement.Controlled && !peer.GetComponent<Movement>().Controlled &&
                 !peer.GetComponent<NatureCalls.Input.PlayerInput>().enabled;
-            report.singleCamera = UnityEngine.Camera.allCamerasCount == 1 && session.World.Camera.Target == movement;
+            report.singleCamera = ScreenCameras() == 1 && session.World.Camera.Target == movement;
             Vector3 ownStart = own.transform.position;
             Vector3 peerStart = peer.transform.position;
             report.localColor = own.ColorIndex.Value;
@@ -109,7 +119,7 @@ namespace NatureCalls.Network
                             session.World.Camera.FirstPerson.Priority.Value > session.World.Camera.ThirdPerson.Priority.Value;
                     report.ownership &= !peer.GetComponent<Movement>().Controlled;
                     report.remoteVisible &= peer.GetComponent<Movement>().Body.GetComponentsInChildren<Renderer>().All(r => !r.forceRenderingOff);
-                    report.singleCamera &= UnityEngine.Camera.allCamerasCount == 1 && session.World.Camera.Target == movement;
+                    report.singleCamera &= ScreenCameras() == 1 && session.World.Camera.Target == movement;
                     if (!captured && elapsed > 16)
                     {
                         var direction = peer.transform.position - own.transform.position;
@@ -140,6 +150,8 @@ namespace NatureCalls.Network
                 report.remoteMoved && report.remoteRotated && report.remoteSquatted && report.remoteStoodAgain && report.remoteVisible && report.distinctSpawns && report.cleanup;
             Finish(passed ? "" : "One or more multiplayer assertions failed; inspect report fields.");
         }
+        // Mirror cameras render to textures; only one camera may render to the screen.
+        private static int ScreenCameras() => UnityEngine.Camera.allCameras.Count(camera => camera.targetTexture == null);
         private void Finish(string error)
         {
             if (finished) return;

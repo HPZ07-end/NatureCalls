@@ -101,9 +101,10 @@ namespace NatureCalls.Editor
             }
             Populate(toilet);
             EditorSceneManager.SaveScene(scene, ScenePath);
-            var others = EditorBuildSettings.scenes.Where(item => item.path != ScenePath).ToList();
-            others.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
-            EditorBuildSettings.scenes = others.ToArray();
+            // DressingRoom stays the first (startup) scene; the Playground map only needs to be listed.
+            var scenes = EditorBuildSettings.scenes.ToList();
+            if (!scenes.Any(item => item.path == ScenePath)) scenes.Add(new EditorBuildSettingsScene(ScenePath, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
             AssetDatabase.SaveAssets();
         }
 
@@ -186,8 +187,8 @@ namespace NatureCalls.Editor
             manager.NetworkConfig.Prefabs.NetworkPrefabsLists.Clear();
             var session = network.AddComponent<NatureCalls.Network.Session>();
             session.Manager = manager; session.Transport = transport; session.World = world;
-            var panel = new GameObject("Controls").AddComponent<NatureCalls.UI.Panel>();
-            panel.World = world; panel.Session = session;
+            // The map HUD (exit button) and its EventSystem come from LobbyFlowBuilder.
+            LobbyFlowBuilder.AddMatchHud();
         }
 
         private static void BodyPart(Transform parent, string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)

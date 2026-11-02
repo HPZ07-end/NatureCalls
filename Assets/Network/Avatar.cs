@@ -12,6 +12,8 @@ namespace NatureCalls.Network
         public NetworkVariable<PostureState> SharedPosture = new(PostureState.Standing,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         public NetworkVariable<int> ColorIndex = new(0);
+        // Server-write; -1 (direct play without a Lobby room) shows the identity color instead.
+        public NetworkVariable<int> OutfitIndex = new(-1);
         private Movement movement;
         private Posture posture;
         private PlayerAppearance appearance;
@@ -24,9 +26,10 @@ namespace NatureCalls.Network
             posture = GetComponent<Posture>();
             appearance = GetComponent<PlayerAppearance>();
             world = FindFirstObjectByType<Map.Playground>();
-            if (IsServer) ColorIndex.Value = FindFirstObjectByType<Session>().Slot(OwnerClientId);
-            ColorIndex.OnValueChanged += ColorChanged;
-            ColorChanged(0, ColorIndex.Value);
+            if (IsServer) ColorIndex.Value = Session.Instance.Slot(OwnerClientId);
+            ColorIndex.OnValueChanged += AppearanceChanged;
+            OutfitIndex.OnValueChanged += AppearanceChanged;
+            RefreshAppearance();
             SharedPosture.OnValueChanged += PostureChanged;
             posture.Set(SharedPosture.Value);
             posture.Changed += PublishPosture;
@@ -37,14 +40,19 @@ namespace NatureCalls.Network
         }
         private void PublishPosture(PostureState value) { if (IsSpawned && IsOwner) SharedPosture.Value = value; }
         private void PostureChanged(PostureState previous, PostureState current) { posture.Set(current); }
-        private void ColorChanged(int previous, int current)
+        private void AppearanceChanged(int previous, int current) => RefreshAppearance();
+        private void RefreshAppearance()
         {
-            appearance.ApplyIdentityColor(Colors[Mathf.Abs(current) % Colors.Length]);
+            if (OutfitIndex.Value >= 0 && appearance.Catalog != null && appearance.Catalog.Contains(OutfitIndex.Value))
+                appearance.ApplyOutfit(OutfitIndex.Value);
+            else
+                appearance.ApplyIdentityColor(Colors[Mathf.Abs(ColorIndex.Value) % Colors.Length]);
         }
         public override void OnNetworkDespawn()
         {
             SharedPosture.OnValueChanged -= PostureChanged;
-            ColorIndex.OnValueChanged -= ColorChanged;
+            ColorIndex.OnValueChanged -= AppearanceChanged;
+            OutfitIndex.OnValueChanged -= AppearanceChanged;
             if (posture != null) posture.Changed -= PublishPosture;
             if (movement != null) movement.SetControl(false);
             GetComponent<PlayerInput>().enabled = false;

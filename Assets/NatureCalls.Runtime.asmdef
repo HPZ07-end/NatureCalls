@@ -11,6 +11,7 @@
     "Unity.Services.Authentication",
     "Unity.Services.Multiplayer",
     "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime",
     "Unity.Services.Core.Environments"
   ]
 }

@@ -13,7 +13,8 @@ namespace NatureCalls.Map
         public CameraController Camera;
         public bool StartOffline = true;
         public Movement OfflinePlayer { get; private set; }
-        private void Start() { if (StartOffline) Practice(); }
+        // A networked match spawns its players through the Lobby room instead.
+        private void Start() { if (StartOffline && Match.Mode != MatchMode.Networked) Practice(); }
         public void Practice()
         {
             StopPractice();
@@ -22,6 +23,8 @@ namespace NatureCalls.Map
             OfflinePlayer = instance.GetComponent<Movement>();
             OfflinePlayer.SetControl(true);
             instance.GetComponent<PlayerInput>().enabled = true;
+            var appearance = instance.GetComponent<PlayerAppearance>();
+            if (appearance.Catalog != null) appearance.ApplyOutfit(appearance.Catalog.Clamp(LocalProfile.OutfitIndex));
             Camera.Bind(OfflinePlayer);
 #if UNITY_EDITOR
             var listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);

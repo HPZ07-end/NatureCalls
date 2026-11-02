@@ -26,10 +26,10 @@ python3 -m unittest discover -s scripts/tests -v
 
 ## 当前覆盖范围
 
-以下按测试方法计数（2026-11-02 读取源码，未代表一次实际运行结果）。
+以下按测试方法计数（2026-11-02 实际运行，见 [开发记录](records/status-log.md)）。
 
-- EditMode（7 项）：Force Text、Visible Meta Files、所有 Scene 及 Prefab 的序列化引用/缺失脚本检查、ChangingRoom 使用共享 Player 契约；`OutfitSelection` 循环切换与取消恢复。
-- PlayMode（10 项）：DressingRoom 镜子与门的距离判定和 LobbyUI 目标、无镜子时 E 仍交互马桶；Lobby 返回准备房入口与四人自动开始 Mock；Smoke 加载；Playground 墙体碰撞/高帧率位移/姿态停步；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。
+- EditMode（10 项）：Force Text、Visible Meta Files、`Assets/Scenes` 下项目场景及所有 Prefab 的序列化引用/缺失脚本检查（第三方演示场景不在范围内）、DressingRoomPlayer 使用共享 Player 契约且不带网络组件、Lobby 资源接线（LobbyRoom 已注册、Network Prefab、启动场景与地图均在构建列表）；`OutfitSelection` 循环切换与取消恢复；`LobbyRules` 2–4 人与准备条件、`MapSelection` 随机地图。
+- PlayMode（9 项）：DressingRoom 镜子换装改变外观并记住；门打开虚化 Lobby、单人离线测试选地图后加载 Playground 并穿着外观；Host 建房后单人不能开始、Lobby 中不生成角色、选图后加载地图并同步外观；无镜子时 E 仍交互马桶；Smoke 加载；Playground 墙体碰撞/高帧率位移/姿态停步；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。 Playground 测试从场景读取墙体位置与隔间马桶，只统计渲染到屏幕的摄像机（镜面摄像机渲染到贴图）；马桶测试先从门外开门再站到座位前，验证隔间内 E 先坐下、再按 E 站起。坐在马桶上时验证俯视镜头位于角色上方、看得到马桶开口且不被角色网格遮挡；站起后回到坐下前的位置并能走出隔间。2026-11-03 全部通过。
 - 仓库检查：路径大小写、JSON/asmdef、`.meta` 成对与 GUID 唯一性、生成目录忽略、包约束、相对 Markdown 文件链接；不请求外部链接，也不验证页面锚点。
 - 脚本单测：并发锁、虚假测试成功、Semantic Diff 格式及 baseline 边界。
 - 双 Player 验证：Development 构建通过 `scripts/multiplayer.py` 启动两个独立进程，在 localhost UnityTransport 上检查位置/朝向/姿态、所有权、独立镜头、可见远端角色、出生点与退出清理。开发探针只在显式 `-m1-probe` 参数下运行；普通游戏不自动操作角色，Release 不包含探针。
@@ -46,7 +46,7 @@ python3 scripts/multiplayer.py Builds/macOS/<build-id>/NatureCalls.app
 
 Windows 使用 `py -3 scripts/multiplayer.py Builds/Windows/NatureCalls.exe`，必须勾选 Development Build；Release 没有探针，不能用于此命令。脚本为两个自身创建的进程收集 JSON、PNG 和 Player 日志，超时失败会结束这两个进程，不操作 Editor。每端断言和退出码必须同时通过。测试使用短暂分配的本机 UDP 端口，不配置 Cloud。
 
-MPPM GUI、2–4 人、真实 LAN、Relay、Mac/Windows 互联分别人工记录。按 [PLAYGROUND](PLAYGROUND.md) 启动，逐端验证 WASD/鼠标/C/E/Esc，观察远端移动和蹲下，确认 A 的镜头变化不影响 B；Client Leave 后 Host 只剩自己的角色，Host 离开后 Client 获得断开反馈。再测试重新加入、无效 Join Code、房间满员与端口不可达。未执行项不能因脚本通过而勾选。
+MPPM GUI、2–4 人、真实 LAN、Relay、Mac/Windows 互联分别人工记录。按 [PLAYGROUND](PLAYGROUND.md) 启动，逐端验证 WASD/鼠标/C/E/Esc，观察远端移动和蹲下，确认 A 的镜头变化不影响 B；大厅中验证准备/开始按键、人数不足时不能开始、选图与随机地图、对局中双方外观一致；Client 点左上角「退出」后 Host 只剩自己的角色，Host 退出后 Client 回到准备房并看到原因。再测试重新加入、游戏开始后加入被拒、无效地址或 Join Code、房间满员与端口不可达。未执行项不能因脚本通过而勾选。
 
 ## Semantic Diff
 

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -53,7 +54,7 @@ namespace NatureCalls.Tests
             yield return null;
             Assert.That(world.OfflinePlayer, Is.Null);
             Assert.That(world.Camera.Target, Is.EqualTo(avatar.GetComponent<Movement>()));
-            Assert.That(UnityEngine.Camera.allCamerasCount, Is.EqualTo(1));
+            Assert.That(ScreenCameras(), Is.EqualTo(1), "Mirror cameras render to textures; only one camera renders to the screen.");
             avatar.GetComponent<Posture>().Set(PostureState.Squatting);
             yield return null;
             Assert.That(avatar.GetComponent<NatureCalls.Network.Avatar>().SharedPosture.Value, Is.EqualTo(PostureState.Squatting));
@@ -97,11 +98,18 @@ namespace NatureCalls.Tests
             var initial = player.transform.position;
             for (int step = 0; step < 1000; step++) player.Move(Vector2.right, .0001f);
             Assert.That(player.transform.position.x - initial.x, Is.GreaterThan(.3f), "High-frame-rate movement must accumulate.");
+            // Walk backwards from the first spawn into whatever stands behind it, measured from the scene.
+            var spawn = world.Spawns[0];
             controller.enabled = false;
-            player.transform.position = new Vector3(4, 0, -5);
+            player.transform.SetPositionAndRotation(spawn.position, spawn.rotation);
             controller.enabled = true;
-            for (int i = 0; i < 50; i++) { player.Move(Vector2.down, .05f); yield return null; }
-            Assert.That(player.transform.position.z, Is.InRange(-6.7f, -6.3f), "Physical wall must stop movement.");
+            var backward = -player.transform.forward;
+            Assert.That(Physics.SphereCast(player.transform.position + Vector3.up, controller.radius * .9f, backward, out var wall, 20, 1,
+                QueryTriggerInteraction.Ignore), Is.True, "Nothing solid behind the spawn point.");
+            for (int i = 0; i < 400; i++) { player.Move(Vector2.down, .05f); yield return null; }
+            var travelled = Vector3.Dot(player.transform.position - spawn.position, backward);
+            Assert.That(travelled, Is.LessThanOrEqualTo(wall.distance + .05f), "Physical wall must stop movement.");
+            Assert.That(travelled, Is.GreaterThan(wall.distance - .3f), "Movement stopped well before the wall.");
             player.GetComponent<Posture>().Set(PostureState.Squatting);
             var start = player.transform.position;
             for (int i = 0; i < 20; i++) { player.Move(Vector2.up, .05f); yield return null; }
@@ -111,29 +119,38 @@ namespace NatureCalls.Tests
         public IEnumerator InputStillUsesToiletWhenNoMirrorIsNearby()
         {
             var player = world.OfflinePlayer;
-            Toilet toilet = null;
-            foreach (var root in scene.GetRootGameObjects()) if (root.TryGetComponent(out Toilet found)) toilet = found;
-            Assert.That(toilet, Is.Not.Null);
+            var toilet = FindToilet();
+            yield return OpenStallAndStandAt(player, toilet);
             var controller = player.GetComponent<CharacterController>();
-            controller.enabled = false;
-            player.transform.position = toilet.Anchor.position - Vector3.forward * .3f;
-            controller.enabled = true;
 
-            Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryInteract(), Is.True);
-            Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Squatting));
+            // Stand a little back from the seat, still inside the stall, facing the bowl.
+            var outward = -toilet.Anchor.forward;
+            controller.enabled = false;
+            player.transform.position = toilet.Anchor.position + outward * .25f;
+            controller.enabled = true;
+            var before = player.transform.position;
+            var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+            Assert.That(input.TryInteract(), Is.True);
+            Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Squatting), "Inside the stall the toilet comes before the door.");
+            Assert.That(player.Seat, Is.EqualTo(toilet.Anchor));
+            var door = toilet.GetComponentInParent<StallDoor>();
+            var doorState = door.State;
             yield return null;
+            Assert.That(input.TryInteract(), Is.True);
+            Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Standing), "A second E stands back up.");
+            Assert.That(door.State, Is.EqualTo(doorState));
+            Assert.That(player.Seat, Is.Null);
+            Assert.That(Vector3.Distance(player.transform.position, before), Is.LessThan(.01f), "Standing up returns to where the player sat down from.");
+            for (int i = 0; i < 20; i++) { player.Move(Vector2.down, .05f); yield return null; }
+            Assert.That(Vector3.Dot(player.transform.position - before, outward), Is.GreaterThan(.3f), "After standing up the player can walk out of the stall.");
         }
         [UnityTest]
         public IEnumerator CameraBlendsAndInteriorIsVisible()
         {
             var player = world.OfflinePlayer;
-            Toilet toilet = null;
-            foreach (var root in scene.GetRootGameObjects()) if (root.TryGetComponent(out Toilet found)) toilet = found;
-            Assert.That(toilet, Is.Not.Null);
+            var toilet = FindToilet();
+            yield return OpenStallAndStandAt(player, toilet);
             var controller = player.GetComponent<CharacterController>();
-            controller.enabled = false;
-            player.transform.position = toilet.Anchor.position - Vector3.forward * .3f;
-            controller.enabled = true;
             player.Look(new Vector2(40, -50));
             yield return null;
             var heading = player.ViewRotation;
@@ -155,8 +172,16 @@ namespace NatureCalls.Tests
             Assert.That(world.Camera.ThirdPerson.Priority.Value, Is.GreaterThan(world.Camera.FirstPerson.Priority.Value));
             Capture(camera, "squatting.png");
             var offset = player.transform.InverseTransformPoint(camera.transform.position);
-            Assert.That(Mathf.Abs(offset.x), Is.LessThan(.03f), "Third-person camera must be centered behind the player.");
-            Assert.That(offset.z, Is.InRange(-1.3f, -.7f), "Centered camera must stay close behind the player.");
+            Assert.That(Mathf.Abs(offset.x), Is.LessThan(.03f), "Seated camera must stay centered on the player.");
+            var lookFrom = world.Camera.Shoulder.position;
+            var blocked = Physics.SphereCast(lookFrom, world.Camera.CameraRadius, -world.Camera.Shoulder.forward, out var blocker,
+                world.Camera.SeatedDistance, world.Camera.CameraCollisionLayers) ? blocker.collider.name + " at " + blocker.point : "nothing";
+            blocked += "; overlapping " + string.Join(",", Physics.OverlapSphere(lookFrom, world.Camera.CameraRadius, world.Camera.CameraCollisionLayers)
+                .Select(item => item.name + "(" + item.GetType().Name + (item.isTrigger ? ",trigger" : "") + ")"))
+                + "; camera " + camera.transform.position + " shoulder " + lookFrom + " pitch " + world.Camera.Shoulder.eulerAngles.x;
+            Assert.That(offset.y, Is.GreaterThan(1.5f), "Seated on a toilet the camera looks down from above the stall; blocked by " + blocked);
+            Assert.That(offset.z, Is.InRange(-.8f, 0f), "Top-down camera stays just behind the player.");
+            Assert.That(camera.transform.eulerAngles.x, Is.InRange(60f, 89.9f), "Top-down camera looks steeply down.");
             Assert.That(Mathf.Abs(Mathf.DeltaAngle(camera.transform.eulerAngles.y, player.transform.eulerAngles.y)), Is.LessThan(.1f));
             Assert.That(camera.WorldToViewportPoint(player.Body.position).x, Is.EqualTo(.5f).Within(.02f));
             var viewport = camera.WorldToViewportPoint(toilet.Interior.position);
@@ -165,7 +190,9 @@ namespace NatureCalls.Tests
             Assert.That(viewport.z, Is.GreaterThan(0));
             var ray = new Ray(camera.transform.position, toilet.Interior.position - camera.transform.position);
             Assert.That(Physics.Raycast(ray, out var hit, 20, 1), Is.True);
-            Assert.That(hit.transform, Is.EqualTo(toilet.Interior), "World geometry obscures the interior placeholder.");
+            // The WC bowl's own box collider encloses its opening; anything else in between is an obstruction.
+            Assert.That(hit.transform == toilet.Interior || hit.transform == toilet.transform, Is.True,
+                "World geometry obscures the toilet interior: " + hit.transform.name);
             foreach (var renderer in player.Body.GetComponentsInChildren<Renderer>())
             {
                 Assert.That(renderer.forceRenderingOff, Is.False, "Local third-person body must be visible.");
@@ -179,7 +206,7 @@ namespace NatureCalls.Tests
                     Assert.That(screen.x, Is.InRange(.02f, .98f), "Body clipped horizontally: " + renderer.name);
                     Assert.That(screen.y, Is.InRange(.02f, .98f), "Body clipped vertically: " + renderer.name);
                 }
-                Assert.That(renderer.bounds.IntersectRay(ray, out var distance) && distance < Vector3.Distance(ray.origin, toilet.Interior.position), Is.False,
+                Assert.That(Obscures(renderer, ray, Vector3.Distance(ray.origin, toilet.Interior.position)), Is.False,
                     "Local body obscures the center of the placeholder: " + renderer.name);
             }
             Capture(camera, "squatting.png");
@@ -187,9 +214,67 @@ namespace NatureCalls.Tests
             yield return new WaitForSeconds(1);
             Assert.That(Quaternion.Angle(player.ViewRotation, heading), Is.LessThan(.1f), "Return must preserve standing look direction.");
             Assert.That(Vector3.Distance(camera.transform.position, player.transform.position + Vector3.up * world.Camera.EyeHeight), Is.LessThan(.05f));
-            foreach (var renderer in player.Body.GetComponentsInChildren<Renderer>()) Assert.That(renderer.forceRenderingOff, Is.True);
+            // First person hides the local body from the screen camera only (mirrors still render it).
+            Assert.That(camera.cullingMask & (1 << NatureCalls.Camera.CameraController.LocalBodyLayer), Is.Zero, "First-person output must hide the local body.");
             Capture(camera, "returned.png");
         }
+        // Ray test against the body's actual (baked) mesh; bounding boxes are too coarse for the top-down view.
+        private static bool Obscures(Renderer renderer, Ray ray, float maxDistance)
+        {
+            var mesh = new Mesh();
+            var probe = new GameObject("Occlusion probe");
+            try
+            {
+                if (renderer is SkinnedMeshRenderer skinned)
+                {
+                    skinned.BakeMesh(mesh, true);
+                    probe.transform.SetPositionAndRotation(renderer.transform.position, renderer.transform.rotation);
+                }
+                else if (renderer.TryGetComponent(out MeshFilter filter) && filter.sharedMesh != null)
+                {
+                    mesh = Object.Instantiate(filter.sharedMesh);
+                    probe.transform.SetPositionAndRotation(renderer.transform.position, renderer.transform.rotation);
+                    probe.transform.localScale = renderer.transform.lossyScale;
+                }
+                else return renderer.bounds.IntersectRay(ray, out var distance) && distance < maxDistance;
+                var collider = probe.AddComponent<MeshCollider>();
+                collider.sharedMesh = mesh;
+                return collider.Raycast(ray, out _, maxDistance);
+            }
+            finally { Object.Destroy(probe); Object.Destroy(mesh); }
+        }
+
+        private static int ScreenCameras() => UnityEngine.Camera.allCameras.Count(camera => camera.targetTexture == null);
+
+        private Toilet FindToilet()
+        {
+            var toilet = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Toilet>()).FirstOrDefault();
+            Assert.That(toilet, Is.Not.Null, "The map has no Toilet interaction.");
+            return toilet;
+        }
+
+        // Opens the stall from outside, as a player would, then stands at the posture anchor.
+        private static IEnumerator OpenStallAndStandAt(Movement player, Toilet toilet)
+        {
+            var door = toilet.GetComponentInParent<StallDoor>();
+            var controller = player.GetComponent<CharacterController>();
+            if (door != null && door.State != StallDoorState.Open)
+            {
+                // The anchor faces the bowl, so its back points out of the stall.
+                var outward = -toilet.Anchor.forward;
+                controller.enabled = false;
+                player.transform.position = new Vector3(door.DoorColliderPivot.position.x, 0, door.DoorColliderPivot.position.z) + outward * .6f;
+                controller.enabled = true;
+                Assert.That(door.IsInside(player), Is.False);
+                Assert.That(door.Interact(player), Is.True);
+                Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
+            }
+            controller.enabled = false;
+            player.transform.SetPositionAndRotation(toilet.Anchor.position, toilet.Anchor.rotation);
+            controller.enabled = true;
+            yield return null;
+        }
+
         private static void Capture(UnityEngine.Camera camera, string name)
         {
             var directory = System.Environment.GetEnvironmentVariable("NATURECALLS_RUN_PATH");

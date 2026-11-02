@@ -3,30 +3,27 @@ using UnityEngine;
 
 namespace NatureCalls.Player
 {
+    /// <summary>
+    /// DressingRoom outfit flow: preview, confirm or cancel. Confirmed outfits are saved to <see cref="LocalProfile"/>.
+    /// </summary>
     public sealed class PlayerOutfitController : MonoBehaviour
     {
         [SerializeField] private PlayerAppearance appearance;
-        [SerializeField] private string[] outfitNames = { "Default Blue", "Cleanup Green", "Repair Orange", "Party Pink" };
-        [SerializeField] private Color[] outfitColors =
-        {
-            new Color(0.18f, 0.48f, 0.95f),
-            new Color(0.16f, 0.72f, 0.42f),
-            new Color(1f, 0.45f, 0.1f),
-            new Color(0.95f, 0.24f, 0.58f)
-        };
 
         private OutfitSelection selection;
 
+        public OutfitCatalog Catalog => appearance.Catalog;
         public int PreviewIndex => selection.PreviewIndex;
-        public string PreviewName => outfitNames[selection.PreviewIndex];
+        public int ConfirmedIndex => selection.ConfirmedIndex;
+        public string PreviewName => Catalog[selection.PreviewIndex].Name;
         public bool IsSelecting => selection.IsSelecting;
 
         private void Awake()
         {
             if (appearance == null)
                 appearance = GetComponent<PlayerAppearance>();
-            selection = new OutfitSelection(Mathf.Min(outfitNames.Length, outfitColors.Length));
-            Apply(0);
+            selection = new OutfitSelection(Catalog.Count, Catalog.Clamp(LocalProfile.OutfitIndex));
+            Apply(selection.ConfirmedIndex);
         }
 
         public void BeginSelection()
@@ -40,9 +37,15 @@ namespace NatureCalls.Player
             Apply(selection.Move(direction));
         }
 
+        public void Preview(int index)
+        {
+            Apply(selection.Move(index - selection.PreviewIndex));
+        }
+
         public void ConfirmSelection()
         {
             selection.Confirm();
+            LocalProfile.OutfitIndex = selection.ConfirmedIndex;
             Apply(selection.ConfirmedIndex);
         }
 
@@ -54,7 +57,7 @@ namespace NatureCalls.Player
 
         private void Apply(int index)
         {
-            appearance.ApplyOutfit(index, outfitColors[index]);
+            appearance.ApplyOutfit(index);
         }
     }
 }

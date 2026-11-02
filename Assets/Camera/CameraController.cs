@@ -21,6 +21,9 @@ namespace NatureCalls.Camera
         [Range(.3f, 3)] public float ThirdPersonHeight = .8f;
         [Range(10, 70)] public float ThirdPersonPitch = 50;
         [Range(-2, 2)] public float ShoulderOffset = 0;
+        // Seated on a toilet the stall is too narrow for the camera behind: look down from above instead.
+        [Range(1, 4)] public float SeatedDistance = 1.9f;
+        [Range(60, 89)] public float SeatedPitch = 80;
         [Range(.05f, 2)] public float TransitionDuration = .65f;
         public LayerMask CameraCollisionLayers = 1;
         [Range(.05f, .4f)] public float CameraRadius = .15f;
@@ -91,10 +94,11 @@ namespace NatureCalls.Camera
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
             if (!posture.IsSquatting)
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * EyeHeight, Target.ViewRotation);
+            bool seated = posture.IsSquatting && Target.Seat != null;
             if (posture.IsSquatting)
                 Shoulder.SetPositionAndRotation(Target.transform.position + Vector3.up * ThirdPersonHeight,
-                    Quaternion.Euler(ThirdPersonPitch, Target.transform.eulerAngles.y, 0));
-            follow.CameraDistance = ThirdPersonDistance;
+                    Quaternion.Euler(seated ? SeatedPitch : ThirdPersonPitch, Target.transform.eulerAngles.y, 0));
+            follow.CameraDistance = seated ? SeatedDistance : ThirdPersonDistance;
             follow.ShoulderOffset = new Vector3(ShoulderOffset, 0, 0);
             follow.VerticalArmLength = 0;
             follow.CameraSide = 1;
