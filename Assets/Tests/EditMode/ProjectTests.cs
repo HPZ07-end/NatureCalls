@@ -54,14 +54,14 @@ namespace NatureCalls.Tests
         [Test]
         public void ChangingRoomUsesSharedPlayerContract()
         {
-            var player = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Player.prefab");
-            var changingRoomPlayer = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/ChangingRoomPlayer.prefab");
+            var player = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Characters/Player.prefab");
+            var changingRoomPlayer = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Characters/ChangingRoomPlayer.prefab");
 
             Assert.That(player, Is.Not.Null, "Shared Player prefab is missing.");
             Assert.That(changingRoomPlayer, Is.Not.Null, "Changing-room Player variant is missing.");
             Assert.That(PrefabUtility.GetCorrespondingObjectFromSource(changingRoomPlayer), Is.EqualTo(player));
 
-            var root = PrefabUtility.LoadPrefabContents("Assets/Prefabs/Player.prefab");
+            var root = PrefabUtility.LoadPrefabContents("Assets/Prefabs/Characters/Player.prefab");
             try
             {
                 var movement = root.GetComponent<Movement>();
