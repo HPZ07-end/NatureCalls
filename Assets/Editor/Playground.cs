@@ -42,6 +42,8 @@ namespace NatureCalls.Editor
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             foreach (var folder in new[] { "Materials", "Settings", "Prefabs" })
                 if (!AssetDatabase.IsValidFolder("Assets/" + folder)) AssetDatabase.CreateFolder("Assets", folder);
+            if (!AssetDatabase.IsValidFolder("Assets/Prefabs/Characters"))
+                AssetDatabase.CreateFolder("Assets/Prefabs", "Characters");
             ConfigureRendering();
             var settings = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset")[0]);
             settings.FindProperty("activeInputHandler").intValue = 2;
@@ -138,7 +140,7 @@ namespace NatureCalls.Editor
             BodyPart(movement.Body, "Right leg", PrimitiveType.Cube, new Vector3(.15f, .22f, 0), new Vector3(.18f, .44f, .24f), color);
             player.AddComponent<NatureCalls.Input.PlayerInput>().enabled = false;
             player.AddComponent<NatureCalls.Network.Avatar>();
-            var prefab = PrefabUtility.SaveAsPrefabAsset(player, "Assets/Prefabs/Player.prefab");
+            var prefab = PrefabUtility.SaveAsPrefabAsset(player, "Assets/Prefabs/Characters/Player.prefab");
             Object.DestroyImmediate(player);
 
             var rig = new GameObject("Local camera").AddComponent<CameraController>();

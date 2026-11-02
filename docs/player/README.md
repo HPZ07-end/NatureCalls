@@ -5,7 +5,7 @@
 ## 当前结构
 
 ```text
-Assets/Prefabs/Player.prefab
+Assets/Prefabs/Characters/Player.prefab
 ├─ CharacterController
 ├─ Movement
 ├─ Posture
@@ -15,7 +15,7 @@ Assets/Prefabs/Player.prefab
 └─ Body
    └─ 全场景共享的人物模型与 Renderer
 
-Assets/Prefabs/ChangingRoomPlayer.prefab
+Assets/Prefabs/Characters/ChangingRoomPlayer.prefab
 └─ Player.prefab 的 Prefab Variant
    ├─ startControlled = true
    └─ PlayerOutfitController
@@ -41,8 +41,8 @@ Assets/Prefabs/ChangingRoomPlayer.prefab
 
 ## 场景使用规则
 
-- Multiplayer Playground 使用 `Assets/Prefabs/Player.prefab`。
-- Changing Room 使用 `Assets/Prefabs/ChangingRoomPlayer.prefab`。
+- Multiplayer Playground 使用 `Assets/Prefabs/Characters/Player.prefab`。
+- Changing Room 使用 `Assets/Prefabs/Characters/ChangingRoomPlayer.prefab`。
 - 场景只保存 Prefab 实例、出生位置和场景专属交互，不手工创建另一套玩家模型。
 - Scene、Prefab 和组件引用必须通过 Unity API 或 Editor 工具修改，不手工编辑 Unity YAML。
 
@@ -65,7 +65,7 @@ NatureCalls.Editor.PlayerContractMigration.BuildChangingRoom
 公共 Player 契约负责人维护：
 
 ```text
-Assets/Prefabs/Player.prefab
+Assets/Prefabs/Characters/Player.prefab
 Assets/Player/Movement.cs
 Assets/Player/Posture.cs
 Assets/Player/PlayerAppearance.cs
@@ -82,7 +82,7 @@ Assets/DefaultNetworkPrefabs.asset
 更衣室模块维护：
 
 ```text
-Assets/Prefabs/ChangingRoomPlayer.prefab
+Assets/Prefabs/Characters/ChangingRoomPlayer.prefab
 Assets/Player/PlayerOutfitController.cs
 Assets/Facility/ChangingRoom/
 Assets/Facility/ChangingRoomPlatform.cs
