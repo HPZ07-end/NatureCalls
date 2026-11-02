@@ -41,7 +41,7 @@ py -3 scripts/unity.py detect
 
 4. Hub → Projects → Add project from disk，选择包含 `Assets`、`Packages`、`ProjectSettings` 的仓库根目录。等待首次导入结束。不要选择 `Assets` 子目录，也不要使用另一个模板重新创建工程。
 5. 在 VS Code 安装项目推荐扩展；Unity → Edit → Preferences → External Tools，选择 Visual Studio Code，然后 Regenerate project files。
-6. 确认位于 `dev`（或自己的功能分支）后打开 `Assets/Scenes/Playground.unity`。菜单 `NatureCalls/Validate` 检查配置；Window → General → Test Runner 中分别运行 EditMode 和 PlayMode。Playground 是首个构建场景，Smoke/Sandbox 保留。操作及两端联机见 [PLAYGROUND](PLAYGROUND.md)。
+6. 确认位于 `dev`（或自己的功能分支）后打开 `Assets/Scenes/DressingRoom.unity`（完整流程）或 `Assets/Scenes/Playground.unity`（只测地图）。菜单 `NatureCalls/Validate` 检查配置；Window → General → Test Runner 中分别运行 EditMode 和 PlayMode。DressingRoom 是首个构建场景，Smoke/Sandbox 保留。操作及两端联机见 [PLAYGROUND](PLAYGROUND.md)。
 7. 保存并关闭这个项目的 Unity GUI 后，可在 PowerShell 自动化验证：
 
 ```powershell
@@ -64,7 +64,7 @@ py -3 scripts/unity.py detect
 ## 构建与验证边界
 
 - macOS：`python3 scripts/unity.py build-macos` 构建 ARM64 Development `.app`，适合本机 Apple Silicon 验证；不是 Windows 可执行文件。
-- Windows：在 Unity File → Build Profiles 中选择/添加 Windows 平台，选择 x86_64，确认 Scene List 首项为 `Assets/Scenes/Playground.unity`，构建到 `Builds/Windows/`。缺少平台支持时通过 Hub 添加。当前没有自动化 Windows 构建命令，不要求 Windows 队友运行 `build-macos`。
+- Windows：在 Unity File → Build Profiles 中选择/添加 Windows 平台，选择 x86_64，确认 Scene List 首项为 `Assets/Scenes/DressingRoom.unity`、其后为地图 `Assets/Scenes/Playground.unity`，构建到 `Builds/Windows/`。缺少平台支持时通过 Hub 添加。当前没有自动化 Windows 构建命令，不要求 Windows 队友运行 `build-macos`。
 - 现有 EditMode/PlayMode 覆盖设置、资源、角色、镜头及 Host 生命周期；双进程验证与平台验收边界见 [TESTING](TESTING.md)。不能把本机直连成功写成 Relay 或 Windows 已通过。
 - GitHub Actions 在 Linux、macOS、Windows 上只运行仓库检查与 Python 脚本测试。绿色 CI 不等于三个系统上的 Unity 都已通过；Windows 的 Unity 导入、运行测试和 `.exe` 构建仍需 Windows 队友实测并记录。
 - 同一份工程不能同时由 Unity GUI 和 batchmode 打开。脚本会拒绝已占用的项目；不要为了运行脚本删锁或强行结束队友/自己的编辑器。
@@ -85,6 +85,6 @@ Hub 中安装锁定的 Editor，优先 GUI；旧 Hub headless CLI 已弃用，�
 
 用 VS Code 的 File → Open Folder 打开整个仓库根目录。推荐扩展已写入 `.vscode/extensions.json`：C#、C# Dev Kit、Microsoft Unity。Unity 的 Preferences → External Tools 选择 Visual Studio Code 并 Regenerate project files；之后在 Editor 内双击 `.cs` 会打开对应源码。集成包仍使用 `com.unity.ide.visualstudio`，不是已弃用的 `com.unity.ide.vscode`，配置依据见 [VS Code 官方 Unity 指南](https://code.visualstudio.com/docs/other/unity)。
 
-阅读顺序：先看 [Glossary](../GLOSSARY.md) 的玩法定义，再看 [ARCHITECTURE](ARCHITECTURE.md) 的组件依赖，然后从 `Assets/Input/PlayerInput.cs` 跟进 `Player/Movement.cs`、`Player/Posture.cs` 与 `Camera/CameraController.cs`。网络从 `Network/Session.cs`、`Network/Avatar.cs` 开始；初始化入口为 `Map/Playground.cs`，场景生成位于 `Editor/Playground.cs`。上述省略 `Assets/` 前缀的组件路径均位于 Assets 目录。
+阅读顺序：先看 [Glossary](../GLOSSARY.md) 的玩法定义，再看 [ARCHITECTURE](ARCHITECTURE.md) 的组件依赖，然后从 `Assets/Input/PlayerInput.cs` 跟进 `Player/Movement.cs`、`Player/Posture.cs` 与 `Camera/CameraController.cs`。网络从 `Network/Session.cs`、`Network/LobbyRoom.cs`、`Network/Avatar.cs` 开始；大厅与换装界面看 `UI/Lobby/LobbyController.cs`，地图初始化入口为 `Map/Playground.cs`，场景生成位于 `Editor/Playground.cs` 与 `Editor/LobbyFlowBuilder.cs`。上述省略 `Assets/` 前缀的组件路径均位于 Assets 目录。
 
 Unity Editor 用于查看 Scene、Prefab、Inspector 引用及 Play Mode；VS Code 用于读写 C# 和调试。Mac 上可用 Cmd+P 查找文件、F12 跳到定义，通过右键 Find All References 查看调用。不要编辑 Library 下的缓存，也不要为了调参数手改场景 YAML。

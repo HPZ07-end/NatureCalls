@@ -17,9 +17,11 @@
 
 ## 打开和重建
 
-先在 Unity Hub 中打开仓库根目录对应的 NatureCalls 工程，再在 **Editor 的 Project 面板**双击 `Assets/Scenes/Playground.unity`，点击 Play；不是在 Finder 中双击场景文件来启动工程。点击 Game 视图取得键盘焦点后，WASD 移动、Space 跳跃、鼠标观察、C 切换姿态、靠近卷纸后 E 拾取、R 向前丢掷携带中的卷纸、靠近隔间门或测试马桶后 E 交互。跳跃只允许在站立且着地时触发。隔间门打开时 E 关闭；关闭时隔间外 E 打开、隔间内 E 上锁；锁住后隔间外操作被拒绝、隔间内 E 解锁并打开。卷纸交互优先于门和马桶交互，每名玩家同时最多携带一个卷纸；丢掷后卷纸恢复物理运动并可再次拾取，当前不提供使用或消耗规则。当前 Player 使用导入的 `Peasant Nolant Brown` 嵌套 Prefab及 URP/Lit 兼容材质，离线练习无需连接 Unity Cloud。已有 Smoke/Sandbox 场景保留。
+先在 Unity Hub 中打开仓库根目录对应的 NatureCalls 工程。完整流程从 **Editor 的 Project 面板**双击 `Assets/Scenes/DressingRoom.unity` 开始（构建后的游戏也从这里启动，见下方「Lobby 流程」）；只想测试厕所地图时可直接双击 `Assets/Scenes/Playground.unity` 后 Play。不是在 Finder 中双击场景文件来启动工程。在 Playground 中点击 Game 视图取得键盘焦点后，WASD 移动、Space 跳跃、鼠标观察、C 切换姿态、靠近卷纸后 E 拾取、R 向前丢掷携带中的卷纸、靠近隔间门或测试马桶后 E 交互。跳跃只允许在站立且着地时触发。隔间门打开时 E 关闭；关闭时隔间外 E 打开、隔间内 E 上锁；锁住后隔间外操作被拒绝、隔间内 E 解锁并打开。卷纸交互优先于门和马桶交互，每名玩家同时最多携带一个卷纸；丢掷后卷纸恢复物理运动并可再次拾取，当前不提供使用或消耗规则。当前 Player 使用导入的 `Peasant Nolant Brown` 嵌套 Prefab及 URP/Lit 兼容材质，离线练习无需连接 Unity Cloud。已有 Smoke/Sandbox 场景保留。
 
-`python3 scripts/unity.py playground`（Windows：`py -3 scripts/unity.py playground`）通过 Editor API **重建原型 Playground、Player/Toilet Prefab 和原型材质**，只在明确需要恢复生成场景时运行；不要用它覆盖人工修改的原型。普通队友使用已提交场景即可，不需要补接组件。脚本保存原 GUID、不改旧场景，构建列表将 Playground 放在第一位。
+`python3 scripts/unity.py playground`（Windows：`py -3 scripts/unity.py playground`）通过 Editor API **重建原型 Playground、Player/Toilet Prefab 和原型材质**，只在明确需要恢复生成场景时运行；不要用它覆盖人工修改的原型。普通队友使用已提交场景即可，不需要补接组件。脚本保存原 GUID、不改旧场景；Playground 不在构建列表时追加，不改变 DressingRoom 作为启动场景。
+
+`python3 scripts/unity.py lobby-flow`（或菜单 `NatureCalls/Build Lobby Flow`）生成 Lobby 流程资源：外观/地图目录与 `LobbyCanvas` Prefab（已存在则保留）、`Network`/`LobbyRoom` Prefab、DressingRoom 中的界面与镜子/门接线，以及构建列表 DressingRoom → Playground → Smoke。
 
 ## 组件边界
 
@@ -31,12 +33,36 @@
 - `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
 - `Facility/PlanarMirror`：为每个 WC 镜面实例创建独立运行时 RenderTexture；第一人称主摄像机隐藏本地身体时，镜面摄像机仍可渲染本地 Brown 角色。
 - `Facility/PaperRoll`：检测附近玩家并记录拾取者；拾取后随玩家保留并关闭场景渲染与碰撞，R 丢掷后恢复渲染、碰撞及 Rigidbody 运动。
-- `Network/Session`：官方 MPS Session + Relay 的创建/加入/离开、匿名认证与错误状态；独立提供无需云端的 NGO 直连诊断入口。
-- `Network/Avatar`：Owner 本地控制、NetworkTransform、姿态 NetworkVariable、出生颜色与镜头绑定生命周期。
-- `Map/Playground`：原型资源引用、4 个出生位置与离线练习。
+- `Network/Session`：官方 MPS Session + Relay 的创建/加入/离开、匿名认证与错误状态；无需云端的 NGO 直连；Lobby 模式下只分配槽位并生成 LobbyRoom。跨场景保留，场景自带的重复对象自毁。
+- `Network/LobbyRoom`：房间成员、准备、外观与阶段（等待/选图/对局），地图加载完成后统一生成玩家。
+- `Network/Avatar`：Owner 本地控制、NetworkTransform、姿态 NetworkVariable、出生颜色、外观编号与镜头绑定生命周期。
+- `Map/Playground`：原型资源引用、4 个出生位置与离线练习（联机对局时不生成离线玩家）。
+- `Map/MapCatalog`、`Map/Match`：可选地图与本局模式、场景切换。
+- `UI/Lobby`：`LobbyView`（界面引用）、`LobbyController`（换装面板、Lobby、选图行为）、`BackgroundBlur`（背景虚化）。
 - `Editor/Playground`：用 Unity API 创建场景、材质、URP 设置和 Prefab。
 
 保留原逻辑目录，不建立同义的 Networking/Environment 体系。新增一个 `NatureCalls.Runtime` 总程序集是为了让 Editor 和测试能引用实际组件；没有逐模块拆程序集或提前提取 Core。
+
+## Lobby 流程
+
+1. 打开 `DressingRoom` 并 Play。走到镜子前按 E 打开换装面板，点选外观预览，「确认」保存（写入本机 PlayerPrefs），「取消」恢复。
+2. 走到镜子左侧的门按 E：背景虚化，出现联机大厅。
+   - **单人离线测试**：直接进入地图选择，选地图或「随机地图」后加载该地图，本地玩家穿着所选外观。
+   - **创建房间**：已关联 Unity Cloud 时创建 Relay 房间并显示 Join Code；未关联时开启局域网房间，房间号即房主局域网地址（端口 7777）。
+   - **加入房间**：输入 Join Code，或房主的局域网 IP（同一台机器用 `127.0.0.1`）。
+3. 房间内非房主点「准备」，房主在 2–4 人且其他人都已准备时点「开始游戏」，随后房主选择地图，其他人等待；所有人加载地图后生成角色，外观同步给其他玩家。
+4. 对局中按 Esc，点「返回准备房」离开房间并回到 DressingRoom。房主离开时客户端回到准备房并显示原因。
+
+本机双开：用 Multiplayer Play Mode 启用 Player 2，或一个 Editor + 一个 Development 构建；一端创建房间，另一端加入 `127.0.0.1`。
+
+### 替换界面与美术
+
+界面是 `Assets/UI/Lobby/LobbyCanvas.prefab`（uGUI），行为与外观分离：
+
+- 改样式：在 Prefab 中替换 Image 的 Sprite、Text 的字体/字号/颜色、调整位置与布局即可；`LobbyView` 上的引用保持指向对应对象。外观与地图选项按钮在运行时从 `OutfitOption` / `MapOption` 模板复制，只需美化模板。
+- 换背景虚化：编辑 `Assets/UI/Lobby/LobbyBlur.asset`（URP Depth of Field）或 Prefab 中 `Dim` 的颜色。
+- 换外观或地图列表：编辑 `Assets/Player/OutfitCatalog.asset`、`Assets/Map/MapCatalog.asset`；新地图场景需包含 `Playground` 组件和出生点，并加入构建列表。
+- 不需要改 C#。只有新增按钮或信息时才在 `LobbyView` 加引用、在 `LobbyController` 加行为。重新运行 `lobby-flow` 不会覆盖已存在的 `LobbyCanvas.prefab`、外观/地图目录和 Blur 配置，只刷新引用；确实要按代码重新生成界面时，先删除该 Prefab。
 
 ## 镜头
 
@@ -51,6 +77,8 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 旧场景需要应用上述参数时，可以运行菜单 `NatureCalls/Center Playground Camera`；关闭 Editor 后也可用 `python3 scripts/unity.py camera`（Windows 用 `py -3`）。这只保存 Playground 的四个镜头参数，不重新生成地形、Prefab 或材质。已更新的仓库场景无需再次运行。
 
 ## 本地双客户端（无需 Unity Cloud）
+
+以下是直接打开 Playground 的开发诊断方式，不经过 Lobby。
 
 1. 打开 Playground，选择 Window → Multiplayer → Multiplayer Play Mode，启用 Player 2，再进入 Play。也可使用一个 Editor + 一个独立 Development Player，或两个独立 Player。
 2. 两端 Esc 打开菜单，展开 `Local / LAN test tools (no Relay)`。

@@ -39,3 +39,14 @@
 - 导入/编译通过；EditMode **4/4**、Python **17/17** 通过。
 - 本机日志：`Artifacts/20261029T151517Z-ce5a2d-camera/`、`Artifacts/20261029T151919Z-059aea-test-playmode/`、`Artifacts/20261029T152006Z-3e0dc2-test-editmode/`。目录使用 UTC，以上对应本地 10 月 30 日。
 - 原有三份未提交渲染设置保持原样，不包含在修复提交中。本次不重复验证 Relay/Windows/双进程联机，也不重建旧 `.app`；用更新后的 Editor 场景进行人工手感复验，旧构建不会自动获得新镜头。
+
+## 2026-11-02 DressingRoom → Lobby → 地图流程
+
+按用户批准的语义（见 Glossary 2026-11-02 批准来源）合并两套换装并实现大厅与地图选择。`Semantic-Diff: changed`：新增 `NatureCalls/Content/Map/MapSelection`，修改 `NatureCalls/Gameplay/UI/Lobby` 与 `NatureCalls/Content/Map/DressingRoom`。
+
+- 保留 DressingRoom 镜子换装与大厅入口，移除 ChangingRoom 场景/换装台/HUD/简易跟随相机与独立 LobbyUI 场景及其 Mock；`ChangingRoomPlayer.prefab` 更名为 `DressingRoomPlayer.prefab`（GUID 保留）并移除网络组件，避免 Host 启动时被当作场景网络对象生成。
+- 新增 `OutfitCatalog`、`LocalProfile`、`MapCatalog`、`Match`、`LobbyRoom`、`LobbyView`/`LobbyController`/`BackgroundBlur`、Core `LobbyRules`/`MapSelection`；`Avatar.OutfitIndex` 同步外观；Session 改为跨场景持久并支持 Lobby 模式；`Editor/LobbyFlowBuilder` 生成全部资源，构建列表改为 DressingRoom → Playground → Smoke。
+- 本机 Unity 6000.3.26f1 / macOS：`lobby-flow` 通过（`Artifacts/20261102T133207Z-7edeb8-lobby-flow/`）；EditMode 10 项 9 通过（`Artifacts/20261102T133213Z-a20fad-test-editmode/`）；PlayMode 9 项 5 通过（`Artifacts/20261102T133219Z-99cbe0-test-playmode/`），新增 DressingRoom 3 项全部通过；失败项均为 2026-11-01 起已失败的 Playground/第三方场景检查，本次未修改相关场景与测试。
+- ARM64 Development 构建成功；`scripts/multiplayer.py` 双进程直连（探针从 DressingRoom 启动后切到 Playground）两端成员生成、所有权、移动/朝向/姿态同步、可见远端与退出清理均为 true，仅 `singleCamera` 因镜面摄像机为 false（`Artifacts/20261102T133322Z-95174c-multiplayer/`）。
+- 未执行：两名真人经大厅「创建/加入→准备→开始→选图」的联机流程（自动测试以单 Host 绕过人数条件覆盖选图、加载与外观同步）、Relay、Windows。
+

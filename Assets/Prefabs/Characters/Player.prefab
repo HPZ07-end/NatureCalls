@@ -504,6 +504,7 @@ MonoBehaviour:
   Speed: 3.5
   Sensitivity: 0.12
   PitchLimit: 75
+  JumpSpeed: 6
   StandingHeight: 2.05
   SquattingHeight: 1.148
   Body: {fileID: 4225825121762883759}
@@ -544,6 +545,11 @@ MonoBehaviour:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 0
+  OutfitIndex:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: -1
 --- !u!114 &637219802969424778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -557,6 +563,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Player.PlayerAppearance
   body: {fileID: 4225825121762883759}
+  catalog: {fileID: 11400000, guid: 028f2682081eb4f50aabb9d82ba0e7f5, type: 2}
 --- !u!1 &8951562719708982805
 GameObject:
   m_ObjectHideFlags: 0

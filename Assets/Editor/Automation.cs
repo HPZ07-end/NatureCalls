@@ -54,6 +54,12 @@ namespace NatureCalls.Editor
             Validate();
         }
 
+        public static void LobbyFlow()
+        {
+            LobbyFlowBuilder.Build();
+            Validate();
+        }
+
         public static void Camera()
         {
             NatureCalls.Editor.Playground.CenterCamera();

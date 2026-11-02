@@ -101,9 +101,10 @@ namespace NatureCalls.Editor
             }
             Populate(toilet);
             EditorSceneManager.SaveScene(scene, ScenePath);
-            var others = EditorBuildSettings.scenes.Where(item => item.path != ScenePath).ToList();
-            others.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
-            EditorBuildSettings.scenes = others.ToArray();
+            // DressingRoom stays the first (startup) scene; the Playground map only needs to be listed.
+            var scenes = EditorBuildSettings.scenes.ToList();
+            if (!scenes.Any(item => item.path == ScenePath)) scenes.Add(new EditorBuildSettingsScene(ScenePath, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
             AssetDatabase.SaveAssets();
         }
 

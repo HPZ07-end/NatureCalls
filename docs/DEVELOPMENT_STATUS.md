@@ -4,15 +4,15 @@
 
 | 类别 | 实际状态 |
 | --- | --- |
-| 已实现 | 配置/编译/测试/构建工具、语义治理；URP Playground（8m×10m 厕所，三个 `WCStall` 隔间、小便池、洗手池与镜子、卷纸架）；第一人称移动、Space 跳跃、C 姿态与第三人称 Blend、马桶 Anchor 对齐；隔间门 E 开/关/锁；卷纸 E 拾取、R 丢掷；Host/Join/Leave UI、NGO 位置/朝向/姿态同步、本地双 Player 验证工具；DressingRoom 灰盒（镜子 E 换装面板入口、门前 E 进入独立 LobbyUI 场景、Lobby 返回准备房）与本地四人自动开始 Mock；ChangingRoom 换装台原型（本地改变角色颜色） |
+| 已实现 | 配置/编译/测试/构建工具、语义治理；URP Playground（8m×10m 厕所，三个 `WCStall` 隔间、小便池、洗手池与镜子、卷纸架）；第一人称移动、Space 跳跃、C 姿态与第三人称 Blend、马桶 Anchor 对齐；隔间门 E 开/关/锁；卷纸 E 拾取、R 丢掷；NGO 位置/朝向/姿态同步、本地双 Player 验证工具；DressingRoom 作为启动场景：镜子 E 换装（真实改变外观并记住）、左侧门 E 打开虚化背景的联机大厅；大厅提供单人离线测试、创建房间（未关联 Cloud 时为局域网房间）、加入房间；房间 2–4 人，准备/开始同一按键；开始后房主选地图（含随机地图），所有端加载后生成角色并同步外观；对局 Esc 返回准备房 |
 | 已编写但缺服务验收 | MPS Session + Relay Join Code、匿名认证及连接失败反馈；Cloud 尚未关联，不能声称真实 Relay 联机成功 |
-| 正在推进 | MPPM GUI/人工键鼠手感、Cloud 关联、Windows 与真实跨设备验收 |
+| 正在推进 | 大厅两端真人联机（准备→开始→选图→同步外观）的人工验收、MPPM GUI/人工键鼠手感、Cloud 关联、Windows 与真实跨设备验收 |
 | 已规划 | 依实际需求进行 Stage 2/3、正式 Gameplay 闭环、Map 配置、共享规则的 Host 权威、跨平台联调和发布 |
 | 尚未确定 | 正式玩法数值/阈值、失败惩罚细节、事故规则、子树负责人；由人类讨论，不沿用 C3 自动补全 |
-| 尚未实现 | Urgency/Tidiness 等玩法规则、正式设施状态与占用、冲水堵塞、排泄物生成、背包、门和卷纸的网络同步、真实联机大厅/匹配、Host 迁移、正式美术/音频/动画 |
+| 尚未实现 | Urgency/Tidiness 等玩法规则、正式设施状态与占用、冲水堵塞、排泄物生成、背包、门和卷纸的网络同步、公开房间列表/匹配、Host 迁移、正式美术/音频/动画 |
 
-当前仍为 Stage 1。为 Editor/测试引用增加一个总运行时程序集，没有拆分各模块程序集；Core 目前只有换装选择的纯 C# 类型 `OutfitSelection`，不代表 Stage 2 完成。后续路线与课程截止日 **2026-12-21** 见 [ROADMAP](ROADMAP.md)。游戏版本保持 `0.1.0-alpha.1`，不增加发布 Tag。
+当前仍为 Stage 1。为 Editor/测试引用增加一个总运行时程序集，没有拆分各模块程序集；Core 目前包含换装选择、房间开始条件与地图选择三组纯 C# 规则，不代表 Stage 2 完成。后续路线与课程截止日 **2026-12-21** 见 [ROADMAP](ROADMAP.md)。游戏版本保持 `0.1.0-alpha.1`，不增加发布 Tag。
 
 分支与集成：M1 已合入 `dev`；`main` 仍只有 Bootstrap 提交。GitHub 默认分支为 `main`（2026-11-02 读取）。`dev`/`main` 均未启用服务端分支保护，Review 要求目前只由 [CONTRIBUTING](CONTRIBUTING.md) 约定。
 
-已知并存与待决：DressingRoom 与 ChangingRoom 两套换装原型并存，取舍见 [ARCHITECTURE](ARCHITECTURE.md)。Windows Unity、真实 LAN/Relay、签名/公证尚未验收；CI 的三个 OS 仅覆盖 Python/仓库检查。
+已知问题：Playground 的 4 项 PlayMode 测试（墙体位置、唯一镜头数、马桶查找）与当前地图和镜面摄像机不符，双进程探针的 `singleCamera` 断言同因失败；EditMode 场景检查因第三方 `WC/DemoScene/000.unity` 缺失脚本失败。均自 2026-11-01 起存在。Windows Unity、真实 LAN/Relay、签名/公证尚未验收；CI 的三个 OS 仅覆盖 Python/仓库检查。

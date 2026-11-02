@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09f004b09f3db45f1abc13b0aae41701, type: 3}
+  m_Name: OutfitCatalog
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Player.OutfitCatalog
+  outfits:
+  - Name: "\u7ECF\u5178\u84DD"
+    Color: {r: 0.18, g: 0.48, b: 0.95, a: 1}
+  - Name: "\u6E05\u6D01\u7EFF"
+    Color: {r: 0.16, g: 0.72, b: 0.42, a: 1}
+  - Name: "\u7EF4\u4FEE\u6A59"
+    Color: {r: 1, g: 0.45, b: 0.1, a: 1}
+  - Name: "\u6D3E\u5BF9\u7C89"
+    Color: {r: 0.95, g: 0.24, b: 0.58, a: 1}

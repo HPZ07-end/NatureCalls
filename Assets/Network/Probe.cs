@@ -4,6 +4,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using NatureCalls.Player;
@@ -13,6 +14,7 @@ namespace NatureCalls.Network
     // Explicit development-build probe only. No test controller exists in normal play or release builds.
     public sealed class Probe : MonoBehaviour
     {
+        private const string PlaygroundScene = "Assets/Scenes/Playground.unity";
         [Serializable]
         private sealed class Report
         {
@@ -38,13 +40,21 @@ namespace NatureCalls.Network
         {
             if (!System.Environment.GetCommandLineArgs().Contains("-m1-probe")) return;
             var probe = new GameObject("Explicit multiplayer verification").AddComponent<Probe>();
+            DontDestroyOnLoad(probe.gameObject);
             probe.reportPath = Argument("-m1-report");
             probe.report = new Report { role = Argument("-m1-role"), status = "running" };
         }
         private IEnumerator Start()
         {
             yield return null;
-            session = FindFirstObjectByType<Session>();
+            // The build opens on the DressingRoom; the probe exercises direct play on the Playground map.
+            if (SceneManager.GetActiveScene().path != PlaygroundScene)
+            {
+                SceneManager.LoadScene(PlaygroundScene, LoadSceneMode.Single);
+                yield return null;
+                yield return null;
+            }
+            session = Session.Instance;
             if (session == null || string.IsNullOrEmpty(reportPath)) { Finish("Missing probe arguments or Session."); yield break; }
             if (ushort.TryParse(Argument("-m1-port"), out var port)) session.Port = port;
             if (!session.StartDirect(report.role == "host")) { Finish(session.Status); yield break; }

@@ -9,6 +9,7 @@ using Unity.Services.Authentication;
 using Unity.Services.Core;
 using Unity.Services.Core.Environments;
 using Unity.Services.Multiplayer;
+using NatureCalls.Map;
 using UnityEngine;
 using PlayerInput = NatureCalls.Input.PlayerInput;
 
@@ -16,9 +17,15 @@ namespace NatureCalls.Network
 {
     public sealed class Session : MonoBehaviour
     {
+        /// <summary>The persistent Session; a scene's own Network object yields to one carried over from the Lobby.</summary>
+        public static Session Instance { get; private set; }
+        public static bool CloudLinked => Guid.TryParse(Application.cloudProjectId, out _);
+
         public NetworkManager Manager;
         public UnityTransport Transport;
+        // Set only on a map scene's own Network object (direct development play). Lobby rooms leave it empty.
         public Map.Playground World;
+        public GameObject LobbyRoomPrefab;
         public string EnvironmentName = "production";
         [Range(2, 4)] public int MaxPlayers = 4;
         public ushort Port = 7777;
@@ -27,13 +34,23 @@ namespace NatureCalls.Network
         public bool Active => session != null || Manager.IsListening || Manager.ShutdownInProgress;
         public string JoinCode => session?.Code ?? "";
         public bool IsRelay => session != null;
+        /// <summary>Lobby rooms spawn players only after the host picks a map; direct play spawns them on connect.</summary>
+        public bool LobbyMode { get; set; }
         private ISession session;
         private readonly Dictionary<ulong, int> slots = new();
         private bool destroyed;
 
         private void Awake()
         {
+            if (Instance != null && Instance != this)
+            {
+                destroyed = true;
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
             Manager.ConnectionApprovalCallback = Approve;
+            Manager.OnServerStarted += ServerStarted;
             Manager.OnClientConnectedCallback += Connected;
             Manager.OnClientDisconnectCallback += Disconnected;
             Manager.OnClientStopped += Stopped;
@@ -41,10 +58,13 @@ namespace NatureCalls.Network
         }
         private void OnDestroy()
         {
+            if (Instance != this) return;
+            Instance = null;
             destroyed = true;
             if (Manager != null)
             {
                 Manager.ConnectionApprovalCallback = null;
+                Manager.OnServerStarted -= ServerStarted;
                 Manager.OnClientConnectedCallback -= Connected;
                 Manager.OnClientDisconnectCallback -= Disconnected;
                 Manager.OnClientStopped -= Stopped;
@@ -55,16 +75,29 @@ namespace NatureCalls.Network
         public int Slot(ulong client) => slots.TryGetValue(client, out var slot) ? slot : 0;
         private void Approve(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
-            var free = Enumerable.Range(0, Mathf.Min(MaxPlayers, World.Spawns.Length))
-                .Where(index => !slots.ContainsValue(index)).ToArray();
+            var capacity = LobbyMode ? MaxPlayers : Mathf.Min(MaxPlayers, World.Spawns.Length);
+            var free = Enumerable.Range(0, capacity).Where(index => !slots.ContainsValue(index)).ToArray();
             response.Pending = false;
             response.Approved = free.Length > 0;
-            response.CreatePlayerObject = response.Approved;
-            if (!response.Approved) { response.Reason = "Playground is full (maximum four players)."; return; }
+            if (!response.Approved) { response.Reason = "Room is full (maximum four players)."; return; }
+            var room = LobbyRoom.Current;
+            if (LobbyMode && room != null && room.Phase.Value != LobbyPhase.Waiting)
+            {
+                response.Approved = false;
+                response.Reason = "The game has already started.";
+                return;
+            }
             int index = free[0];
             slots[request.ClientNetworkId] = index;
+            response.CreatePlayerObject = !LobbyMode;
+            if (LobbyMode) return;
             response.Position = World.Spawns[index].position;
             response.Rotation = World.Spawns[index].rotation;
+        }
+        private void ServerStarted()
+        {
+            if (!LobbyMode) return;
+            Instantiate(LobbyRoomPrefab).GetComponent<NetworkObject>().Spawn();
         }
         private void Connected(ulong id)
         {
@@ -82,10 +115,12 @@ namespace NatureCalls.Network
         private void Stopped(bool wasHost)
         {
             if (destroyed || Busy) return;
-            World.Camera.Unbind();
+            if (World != null) World.Camera.Unbind();
             PlayerInput.Unlock();
             Status = "Disconnected. You can restart practice or join again.";
             if (session != null) _ = LeaveAsync();
+            else LobbyMode = false;
+            if (Match.Mode == MatchMode.Networked) Match.ReturnToDressingRoom(wasHost ? "" : "与房主的连接已断开。");
         }
         private void TransportFailed() { Status = "Transport failed. Check the address, firewall and host."; PlayerInput.Unlock(); }
         private void Removed() { session = null; Status = "Session closed or player removed."; PlayerInput.Unlock(); }
@@ -114,7 +149,7 @@ namespace NatureCalls.Network
                 if (!host && string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Enter a Session join code.");
                 await Authenticate();
                 if (destroyed) return;
-                World.StopPractice();
+                if (!LobbyMode) World.StopPractice();
                 slots.Clear();
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Application.exitCancellationToken);
                 timeout.CancelAfter(TimeSpan.FromSeconds(35));
@@ -139,12 +174,25 @@ namespace NatureCalls.Network
             }
             finally { Busy = false; }
         }
+        /// <summary>The first IPv4 LAN address, shown as the room code of a direct (no Relay) room.</summary>
+        public static string LocalAddress()
+        {
+            foreach (var adapter in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (adapter.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up ||
+                    adapter.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
+                foreach (var address in adapter.GetIPProperties().UnicastAddresses)
+                    if (address.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        return address.Address.ToString();
+            }
+            return "127.0.0.1";
+        }
         public bool StartDirect(bool host, string address = "127.0.0.1")
         {
             if (Busy || Active) return false;
             try
             {
-                World.StopPractice();
+                if (!LobbyMode) World.StopPractice();
                 slots.Clear();
                 Transport.SetConnectionData(address.Trim(), Port, host ? "0.0.0.0" : null);
                 Status = host ? "Local test Host (no Relay)." : "Connecting to local test Host...";
@@ -176,7 +224,14 @@ namespace NatureCalls.Network
                 session = null;
                 if (Manager.IsListening) Manager.Shutdown();
             }
-            finally { slots.Clear(); World.Camera.Unbind(); PlayerInput.Unlock(); Busy = false; }
+            finally
+            {
+                slots.Clear();
+                if (World != null) World.Camera.Unbind();
+                PlayerInput.Unlock();
+                LobbyMode = false;
+                Busy = false;
+            }
         }
     }
 }

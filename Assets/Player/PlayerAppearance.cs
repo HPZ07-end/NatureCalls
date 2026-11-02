@@ -6,8 +6,10 @@ namespace NatureCalls.Player
     public sealed class PlayerAppearance : MonoBehaviour
     {
         [SerializeField] private Transform body;
+        [SerializeField] private OutfitCatalog catalog;
 
         public Transform Body => body;
+        public OutfitCatalog Catalog => catalog;
         public int OutfitIndex { get; private set; } = -1;
 
         private void Awake()
@@ -21,10 +23,15 @@ namespace NatureCalls.Player
             ApplyColor(color);
         }
 
-        public void ApplyOutfit(int index, Color color)
+        public void ApplyOutfit(int index)
         {
+            if (catalog == null || !catalog.Contains(index))
+            {
+                Debug.LogWarning($"OUTFIT_INVALID|player={name}|index={index}|catalog={catalog != null}");
+                return;
+            }
             OutfitIndex = index;
-            ApplyColor(color);
+            ApplyColor(catalog[index].Color);
         }
 
         private void ApplyColor(Color color)
