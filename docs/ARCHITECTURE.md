@@ -11,7 +11,7 @@
 | `Assets/Facility` | Toilet：测试 Anchor 和可见目标；StallDoor：隔间门开/关/锁；PaperRoll：拾取、携带与丢掷；PlanarMirror：镜面渲染。均无正式设施规则或网络同步 |
 | `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段与地图加载后的出生；Avatar：NGO 所有权与姿态/颜色/外观同步；Probe：显式启动的 Development 验证程序 |
 | `Assets/Map` | Playground：地图资源引用、出生点、离线练习；MapCatalog：可选地图；Match：本局模式（离线/联机）与场景切换；DressingMirror / LobbyDoor：DressingRoom 中镜子与门的 E 键入口 |
-| `Assets/UI` | Panel：地图内 Esc 菜单（Lobby 对局只显示状态与返回准备房，直接打开地图时保留开发连接工具）；`UI/Lobby`：LobbyView（纯引用）、LobbyController（行为）、BackgroundBlur（URP 景深虚化） |
+| `Assets/UI` | MatchExit：地图左上角「退出」按钮（`MatchHud.prefab`），联机时先离开房间再回到准备房；`UI/Lobby`：LobbyView（纯引用）、LobbyController（行为）、BackgroundBlur（URP 景深虚化） |
 | `Assets/Scenes` | 构建顺序：DressingRoom（启动场景）、Playground（地图）、Smoke；Sandbox 原样保留 |
 | `Assets/Prefabs` | `Characters/Player`（网络玩家基础 Prefab）与 Variant `DressingRoomPlayer`（带换装组件）；`Network/Network`（Lobby 的持久 NetworkManager + Session）、`Network/LobbyRoom`；`Levels/WCStall` 与早期 `Levels/Stall6x8`；`Toilet` 由 Playground 重建工具生成 |
 | `Assets/Materials`、`Assets/Settings` | 原型材质、URP 管线与 Renderer |
@@ -33,7 +33,7 @@ E 键交互没有统一接口，由 `PlayerInput.TryInteract` 依次尝试：最
              ├─ 单人离线测试 ─────────────────────────┐
              ├─ 创建房间 ─┐                            ├→ 地图选择（房主；含随机地图）→ 加载地图场景 → 对局
              └─ 加入房间 ─┴→ 房间（2–4 人，准备/开始）─┘
-对局 Esc → 返回准备房（联机时先离开 Session）
+对局左上角「退出」→ 返回准备房（联机时先离开 Session）
 ```
 
 - 离线：`Match.Begin(Offline)` 直接加载地图，地图的 Playground 生成本地玩家并穿上 `LocalProfile` 外观，不创建网络对象。
@@ -51,6 +51,6 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 
 标准名称采用 Player、Posture、Facility、Input、Network、Map；Camera 是技术模块，不强行加入语义树。不另建 Networking/Environment 或 Toileting 状态的同义层。旧 Smoke/Sandbox 保留。
 
-2026-11-02 移除：ChangingRoom 场景与 `ChangingRoomPlatform` / `ChangingRoomHud` / `ThirdPersonCamera`（由 DressingRoom 镜子换装替代）；独立 `LobbyUI` 场景与 `LobbyUIController` / `LobbyMockData` / `LobbySceneNavigator`（由 DressingRoom 内的 Lobby 界面与 LobbyRoom 替代）；已完成的一次性迁移/生成脚本（ChangingRoom、LobbyUI 与 DressingRoom UI/门/练习相关 Builder、`PlayerContractMigration`）。`ChangingRoomPlayer.prefab` 更名为 `DressingRoomPlayer.prefab`（GUID 保留）。组件细节、镜头参数与官方 API 依据见 [PLAYGROUND](PLAYGROUND.md)，Player 接口见 [PLAYER](PLAYER.md)。
+2026-11-02 移除：ChangingRoom 场景与 `ChangingRoomPlatform` / `ChangingRoomHud` / `ThirdPersonCamera`（由 DressingRoom 镜子换装替代）；独立 `LobbyUI` 场景与 `LobbyUIController` / `LobbyMockData` / `LobbySceneNavigator`（由 DressingRoom 内的 Lobby 界面与 LobbyRoom 替代）；IMGUI `Panel` 菜单（由 `MatchExit` 左上角退出按钮替代，连接入口统一在大厅）；已完成的一次性迁移/生成脚本（ChangingRoom、LobbyUI 与 DressingRoom UI/门/练习相关 Builder、`PlayerContractMigration`）。`ChangingRoomPlayer.prefab` 更名为 `DressingRoomPlayer.prefab`（GUID 保留）。组件细节、镜头参数与官方 API 依据见 [PLAYGROUND](PLAYGROUND.md)，Player 接口见 [PLAYER](PLAYER.md)。
 
 阅读一次 C 键切换：从 `Assets/Input/PlayerInput.cs` 的 Update 进入 `Posture.Toggle`，Changed 通知让 Movement 更新身体/碰撞体，CameraController 更新两台 Cinemachine 镜头的优先级；NGO Avatar 在联机时发布拥有者的姿态状态。镜头距离、目标高度、俯角和横向偏移在场景 Local camera 的 Inspector 调整，默认正后方居中。IDE 打开与跳转步骤见 [开发指南](DEVELOPMENT.md)。

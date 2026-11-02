@@ -9,8 +9,8 @@
 1. 安装 Unity Hub 和 **6000.3.26f1**，本人完成登录与许可。Mac/Windows 使用同一补丁版本。
 2. 克隆仓库，切换团队的 `dev` 分支；在根目录运行 `git lfs install --local`、`git lfs pull`。
 3. Hub → Add project from disk，选择包含 `Assets`、`Packages`、`ProjectSettings` 的根目录。
-4. 打开 `Assets/Scenes/DressingRoom.unity`，点击 Play。镜子前 E 换装；左侧门 E 打开联机大厅，选「单人离线测试」再选地图即可进入。地图中 WASD / 鼠标操作，Space 跳跃、C 切姿态、E 拾取卷纸或操作隔间门/马桶、R 丢掷卷纸、Esc 打开菜单并可返回准备房。
-5. 双客户端：一端在大厅「创建房间」，另一端输入房主局域网地址（同机 `127.0.0.1`）「加入房间」；准备后房主开始并选择地图。直接打开 Playground 的开发诊断方式与 Relay 配置见 [Playground 指南](docs/PLAYGROUND.md)。
+4. 打开 `Assets/Scenes/DressingRoom.unity`，点击 Play。镜子前 E 换装；左侧门 E 打开联机大厅，选「单人离线测试」再选地图即可进入。地图中 WASD / 鼠标操作，Space 跳跃、C 切姿态、E 拾取卷纸或操作隔间门/马桶、R 丢掷卷纸、Esc 释放鼠标后点左上角「退出」返回准备房。
+5. 双客户端：一端在大厅「创建房间」，另一端输入房主局域网地址（同机 `127.0.0.1`）「加入房间」；准备后房主开始并选择地图。两台电脑、校园网注意事项与 Relay 配置见 [Playground 指南](docs/PLAYGROUND.md)。
 
 平台安装、VS Code 和命令行入口见 [development](docs/DEVELOPMENT.md)。
 

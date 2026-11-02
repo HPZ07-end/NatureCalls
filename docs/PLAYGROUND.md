@@ -38,6 +38,7 @@
 - `Network/Avatar`：Owner 本地控制、NetworkTransform、姿态 NetworkVariable、出生颜色、外观编号与镜头绑定生命周期。
 - `Map/Playground`：原型资源引用、4 个出生位置与离线练习（联机对局时不生成离线玩家）。
 - `Map/MapCatalog`、`Map/Match`：可选地图与本局模式、场景切换。
+- `UI/MatchExit`：地图左上角「退出」按钮（`Assets/UI/MatchHud.prefab`），联机时先离开房间再回到准备房。
 - `UI/Lobby`：`LobbyView`（界面引用）、`LobbyController`（换装面板、Lobby、选图行为）、`BackgroundBlur`（背景虚化）。
 - `Editor/Playground`：用 Unity API 创建场景、材质、URP 设置和 Prefab。
 
@@ -51,7 +52,7 @@
    - **创建房间**：已关联 Unity Cloud 时创建 Relay 房间并显示 Join Code；未关联时开启局域网房间，房间号即房主局域网地址（端口 7777）。
    - **加入房间**：输入 Join Code，或房主的局域网 IP（同一台机器用 `127.0.0.1`）。
 3. 房间内非房主点「准备」，房主在 2–4 人且其他人都已准备时点「开始游戏」，随后房主选择地图，其他人等待；所有人加载地图后生成角色，外观同步给其他玩家。
-4. 对局中按 Esc，点「返回准备房」离开房间并回到 DressingRoom。房主离开时客户端回到准备房并显示原因。
+4. 对局中按 Esc 释放鼠标，点左上角「退出」离开房间并回到 DressingRoom。房主离开时客户端回到准备房并显示原因。
 
 本机双开：用 Multiplayer Play Mode 启用 Player 2，或一个 Editor + 一个 Development 构建；一端创建房间，另一端加入 `127.0.0.1`。
 
@@ -76,15 +77,25 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 旧场景需要应用上述参数时，可以运行菜单 `NatureCalls/Center Playground Camera`；关闭 Editor 后也可用 `python3 scripts/unity.py camera`（Windows 用 `py -3`）。这只保存 Playground 的四个镜头参数，不重新生成地形、Prefab 或材质。已更新的仓库场景无需再次运行。
 
-## 本地双客户端（无需 Unity Cloud）
+## 多人联机实测（无需 Unity Cloud）
 
-以下是直接打开 Playground 的开发诊断方式，不经过 Lobby。
+两台电脑各开自己的 Unity Editor 即可，不需要打包：
 
-1. 打开 Playground，选择 Window → Multiplayer → Multiplayer Play Mode，启用 Player 2，再进入 Play。也可使用一个 Editor + 一个独立 Development Player，或两个独立 Player。
-2. 两端 Esc 打开菜单，展开 `Local / LAN test tools (no Relay)`。
-3. 主端点 `Local Host`；另一端地址 `127.0.0.1`，点 `Local Join`。不同机器改为主端局域网 IP，保持端口 7777；如系统询问防火墙/本地网络权限，由操作者决定授权。
-4. 点击各自游戏画面操作，只控制该端角色。切换窗口先 Esc；失焦会释放鼠标。C 测姿态，E 在马桶附近对齐。角色为不同颜色。
-5. `Leave` 断开；回到 `Offline practice` 可继续单机。Host 退出不迁移主机，Client 获得断开反馈。
+1. 两人切到同一分支的同一 Commit，打开 `DressingRoom` 并 Play。
+2. 房主走进左侧门，点「创建房间」。未关联 Cloud 时这是局域网房间，房间号显示房主的 IPv4 地址，端口 UDP 7777。macOS 首次会询问是否允许 Unity 接受传入连接，Windows 会弹防火墙提示，需要由本人允许。
+3. 加入方走进左侧门，输入房主地址，点「加入房间」，再点「准备」。
+4. 房主在人数满足（2–4 人）且其他人都已准备时点「开始游戏」，再选择地图或「随机地图」。
+5. 对局中按 Esc 释放鼠标，点左上角「退出」回到准备房；房主退出时，其他人也会回到准备房并看到原因。
+
+同一台电脑双开：Window → Multiplayer → Multiplayer Play Mode 启用 Player 2，或一个 Editor + 一个 Development 构建，加入方填 `127.0.0.1`。
+
+校园网等公共网络的注意事项：
+
+- 直连要求两台电脑之间 UDP 7777 可达。很多校园 Wi-Fi 开启了终端隔离，或把设备放在不同子网/NAT 后面，这时加入方会超时。能 `ping` 通不代表 UDP 一定放行。
+- 房主有多块网卡（有线与无线、VPN、虚拟网卡）时，大厅显示的是第一个可用 IPv4，不一定是对方能访问的那个；以系统网络设置中的实际地址为准。
+- 直连不通时：两人连同一个手机热点或路由器；或用组网工具（如 Tailscale、ZeroTier）后输入其虚拟局域网地址；或关联 Unity Cloud 后使用 Relay Join Code（见下一节）。
+
+直接打开 Playground 场景时没有连接菜单，只有离线练习和左上角「退出」；不经过大厅的双进程直连诊断使用 `scripts/multiplayer.py`（见 [TESTING](TESTING.md)）。
 
 直接连接使用官方 NGO/UnityTransport，是无云端诊断路径，不提供 Join Code、互联网穿透或 Session 服务。仅本机双进程已自动验证；MPPM GUI、真实 LAN 和 Windows 组合仍需人工验收。MPPM 的 Library/虚拟玩家数据不进入 Git。
 
@@ -95,7 +106,7 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 1. 团队在 Unity Cloud 中创建/选择共同项目及组织；登录、组织权限、服务条款和可能的计费启用由人类负责人处理。
 2. Editor → Edit → Project Settings → Services 关联该 Cloud Project；按 Dashboard 提示启用 Multiplayer 所需的 Relay/Lobby，确保 Authentication 可匿名登录。双方使用同一个项目和环境；场景 `Session.EnvironmentName` 默认 `production`。
 3. 关联后通过 Editor 保存必要项目设置，检查 diff 只包含共享标识与预期设置；不提交 Token、账号缓存或密钥。所有构建需重新生成以包含项目标识。
-4. Host 选择 `Create Host Session`，把显示的 **Session join code** 发给队友；Client 输入后 `Join Session`。不是手工创建 Relay allocation 或复制底层 Relay Code。
+4. 关联后大厅的「创建房间」自动改用 Relay：房主把显示的 **Session join code** 发给队友，队友在「加入房间」输入。不是手工创建 Relay allocation 或复制底层 Relay Code。
 5. 分别测试 Mac Host → Windows Client 和 Windows Host → Mac Client，记录同一 Git SHA、操作、错误及退出结果。
 
 代码通过 MPS `CreateSessionAsync(...WithRelayNetwork())` / `JoinSessionByCodeAsync` 使用官方连接生命周期；不同时手动 StartHost 干预 SDK。每进程使用独立匿名认证 profile，便于同机测试；不是正式账号系统。未关联 Cloud 会显示原因并保留离线角色；空 Code 会提示输入。真实服务权限、配额、过期 Code、服务端异常仍需关联后验收。

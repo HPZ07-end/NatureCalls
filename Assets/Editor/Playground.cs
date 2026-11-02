@@ -187,8 +187,8 @@ namespace NatureCalls.Editor
             manager.NetworkConfig.Prefabs.NetworkPrefabsLists.Clear();
             var session = network.AddComponent<NatureCalls.Network.Session>();
             session.Manager = manager; session.Transport = transport; session.World = world;
-            var panel = new GameObject("Controls").AddComponent<NatureCalls.UI.Panel>();
-            panel.World = world; panel.Session = session;
+            // The map HUD (exit button) and its EventSystem come from LobbyFlowBuilder.
+            LobbyFlowBuilder.AddMatchHud();
         }
 
         private static void BodyPart(Transform parent, string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)

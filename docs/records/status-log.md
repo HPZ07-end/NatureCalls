@@ -49,4 +49,5 @@
 - 本机 Unity 6000.3.26f1 / macOS：`lobby-flow` 通过（`Artifacts/20261102T133207Z-7edeb8-lobby-flow/`）；EditMode 10 项 9 通过（`Artifacts/20261102T133213Z-a20fad-test-editmode/`）；PlayMode 9 项 5 通过（`Artifacts/20261102T133219Z-99cbe0-test-playmode/`），新增 DressingRoom 3 项全部通过；失败项均为 2026-11-01 起已失败的 Playground/第三方场景检查，本次未修改相关场景与测试。
 - ARM64 Development 构建成功；`scripts/multiplayer.py` 双进程直连（探针从 DressingRoom 启动后切到 Playground）两端成员生成、所有权、移动/朝向/姿态同步、可见远端与退出清理均为 true，仅 `singleCamera` 因镜面摄像机为 false（`Artifacts/20261102T133322Z-95174c-multiplayer/`）。
 - 未执行：两名真人经大厅「创建/加入→准备→开始→选图」的联机流程（自动测试以单 Host 绕过人数条件覆盖选图、加载与外观同步）、Relay、Windows。
+- 同日补充：地图内 IMGUI `Panel` 菜单（返回 DressingRoom 时会闪现开发菜单）替换为 uGUI 左上角「退出」按钮 `MatchExit`（`Assets/UI/MatchHud.prefab`），Playground 增加 EventSystem，删除 `Panel.cs`；`lobby-flow` 改为保留已有 Canvas/HUD 实例，重复运行不再改动场景。单人离线测试用例增加「退出回到 DressingRoom」断言。EditMode 10 项 9 通过（`Artifacts/20261102T143109Z-582048-test-editmode/`），PlayMode 9 项 5 通过（`Artifacts/20261102T143306Z-92f41c-test-playmode/`），失败项与上条相同。
 

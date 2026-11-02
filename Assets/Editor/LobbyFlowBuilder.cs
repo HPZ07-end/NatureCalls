@@ -39,6 +39,7 @@ namespace NatureCalls.Editor
         public const string NetworkPrefabPath = NetworkFolder + "/Network.prefab";
         private const string NetworkPrefabsListPath = "Assets/DefaultNetworkPrefabs.asset";
         public const string CanvasPath = "Assets/UI/Lobby/LobbyCanvas.prefab";
+        public const string MatchHudPath = "Assets/UI/MatchHud.prefab";
         private const string BlurProfilePath = "Assets/UI/Lobby/LobbyBlur.asset";
         private const string DressingRoomPath = "Assets/Scenes/DressingRoom.unity";
         private const string PlaygroundPath = "Assets/Scenes/Playground.unity";
@@ -64,6 +65,7 @@ namespace NatureCalls.Editor
             var network = BuildNetworkPrefab(lobbyRoom, prefabsList);
             var canvas = BuildCanvasPrefab(maps, network);
             ConfigureDressingRoom(canvas, dressingPlayer);
+            ConfigurePlayground();
             DeleteObsoleteAssets();
             ConfigureBuildScenes();
             AssetDatabase.SaveAssets();
@@ -352,8 +354,15 @@ namespace NatureCalls.Editor
         private static void ConfigureDressingRoom(GameObject canvasPrefab, GameObject dressingPlayer)
         {
             var scene = EditorSceneManager.OpenScene(DressingRoomPath, OpenSceneMode.Single);
+            GameObject canvas = null;
             foreach (var root in scene.GetRootGameObjects())
             {
+                // Keep an existing instance of the canvas prefab so reruns do not churn the scene.
+                if (canvas == null && PrefabUtility.GetCorrespondingObjectFromSource(root) == canvasPrefab)
+                {
+                    canvas = root;
+                    continue;
+                }
                 if (ObsoleteSceneRoots.Contains(root.name) || root.GetComponent<LobbyController>() != null)
                 {
                     Object.DestroyImmediate(root);
@@ -363,7 +372,7 @@ namespace NatureCalls.Editor
                     GameObjectUtility.RemoveMonoBehavioursWithMissingScript(transform.gameObject);
             }
 
-            var canvas = (GameObject)PrefabUtility.InstantiatePrefab(canvasPrefab, scene);
+            if (canvas == null) canvas = (GameObject)PrefabUtility.InstantiatePrefab(canvasPrefab, scene);
             var controller = canvas.GetComponent<LobbyController>();
 
             var mirror = Object.FindFirstObjectByType<DressingMirror>(FindObjectsInactive.Include);
@@ -392,6 +401,58 @@ namespace NatureCalls.Editor
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Could not save " + DressingRoomPath);
+        }
+
+        // ---- Map HUD ----
+
+        private static GameObject BuildMatchHudPrefab()
+        {
+            var saved = AssetDatabase.LoadAssetAtPath<GameObject>(MatchHudPath);
+            if (saved != null && saved.GetComponent<MatchExit>() != null) return saved;
+            var root = new GameObject("MatchHud", typeof(RectTransform));
+            try
+            {
+                var canvas = root.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.sortingOrder = 5;
+                var scaler = root.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920, 1080);
+                scaler.matchWidthOrHeight = .5f;
+                root.AddComponent<GraphicRaycaster>();
+                var button = MakeButton(root.transform, "Exit", "退出", Vector2.zero, new Vector2(180, 60), bottom: false);
+                var rect = (RectTransform)button.transform;
+                rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1);
+                rect.anchoredPosition = new Vector2(24, -24);
+                SetReference(root.AddComponent<MatchExit>(), "button", button);
+                PrefabUtility.SaveAsPrefabAsset(root, MatchHudPath);
+            }
+            finally { Object.DestroyImmediate(root); }
+            return AssetDatabase.LoadAssetAtPath<GameObject>(MatchHudPath);
+        }
+
+        /// <summary>Adds the exit HUD and an EventSystem to the open map scene, replacing the old IMGUI menu.</summary>
+        public static void AddMatchHud()
+        {
+            var hud = BuildMatchHudPrefab();
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            bool present = false;
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                if (!present && PrefabUtility.GetCorrespondingObjectFromSource(root) == hud) { present = true; continue; }
+                if (root.name == "Controls" || root.GetComponent<MatchExit>() != null) Object.DestroyImmediate(root);
+            }
+            if (!present) PrefabUtility.InstantiatePrefab(hud, scene);
+            if (Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include) == null)
+                new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+        }
+
+        private static void ConfigurePlayground()
+        {
+            var scene = EditorSceneManager.OpenScene(PlaygroundPath, OpenSceneMode.Single);
+            AddMatchHud();
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Could not save " + PlaygroundPath);
         }
 
         private static void Rewire(UnityEvent unityEvent, UnityAction action)

@@ -64,12 +64,14 @@ namespace NatureCalls.Tests
                 Object.Destroy(session.gameObject);
             }
             if (world != null) world.StopPractice();
-            if (scene.IsValid() && scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
-            var map = SceneManager.GetSceneByPath("Assets/Scenes/Playground.unity");
-            if (map.IsValid() && map.isLoaded)
+            // Match flows load scenes in Single mode; leave only an empty scene behind for the next test.
+            var empty = SceneManager.CreateScene("DressingRoomTestsEmpty" + Time.frameCount);
+            SceneManager.SetActiveScene(empty);
+            for (int index = SceneManager.sceneCount - 1; index >= 0; index--)
             {
-                SceneManager.SetActiveScene(SceneManager.CreateScene("DressingRoomTestsEmpty"));
-                yield return SceneManager.UnloadSceneAsync(map);
+                var loaded = SceneManager.GetSceneAt(index);
+                if (loaded != empty && loaded.isLoaded && (loaded.path == ScenePath || loaded.path == "Assets/Scenes/Playground.unity"))
+                    yield return SceneManager.UnloadSceneAsync(loaded);
             }
             yield return null;
         }
@@ -125,7 +127,14 @@ namespace NatureCalls.Tests
             Assert.That(map.OfflinePlayer, Is.Not.Null);
             var appearance = map.OfflinePlayer.GetComponent<PlayerAppearance>();
             Assert.That(appearance.OutfitIndex, Is.EqualTo(outfit), "The DressingRoom outfit is worn on the map.");
-            map.StopPractice();
+
+            var exit = Object.FindFirstObjectByType<MatchExit>();
+            Assert.That(exit, Is.Not.Null, "The map shows the top-left exit button.");
+            exit.Exit();
+            float deadline = Time.realtimeSinceStartup + 5;
+            while (SceneManager.GetActiveScene().path != ScenePath && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(ScenePath), "Exit returns to the DressingRoom.");
+            Assert.That(Match.Mode, Is.EqualTo(MatchMode.None));
         }
 
         [UnityTest]

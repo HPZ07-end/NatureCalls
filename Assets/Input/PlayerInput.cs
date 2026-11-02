@@ -43,7 +43,7 @@ namespace NatureCalls.Input
             if (!movement.Controlled) return;
             if (release.WasPressedThisFrame()) Unlock();
             if (CaptureMouse && Application.isFocused && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
-                Mouse.current.position.ReadValue().x > 360 && !IsPointerOverUi())
+                !IsPointerOverUi())
             { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             bool accept = Application.isFocused && (Captured || !CaptureMouse);
             if (accept)

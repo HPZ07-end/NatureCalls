@@ -46,7 +46,7 @@ python3 scripts/multiplayer.py Builds/macOS/<build-id>/NatureCalls.app
 
 Windows 使用 `py -3 scripts/multiplayer.py Builds/Windows/NatureCalls.exe`，必须勾选 Development Build；Release 没有探针，不能用于此命令。脚本为两个自身创建的进程收集 JSON、PNG 和 Player 日志，超时失败会结束这两个进程，不操作 Editor。每端断言和退出码必须同时通过。测试使用短暂分配的本机 UDP 端口，不配置 Cloud。
 
-MPPM GUI、2–4 人、真实 LAN、Relay、Mac/Windows 互联分别人工记录。按 [PLAYGROUND](PLAYGROUND.md) 启动，逐端验证 WASD/鼠标/C/E/Esc，观察远端移动和蹲下，确认 A 的镜头变化不影响 B；Client Leave 后 Host 只剩自己的角色，Host 离开后 Client 获得断开反馈。再测试重新加入、无效 Join Code、房间满员与端口不可达。未执行项不能因脚本通过而勾选。
+MPPM GUI、2–4 人、真实 LAN、Relay、Mac/Windows 互联分别人工记录。按 [PLAYGROUND](PLAYGROUND.md) 启动，逐端验证 WASD/鼠标/C/E/Esc，观察远端移动和蹲下，确认 A 的镜头变化不影响 B；大厅中验证准备/开始按键、人数不足时不能开始、选图与随机地图、对局中双方外观一致；Client 点左上角「退出」后 Host 只剩自己的角色，Host 退出后 Client 回到准备房并看到原因。再测试重新加入、游戏开始后加入被拒、无效地址或 Join Code、房间满员与端口不可达。未执行项不能因脚本通过而勾选。
 
 ## Semantic Diff
 
