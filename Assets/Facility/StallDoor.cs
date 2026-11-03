@@ -72,6 +72,12 @@ namespace NatureCalls.Facility
             return true;
         }
 
+        // The host validates Interact; peers only apply its resulting state.
+        public void ApplySharedState(StallDoorState value)
+        {
+            if (enabled && State != value) SetState(value);
+        }
+
         private void SetState(StallDoorState value)
         {
             State = value;

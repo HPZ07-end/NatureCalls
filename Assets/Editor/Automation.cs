@@ -60,6 +60,12 @@ namespace NatureCalls.Editor
             Validate();
         }
 
+        public static void SpawnPoints()
+        {
+            SpawnPointSetup.Configure();
+            Validate();
+        }
+
         public static void LobbyFlow()
         {
             LobbyFlowBuilder.Build();
@@ -119,6 +125,26 @@ namespace NatureCalls.Editor
 #else
             throw new InvalidOperationException("Run with -buildTarget osxuniversal and install Mac Build Support.");
 #endif
+        }
+
+        public static void BuildWindows()
+        {
+            Validate();
+            var scenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray();
+            if (scenes.Length == 0 || scenes.Any(scene => !File.Exists(scene)))
+                throw new InvalidOperationException("Build needs existing enabled scenes.");
+            var output = System.Environment.GetEnvironmentVariable("NATURECALLS_BUILD_PATH");
+            if (string.IsNullOrEmpty(output)) throw new InvalidOperationException("Use scripts/unity.py build-windows.");
+            Directory.CreateDirectory(Path.GetDirectoryName(output));
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = scenes, locationPathName = output,
+                target = BuildTarget.StandaloneWindows64, options = BuildOptions.Development
+            });
+            Debug.Log($"NatureCalls build: {report.summary.result}; errors={report.summary.totalErrors}; bytes={report.summary.totalSize}");
+            if (report.summary.result != BuildResult.Succeeded)
+                throw new InvalidOperationException("Windows build failed: " + report.summary.result);
+            WriteReceipt("build");
         }
 
         private static void WriteReceipt(string action)

@@ -2,7 +2,7 @@
 
 软件工程课程的厕所主题合作游戏。人类定义系统逻辑，Coding Agent 负责遵守语义的技术实现。共同依据是 [GLOSSARY.md](GLOSSARY.md)，人类可见的信息也是 Agent 必须读取的信息。
 
-游戏从换装准备房（DressingRoom）启动：镜子前换装，左侧门进入联机大厅，可单人离线测试、创建或加入房间（2–4 人），开始后由房主选择地图。地图 Playground 提供第一人称移动、C 切换如厕第三人称、E 对齐测试马桶、隔间门与卷纸交互，以及 NGO Host/Client 原型。已实现 Relay Session 创建/加入界面；仓库尚未关联 Unity Cloud，现阶段可直接进行离线练习及本地直连测试。完整玩法、设施规则和胜负判定尚未实现。实际验收范围见 [DEVELOPMENT_STATUS](docs/DEVELOPMENT_STATUS.md)。
+游戏从换装准备房（DressingRoom）启动：镜子前换装，左侧门进入联机大厅，可单人离线测试、创建或加入房间（2–4 人），开始后由房主选择地图。地图 Playground 提供第一人称移动、C 切换如厕第三人称、E 对齐测试马桶、隔间门与卷纸交互，以及 NGO Host/Client 原型。仓库已关联 Unity Cloud 项目，大厅「创建房间」使用 Relay Join Code，加入时输入 IP 仍可局域网直连；Relay 真实联机尚待验收。完整玩法、设施规则和胜负判定尚未实现。实际验收范围见 [DEVELOPMENT_STATUS](docs/DEVELOPMENT_STATUS.md)。
 
 ## 打开工程
 

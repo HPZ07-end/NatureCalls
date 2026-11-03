@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using NatureCalls.Player;
 using NatureCalls.Facility;
 using NatureCalls.Map;
+using Avatar = NatureCalls.Network.Avatar;
 
 namespace NatureCalls.Input
 {
@@ -13,12 +14,14 @@ namespace NatureCalls.Input
         private InputAction move, look, jump, toggle, interact, throwRoll, release;
         private Movement movement;
         private Posture posture;
+        private Avatar avatar;
         public bool CaptureMouse = true;
         public bool Captured => Cursor.lockState == CursorLockMode.Locked;
         private void Awake()
         {
             movement = GetComponent<Movement>();
             posture = GetComponent<Posture>();
+            avatar = GetComponent<Avatar>();
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
                 .With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
@@ -100,7 +103,8 @@ namespace NatureCalls.Input
                 nearest = roll;
                 nearestDistance = distance;
             }
-            return nearest != null && nearest.Pickup(movement);
+            return nearest != null && (avatar != null && avatar.IsSpawned
+                ? avatar.RequestPickup(nearest) : nearest.Pickup(movement));
         }
 
         private bool TryInteractNearestStallDoor()
@@ -115,13 +119,15 @@ namespace NatureCalls.Input
                 nearest = door;
                 nearestDistance = distance;
             }
-            return nearest != null && nearest.Interact(movement);
+            return nearest != null && (avatar != null && avatar.IsSpawned
+                ? avatar.RequestDoor(nearest) : nearest.Interact(movement));
         }
 
         private bool TryThrowCarriedPaperRoll()
         {
             var carried = PaperRoll.FindCarriedBy(movement);
-            return carried != null && carried.Throw(movement, movement.transform.forward);
+            return carried != null && (avatar != null && avatar.IsSpawned
+                ? avatar.RequestThrow(carried, movement.transform.forward) : carried.Throw(movement, movement.transform.forward));
         }
     }
 }

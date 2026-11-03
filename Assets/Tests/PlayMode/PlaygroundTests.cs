@@ -42,6 +42,26 @@ namespace NatureCalls.Tests
             }
             if (scene.IsValid() && scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
         }
+        [Test]
+        public void SpawnPointsStandOnOpenFloorInsideTheRoom()
+        {
+            // A spawn inside a wall pushes the player's capsule below the floor and it falls forever.
+            var stalls = Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None)
+                .Select(door => door.GetComponentsInChildren<Renderer>(true).Select(renderer => renderer.bounds)
+                    .Aggregate((all, next) => { all.Encapsulate(next); return all; })).ToArray();
+            var host = world.Spawns[0].position + Vector3.up;
+            foreach (var spawn in world.Spawns)
+            {
+                var point = spawn.position;
+                Assert.That(Physics.Raycast(point + Vector3.up * .5f, Vector3.down, out var floor, 1f, 1, QueryTriggerInteraction.Ignore), Is.True, spawn.name + " has floor below.");
+                Assert.That(floor.point.y, Is.EqualTo(point.y).Within(.1f), spawn.name + " stands on the floor.");
+                var hits = Physics.OverlapCapsule(point + Vector3.up * .37f, point + Vector3.up * 1.73f, .32f, 1, QueryTriggerInteraction.Ignore)
+                    .Where(hit => hit.GetComponentInParent<Movement>() == null);
+                Assert.That(hits.Select(hit => hit.name), Is.Empty, spawn.name + " keeps a standing player clear of colliders.");
+                Assert.That(stalls.Any(bounds => bounds.Contains(new Vector3(point.x, bounds.center.y, point.z))), Is.False, spawn.name + " is outside the stalls.");
+                Assert.That(Physics.Linecast(host, point + Vector3.up, 1, QueryTriggerInteraction.Ignore), Is.False, spawn.name + " is in the same room as Spawn 1.");
+            }
+        }
         [UnityTest]
         public IEnumerator LocalHostOwnsOneCameraAndLeavesCleanly()
         {
@@ -65,6 +85,55 @@ namespace NatureCalls.Tests
             Assert.That(session.Manager.IsListening, Is.False);
             Assert.That(world.Camera.Target, Is.Null);
             Assert.That(Object.FindObjectsByType<NatureCalls.Network.Avatar>(FindObjectsSortMode.None), Is.Empty);
+        }
+
+        [UnityTest]
+        public IEnumerator HostPublishesDoorAndPaperRollInteractions()
+        {
+            var session = Object.FindFirstObjectByType<NatureCalls.Network.Session>();
+            Assert.That(session.StartDirect(true), Is.True);
+            float deadline = Time.time + 5;
+            while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
+            var playerObject = session.Manager.LocalClient.PlayerObject;
+            Assert.That(playerObject, Is.Not.Null);
+            var avatar = playerObject.GetComponent<NatureCalls.Network.Avatar>();
+            var player = playerObject.GetComponent<Movement>();
+            var controller = playerObject.GetComponent<CharacterController>();
+            var doors = Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None);
+            var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
+            Assert.That(doors.Length, Is.EqualTo(3));
+            Assert.That(rolls.Length, Is.EqualTo(3));
+            Assert.That(avatar.SharedDoors.Count, Is.EqualTo(doors.Length));
+            Assert.That(avatar.SharedPaperRolls.Count, Is.EqualTo(rolls.Length));
+
+            controller.enabled = false;
+            player.transform.position = doors[0].DoorColliderPivot.position + doors[0].transform.forward * .4f;
+            controller.enabled = true;
+            Assert.That(avatar.RequestDoor(doors[0]), Is.True);
+            deadline = Time.time + 2;
+            while (doors[0].State == StallDoorState.Closed && Time.time < deadline) yield return null;
+            Assert.That(doors[0].State, Is.Not.EqualTo(StallDoorState.Closed));
+            Assert.That(Enumerable.Range(0, avatar.SharedDoors.Count)
+                .Any(index => avatar.SharedDoors[index] == (byte)doors[0].State), Is.True);
+
+            controller.enabled = false;
+            player.transform.position = rolls[0].transform.position + Vector3.back * .4f;
+            controller.enabled = true;
+            Assert.That(avatar.RequestPickup(rolls[0]), Is.True);
+            deadline = Time.time + 2;
+            while (!rolls[0].IsPickedUp && Time.time < deadline) yield return null;
+            Assert.That(rolls[0].PickedUpBy, Is.EqualTo(player));
+            Assert.That(Enumerable.Range(0, avatar.SharedPaperRolls.Count)
+                .Any(index => avatar.SharedPaperRolls[index].Mode == 1 && avatar.SharedPaperRolls[index].Carrier == avatar.OwnerClientId), Is.True);
+            Assert.That(rolls[0].GetComponentsInChildren<Renderer>(true).All(renderer => !renderer.enabled), Is.True);
+
+            Assert.That(avatar.RequestThrow(rolls[0], player.transform.forward), Is.True);
+            deadline = Time.time + 2;
+            while (rolls[0].IsPickedUp && Time.time < deadline) yield return null;
+            Assert.That(rolls[0].IsPickedUp, Is.False);
+            Assert.That(Enumerable.Range(0, avatar.SharedPaperRolls.Count)
+                .Any(index => avatar.SharedPaperRolls[index].Mode == 2), Is.True);
+            Assert.That(rolls[0].GetComponent<Rigidbody>().isKinematic, Is.False);
         }
 
         [UnityTest]
@@ -114,6 +183,25 @@ namespace NatureCalls.Tests
             var start = player.transform.position;
             for (int i = 0; i < 20; i++) { player.Move(Vector2.up, .05f); yield return null; }
             Assert.That(Vector2.Distance(new Vector2(start.x, start.z), new Vector2(player.transform.position.x, player.transform.position.z)), Is.LessThan(.01f));
+        }
+
+        [UnityTest]
+        public IEnumerator StandingVisualTouchesTheFloor()
+        {
+            var player = world.OfflinePlayer;
+            var controller = player.GetComponent<CharacterController>();
+            player.Move(Vector2.zero, .05f);
+            yield return null;
+
+            var rayOrigin = player.transform.position + Vector3.up * .5f;
+            var worldLayers = ~(1 << player.gameObject.layer);
+            Assert.That(Physics.Raycast(rayOrigin, Vector3.down, out var floor, 2, worldLayers, QueryTriggerInteraction.Ignore),
+                Is.True, "No floor was found under the standing player.");
+            var visualBottom = player.Body.GetComponentsInChildren<Renderer>()
+                .Min(renderer => renderer.bounds.min.y);
+            Assert.That(Mathf.Abs(visualBottom - floor.point.y), Is.LessThan(.015f),
+                $"The standing visual is {visualBottom - floor.point.y:F3}m above the floor; " +
+                $"controller root gap is {player.transform.position.y - floor.point.y:F3}m and skin width is {controller.skinWidth:F3}m.");
         }
         [UnityTest]
         public IEnumerator InputStillUsesToiletWhenNoMirrorIsNearby()

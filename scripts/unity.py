@@ -90,14 +90,15 @@ def run(action, timeout):
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
         directory = ROOT / "Artifacts" / f"{stamp}-{action}"
         directory.mkdir(parents=True)
-        build = ROOT / "Builds/macOS" / stamp / "NatureCalls.app"
+        build = (ROOT / "Builds/Windows" / stamp / "NatureCalls.exe" if action == "build-windows"
+                 else ROOT / "Builds/macOS" / stamp / "NatureCalls.app")
         command = [str(editor), "-batchmode", "-projectPath", str(ROOT), "-logFile", str(directory / "editor.log")]
-        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors"):
+        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points"):
             if use_nographics():
                 command += ["-nographics"]
             command += ["-quit", "-executeMethod", "NatureCalls.Editor.Automation." +
                         {"setup": "Setup", "playground": "Playground", "camera": "Camera",
-                         "lobby-flow": "LobbyFlow", "toilet-anchors": "ToiletAnchors", "validate": "Validate"}[action]]
+                         "lobby-flow": "LobbyFlow", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "validate": "Validate"}[action]]
         elif action in ("test-editmode", "test-playmode"):
             if action == "test-editmode" and use_nographics():
                 command += ["-nographics"]
@@ -106,6 +107,8 @@ def run(action, timeout):
                         "-testResults", str(directory / "results.xml")]
         elif action == "build-macos":
             command += ["-quit", "-buildTarget", "osxuniversal", "-executeMethod", "NatureCalls.Editor.Automation.BuildMac"]
+        elif action == "build-windows":
+            command += ["-quit", "-buildTarget", "Win64", "-executeMethod", "NatureCalls.Editor.Automation.BuildWindows"]
         environment = dict(os.environ, NATURECALLS_RUN_PATH=str(directory), NATURECALLS_BUILD_PATH=str(build))
         summary = {"action": action, "editor": str(editor), "version": version,
                    "command": command, "status": "failed"}
@@ -120,12 +123,16 @@ def run(action, timeout):
             if action.startswith("test-"):
                 summary["tests"] = check_results(directory / "results.xml")
             else:
-                receipt = directory / ("build.ok" if action == "build-macos" else "validate.ok")
+                receipt = directory / ("build.ok" if action.startswith("build-") else "validate.ok")
                 if not receipt.exists() or receipt.read_text().strip() != version:
                     raise RuntimeError("Unity did not produce the expected completion receipt.")
             if action == "build-macos":
                 if not (build / "Contents/Info.plist").is_file() or not (build / "Contents/MacOS").is_dir():
                     raise RuntimeError("Build report succeeded but app bundle is incomplete.")
+                summary["build"] = str(build)
+            elif action == "build-windows":
+                if not build.is_file() or not build.with_name("NatureCalls_Data").is_dir():
+                    raise RuntimeError("Build report succeeded but Windows Player is incomplete.")
                 summary["build"] = str(build)
             summary["status"] = "passed"
         except Exception as error:
@@ -138,7 +145,7 @@ def run(action, timeout):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "test-editmode", "test-playmode", "build-macos"])
+    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "test-editmode", "test-playmode", "build-macos", "build-windows"])
     parser.add_argument("--timeout", type=int, default=1800, help="Editor timeout in seconds (default 1800)")
     arguments = parser.parse_args()
     try:

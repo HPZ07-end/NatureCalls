@@ -30,6 +30,7 @@
 - `Input/PlayerInput`：Input System 将本地键鼠转化为移动、跳跃、观察、姿态与交互调用。
 - `Camera/CameraController`：唯一实际 Camera + CinemachineBrain，两个 CinemachineCamera 的优先级和 Blend；仅绑定本地角色。
 - `Facility/Toilet`：距离检测、姿态 Anchor 与内部可见目标；没有正式设施占用或冲水状态。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
+- `Map/Playground` 出生点：`Spawns[i]` 对应房间槽位 i（房主为 Spawn 1）。由 `python3 scripts/unity.py spawn-points`（菜单 `NatureCalls/Place Playground Spawn Points`）以 Spawn 1 为起点在场景中实测放置：脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 之间无遮挡，间距至少 1.2m。修改房间布局后重新运行。
 - `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
 - `Facility/PlanarMirror`：为每个 WC 镜面实例创建独立运行时 RenderTexture；第一人称主摄像机隐藏本地身体时，镜面摄像机仍可渲染本地 Brown 角色。
 - `Facility/PaperRoll`：检测附近玩家并记录拾取者；拾取后随玩家保留并关闭场景渲染与碰撞，R 丢掷后恢复渲染、碰撞及 Rigidbody 运动。
@@ -94,7 +95,8 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 校园网等公共网络的注意事项：
 
 - 直连要求两台电脑之间 UDP 7777 可达。很多校园 Wi-Fi 开启了终端隔离，或把设备放在不同子网/NAT 后面，这时加入方会超时。能 `ping` 通不代表 UDP 一定放行。
-- 房主有多块网卡（有线与无线、VPN、虚拟网卡）时，大厅显示的是第一个可用 IPv4，不一定是对方能访问的那个；以系统网络设置中的实际地址为准。
+- 房主有多块网卡（有线与无线、VPN、虚拟网卡、Tailscale）时，大厅先显示最可能可达的地址（有网关的网卡、局域网网段优先），其余列在「其他」后面；跳过 `169.254.x.x` 自分配地址（没连上网络的网卡）。仍不确定时以系统网络设置中的实际地址为准，两台电脑地址的前三段应相同（如都是 `172.20.10.x`）。
+- 加入方报 `Failed to connect to server` 且 Editor 日志出现 `Baselib failed to send`：数据包没能从本机发出，通常是填的地址不在本机能到达的网段（例如 `169.254.x.x`）。macOS 15 及以后还需在「隐私与安全性 → 本地网络」中允许 Unity。
 - 直连不通时：两人连同一个手机热点或路由器；或用组网工具（如 Tailscale、ZeroTier）后输入其虚拟局域网地址；或关联 Unity Cloud 后使用 Relay Join Code（见下一节）。
 
 直接打开 Playground 场景时没有连接菜单，只有离线练习和左上角「退出」；不经过大厅的双进程直连诊断使用 `scripts/multiplayer.py`（见 [TESTING](TESTING.md)）。
@@ -103,7 +105,7 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 ## Relay / Join Code 的最少人工配置
 
-当前用户没有 Unity Cloud 项目，仓库未填写或伪造 Project ID。已有 Hub 登录/Editor 许可不等于已创建 Cloud 项目。
+2026-11-03 已关联 Cloud 项目 NatureCalls（`ProjectSettings.asset` 的 `cloudProjectId`，组织 `herryying30`）。拉取后无需再关联即可使用 Relay；队友只有在需要查看 Dashboard 时才要加入该组织。以下步骤保留给更换项目时参考。关联后大厅不再提供局域网建房，只能用 IP 加入局域网房间；大厅建房的 PlayMode 测试也会走真实 Relay，需要联网。
 
 1. 团队在 Unity Cloud 中创建/选择共同项目及组织；登录、组织权限、服务条款和可能的计费启用由人类负责人处理。
 2. Editor → Edit → Project Settings → Services 关联该 Cloud Project；按 Dashboard 提示启用 Multiplayer 所需的 Relay/Lobby，确保 Authentication 可匿名登录。双方使用同一个项目和环境；场景 `Session.EnvironmentName` 默认 `production`。
