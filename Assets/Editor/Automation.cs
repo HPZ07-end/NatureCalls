@@ -60,6 +60,12 @@ namespace NatureCalls.Editor
             Validate();
         }
 
+        public static void SpawnPoints()
+        {
+            SpawnPointSetup.Configure();
+            Validate();
+        }
+
         public static void LobbyFlow()
         {
             LobbyFlowBuilder.Build();

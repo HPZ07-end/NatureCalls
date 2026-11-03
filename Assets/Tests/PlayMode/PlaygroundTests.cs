@@ -42,6 +42,26 @@ namespace NatureCalls.Tests
             }
             if (scene.IsValid() && scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
         }
+        [Test]
+        public void SpawnPointsStandOnOpenFloorInsideTheRoom()
+        {
+            // A spawn inside a wall pushes the player's capsule below the floor and it falls forever.
+            var stalls = Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None)
+                .Select(door => door.GetComponentsInChildren<Renderer>(true).Select(renderer => renderer.bounds)
+                    .Aggregate((all, next) => { all.Encapsulate(next); return all; })).ToArray();
+            var host = world.Spawns[0].position + Vector3.up;
+            foreach (var spawn in world.Spawns)
+            {
+                var point = spawn.position;
+                Assert.That(Physics.Raycast(point + Vector3.up * .5f, Vector3.down, out var floor, 1f, 1, QueryTriggerInteraction.Ignore), Is.True, spawn.name + " has floor below.");
+                Assert.That(floor.point.y, Is.EqualTo(point.y).Within(.1f), spawn.name + " stands on the floor.");
+                var hits = Physics.OverlapCapsule(point + Vector3.up * .37f, point + Vector3.up * 1.73f, .32f, 1, QueryTriggerInteraction.Ignore)
+                    .Where(hit => hit.GetComponentInParent<Movement>() == null);
+                Assert.That(hits.Select(hit => hit.name), Is.Empty, spawn.name + " keeps a standing player clear of colliders.");
+                Assert.That(stalls.Any(bounds => bounds.Contains(new Vector3(point.x, bounds.center.y, point.z))), Is.False, spawn.name + " is outside the stalls.");
+                Assert.That(Physics.Linecast(host, point + Vector3.up, 1, QueryTriggerInteraction.Ignore), Is.False, spawn.name + " is in the same room as Spawn 1.");
+            }
+        }
         [UnityTest]
         public IEnumerator LocalHostOwnsOneCameraAndLeavesCleanly()
         {

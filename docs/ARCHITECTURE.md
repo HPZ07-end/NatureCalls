@@ -15,7 +15,7 @@
 | `Assets/Scenes` | 构建顺序：DressingRoom（启动场景）、Playground（地图）、Smoke；Sandbox 原样保留 |
 | `Assets/Prefabs` | `Characters/Player`（网络玩家基础 Prefab）与 Variant `DressingRoomPlayer`（带换装组件）；`Network/Network`（Lobby 的持久 NetworkManager + Session）、`Network/LobbyRoom`；`Levels/WCStall` 与早期 `Levels/Stall6x8`；`Toilet` 由 Playground 重建工具生成 |
 | `Assets/Materials`、`Assets/Settings` | 原型材质、URP 管线与 Renderer |
-| `Assets/Editor` | 配置、生成、验证、构建；`LobbyFlowBuilder` 生成 Lobby 流程资源与 DressingRoom 接线；Editor-only 程序集 |
+| `Assets/Editor` | 配置、生成、验证、构建；`LobbyFlowBuilder` 生成 Lobby 流程资源与 DressingRoom 接线；`ToiletAnchorSetup` 与 `SpawnPointSetup` 在 Playground 场景中实测放置马桶 Anchor 与出生点；Editor-only 程序集 |
 | `Assets/Tests` | EditMode 资产/配置、Lobby 资源接线与 Core 规则；PlayMode 实际运动、门、卷纸、镜头、换装、Lobby 离线/建房/地图加载与连接生命周期 |
 | `scripts` | Mac/Windows Python 标准库命令、语义检查及双 Player 验证 |
 
