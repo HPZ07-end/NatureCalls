@@ -8,6 +8,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using NatureCalls.Player;
+using NatureCalls.Facility;
 
 namespace NatureCalls.Network
 {
@@ -24,6 +25,7 @@ namespace NatureCalls.Network
             public Vector3 localSpawn, remoteSpawn;
             public bool twoPlayers, ownership, singleCamera, independentCamera, remoteMoved,
                 remoteRotated, remoteSquatted, remoteStoodAgain, remoteVisible, distinctSpawns, cleanup;
+            public bool hostFacilities, clientFacilities;
         }
         private string reportPath;
         private Report report;
@@ -93,7 +95,7 @@ namespace NatureCalls.Network
             bool turned = false;
             float started = Time.realtimeSinceStartup;
             bool captured = false;
-            while (Time.realtimeSinceStartup - started < (report.role == "host" ? 26 : 18))
+            while (Time.realtimeSinceStartup - started < 18)
             {
                 float elapsed = Time.realtimeSinceStartup - started;
                 if (!turned && elapsed > 3.2f)
@@ -137,6 +139,15 @@ namespace NatureCalls.Network
                 }
                 yield return null;
             }
+            yield return VerifyFacilities(own);
+            if (finished) yield break;
+            if (report.role == "host")
+            {
+                deadline = Time.realtimeSinceStartup + 10;
+                while (peer != null && peer.IsSpawned && Time.realtimeSinceStartup < deadline) yield return null;
+                report.cleanup = session.Manager.ConnectedClients.Count == 1 &&
+                    FindObjectsByType<Avatar>(FindObjectsSortMode.None).Count(a => a.IsSpawned) == 1;
+            }
             if (report.role == "client")
             {
                 var leaving = session.LeaveAsync();
@@ -147,8 +158,97 @@ namespace NatureCalls.Network
                     FindObjectsByType<Avatar>(FindObjectsSortMode.None).Length == 0;
             }
             bool passed = report.localDistance > .25f && report.twoPlayers && report.ownership && report.singleCamera && report.independentCamera &&
-                report.remoteMoved && report.remoteRotated && report.remoteSquatted && report.remoteStoodAgain && report.remoteVisible && report.distinctSpawns && report.cleanup;
+                report.remoteMoved && report.remoteRotated && report.remoteSquatted && report.remoteStoodAgain && report.remoteVisible && report.distinctSpawns &&
+                report.hostFacilities && report.clientFacilities && report.cleanup;
             Finish(passed ? "" : "One or more multiplayer assertions failed; inspect report fields.");
+        }
+
+        // Files coordinate the two local test processes only. All facility state changes use
+        // the production request/RPC path; both processes independently inspect their scene.
+        private IEnumerator VerifyFacilities(Avatar own)
+        {
+            var door = FindObjectsByType<StallDoor>(FindObjectsSortMode.None).OrderBy(d => ScenePath(d.transform), StringComparer.Ordinal).FirstOrDefault();
+            var roll = FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).OrderBy(r => ScenePath(r.transform), StringComparer.Ordinal).FirstOrDefault();
+            if (door == null || roll == null) { Finish("Missing door or paper roll for facility verification."); yield break; }
+            var movement = own.GetComponent<Movement>();
+            var controller = own.GetComponent<CharacterController>();
+            own.GetComponent<Posture>().Set(PostureState.Standing);
+            foreach (var actor in new[] { "host", "client" })
+            {
+                bool acting = actor == report.role;
+                var carrier = FindObjectsByType<Avatar>(FindObjectsSortMode.None)
+                    .Single(a => a.IsSpawned && (a.OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId) == (actor == "host"));
+                // Keep the controller disabled while positioning this explicit test actor;
+                // otherwise a collision may move it out of interaction range before the RPC.
+                if (acting)
+                {
+                    controller.enabled = false;
+                    var position = door.DoorColliderPivot.position - door.transform.forward * .35f;
+                    position.y = door.DoorColliderPivot.position.y;
+                    movement.transform.position = position;
+                }
+                yield return new WaitForSecondsRealtime(.5f);
+                yield return FacilityStep(actor + "-door-open", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Open);
+                if (finished) yield break;
+                yield return FacilityStep(actor + "-door-close", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Closed);
+                if (finished) yield break;
+                if (acting) movement.transform.position = door.DoorColliderPivot.position + door.transform.forward * .35f;
+                yield return new WaitForSecondsRealtime(.5f);
+                yield return FacilityStep(actor + "-door-lock", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Locked);
+                if (finished) yield break;
+                yield return FacilityStep(actor + "-door-unlock", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Open);
+                if (finished) yield break;
+                yield return FacilityStep(actor + "-door-reset", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Closed);
+                if (finished) yield break;
+                if (acting) movement.transform.position = roll.transform.position + Vector3.right * .3f;
+                yield return new WaitForSecondsRealtime(.5f);
+                yield return FacilityStep(actor + "-pickup", acting, () => own.RequestPickup(roll),
+                    () => roll.PickedUpBy == carrier.GetComponent<Movement>() &&
+                        roll.GetComponentsInChildren<Renderer>(true).All(r => !r.enabled) &&
+                        roll.GetComponentsInChildren<Collider>(true).All(c => !c.enabled));
+                if (finished) yield break;
+                // Throw toward the room from an open floor position, independently of the shelf.
+                if (acting) movement.transform.position = session.World.Spawns[0].position;
+                yield return new WaitForSecondsRealtime(.5f);
+                yield return FacilityStep(actor + "-throw", acting, () => own.RequestThrow(roll, Vector3.forward),
+                    () => !roll.IsPickedUp && roll.GetComponentsInChildren<Renderer>(true).All(r => r.enabled) &&
+                        roll.GetComponentsInChildren<Collider>(true).All(c => c.enabled) && roll.GetComponent<Rigidbody>() != null);
+                if (finished) yield break;
+                // Compare the settled actual scene position in both processes, rather than
+                // checking only that a NetworkList field was written on the host.
+                yield return new WaitForSecondsRealtime(4);
+                var landing = Marker(actor + "-landing");
+                if (report.role == "host") File.WriteAllText(landing, JsonUtility.ToJson(roll.transform.position));
+                yield return FacilityStep(actor + "-landed", false, null, () => File.Exists(landing) &&
+                    Vector3.Distance(roll.transform.position, JsonUtility.FromJson<Vector3>(File.ReadAllText(landing))) < .15f);
+                if (finished) yield break;
+                if (acting) controller.enabled = true;
+                if (actor == "host") report.hostFacilities = true;
+                else report.clientFacilities = true;
+            }
+        }
+
+        private string Marker(string label) => Path.Combine(Path.GetDirectoryName(reportPath), "facility-" + label + ".json");
+
+        private static string ScenePath(Transform node) => node == null ? "" :
+            ScenePath(node.parent) + "/" + node.name + "[" + node.GetSiblingIndex() + "]";
+
+        private IEnumerator FacilityStep(string label, bool acting, Func<bool> request, Func<bool> observed)
+        {
+            if (acting)
+            {
+                if (!request()) { Finish("Facility request rejected locally: " + label); yield break; }
+                File.WriteAllText(Marker(label + "-issued"), "issued");
+            }
+            float deadline = Time.realtimeSinceStartup + 8;
+            while (Time.realtimeSinceStartup < deadline &&
+                ((request != null && !File.Exists(Marker(label + "-issued"))) || !observed())) yield return null;
+            if (!observed() || (request != null && !File.Exists(Marker(label + "-issued"))))
+            { Finish("Facility scene state did not synchronize: " + label); yield break; }
+            File.WriteAllText(Marker(label + "-" + report.role), "passed");
+            var peerRole = report.role == "host" ? "client" : "host";
+            while (!File.Exists(Marker(label + "-" + peerRole)) && Time.realtimeSinceStartup < deadline) yield return null;
+            if (!File.Exists(Marker(label + "-" + peerRole))) Finish("Peer did not verify facility state: " + label);
         }
         // Mirror cameras render to textures; only one camera may render to the screen.
         private static int ScreenCameras() => UnityEngine.Camera.allCameras.Count(camera => camera.targetTexture == null);
@@ -165,7 +265,7 @@ namespace NatureCalls.Network
         }
         private void Update()
         {
-            if (!finished && Time.realtimeSinceStartup > 70) Finish("Probe timed out.");
+            if (!finished && Time.realtimeSinceStartup > 120) Finish("Probe timed out.");
         }
         private static void Capture(UnityEngine.Camera camera, string path)
         {

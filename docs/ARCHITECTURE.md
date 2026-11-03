@@ -8,7 +8,7 @@
 | `Assets/Player` | Movement：CharacterController、朝向、跳跃与马桶 Anchor 对齐；Posture：姿态状态与通知；PlayerAppearance：身份颜色与外观（按 `OutfitCatalog` 编号）；PlayerOutfitController：DressingRoom 换装流程；OutfitCatalog：可选外观资源；LocalProfile：本地已确认外观（PlayerPrefs） |
 | `Assets/Input` | PlayerInput：本地键鼠操作请求，只为 Owner 启用；按固定顺序分派 E 键交互 |
 | `Assets/Camera` | CameraController：本地 Cinemachine 目标、优先级、Blend 与渲染 |
-| `Assets/Facility` | Toilet：测试 Anchor 和可见目标；StallDoor：隔间门开/关/锁；PaperRoll：拾取、携带与丢掷；PlanarMirror：镜面渲染。均无正式设施规则或网络同步 |
+| `Assets/Facility` | Toilet：测试 Anchor 和可见目标；StallDoor：隔间门开/关/锁；PaperRoll：拾取、携带与丢掷；PlanarMirror：镜面渲染。门与卷纸由 Avatar 接入房主权威同步，尚无冲水、堵塞等正式玩法 |
 | `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段与地图加载后的出生；Avatar：NGO 所有权与姿态/颜色/外观同步；Probe：显式启动的 Development 验证程序 |
 | `Assets/Map` | Playground：地图资源引用、出生点、离线练习；MapCatalog：可选地图；Match：本局模式（离线/联机）与场景切换；DressingMirror / LobbyDoor：DressingRoom 中镜子与门的 E 键入口 |
 | `Assets/UI` | MatchExit：地图左上角「退出」按钮（`MatchHud.prefab`），联机时先离开房间再回到准备房；`UI/Lobby`：LobbyView（纯引用）、LobbyController（行为）、BackgroundBlur（URP 景深虚化） |
@@ -43,7 +43,7 @@ E 键交互没有统一接口，由 `PlayerInput.TryInteract` 依次尝试：如
 
 ## 网络模型
 
-网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable；出生颜色与外观编号为 Server-write。LobbyRoom 的成员、准备与阶段由 Host 权威，客户端经 RPC 请求。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 状态只在本地进程变化，联机时各端不一致。未来共享设施、Tidiness、胜负规则采用 Host-authoritative 方向，本次没有实现。
+网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable；出生颜色与外观编号为 Server-write。LobbyRoom 的成员、准备与阶段由 Host 权威，客户端经 RPC 请求。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 的请求通过玩家 Avatar 到 Host，复用设施原有距离、门锁与容量验证；Host 玩家的 Avatar 用 NetworkList 发布门状态、卷纸携带者及丢掷位姿。设施在玩家生成时按地图层级路径固定索引；客户端卷纸不模拟刚体，由 Host 发布位置。Tidiness 与胜负规则尚未实现。
 
 M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 协调，地图中没有场景内 NetworkObject；以后需要场景内网络对象时再评估启用。没有 Host 迁移；对局中与房主断开的客户端回到准备房并看到原因。
 

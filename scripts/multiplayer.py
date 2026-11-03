@@ -40,7 +40,7 @@ def main():
             children.append(subprocess.Popen(command, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT))
             if role == "host":
                 time.sleep(2)
-        deadline = time.monotonic() + 90
+        deadline = time.monotonic() + 140
         for child in children:
             child.wait(timeout=max(1, deadline - time.monotonic()))
         reports = {}

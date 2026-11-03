@@ -75,3 +75,11 @@
 - 基线 `eaa77453b38bb09a6a9dacb64f0a94c8d08cb689`，Windows Unity 6000.3.26f1。用户反馈联网中一端拾取卷纸或操作隔间门，另一端看不到变化。检查 Playground 交互路径后确认门与卷纸只有本地状态；马桶姿态、镜子外观和大厅阶段已有各自同步路径。
 - 现有玩家 Avatar 接收交互请求，Host 使用原有距离、携带容量及门锁规则验证，再发布隔间门状态和卷纸的携带者、显隐、丢掷位置与飞行位置。卷纸在非 Host 端使用 Host 位置和非模拟 Rigidbody；同一地图的设施按层级路径固定索引。单人离线交互仍直接使用设施组件。
 - Unity batchmode 导入/运行时代码编译验证通过（`Artifacts/20261103T113830Z-56d1cd-validate/`）；随后 Unity GUI Test Runner PlayMode 12/12、EditMode 11/11 通过。新增 PlayMode 用例覆盖 Host 发起开门、拾取、丢掷并写入共享列表。GUI 结果未导出 XML；双端本地网络、Relay 和真实跨设备的可见性与丢掷落点仍未执行。`Semantic-Diff: changed`：`NatureCalls/Infrastructure/Network` 增加 Door 与 PaperRoll 状态在玩家间共享的关系；批准来源为用户 2026-11-03 的明确请求，设施交互规则未变。
+
+## 2026-11-03 本地双 Player 设施共享验证
+
+- 测试基线 `e08bb86ccd4a2a212135f5e99966e05ce76e2b5e` 加本次 Development 探针与 Windows 构建入口修改。Host / Client 均为 Windows x86_64、Unity 6000.3.26f1，同一构建；实际解释器为 Codex bundled Python（`py -3` 未登记可用解释器）。
+- 新增 `build-windows`，输出独立 Windows Development Player 并核查 BuildReport、回执和产物；不提交生成的 Player 或日志。探针仅在显式 `-m1-probe` 下启用，Release 不包含。
+- 验证通过：Unity 导入/编译 `Artifacts/20261103T122405Z-252925-validate/`；EditMode 11/11 `Artifacts/20261103T122606Z-6ebe27-test-editmode/`；PlayMode 12/12 `Artifacts/20261103T122621Z-5807a1-test-playmode/`，两者均有非空且全部 Passed 的 XML；Windows Development 构建 `Artifacts/20261103T122656Z-2ff797-build-windows/`。
+- 真实双 Player localhost UnityTransport 验证通过：`Artifacts/20261103T123015Z-d52d2e-multiplayer/summary.json`。Host、Client 均实际发起门开/关/锁/解锁、卷纸拾取与丢掷，两端均验证实际场景携带者、Renderer/Collider 显隐、丢掷落点一致（差值 < 0.15m），角色同步、独立镜头及退出清理也全部通过。步骤标记文件只同步测试时序，不传输或修改游戏设施状态。
+- 上述不代表人工键鼠、大厅路径、真实 LAN/Relay 或 Mac/Windows 互联通过；这些仍待验收。更新架构中门/卷纸仍为纯本地状态的过期描述。此次新增测试与构建工具没有引入领域语义；整个设施共享 PR 相对 dev 的声明仍为 `Semantic-Diff: changed`，影响 Network，批准来源沿用上条设施共享请求。PR 合并仍须其他成员 Review，不以本地测试代替。
