@@ -26,10 +26,10 @@ python3 -m unittest discover -s scripts/tests -v
 
 ## 当前覆盖范围
 
-以下按测试方法计数（2026-11-02 实际运行，见 [开发记录](records/status-log.md)）。
+以下按测试方法计数（2026-11-03 实际运行，见 [开发记录](records/status-log.md)）。
 
 - EditMode（11 项）：Force Text、Visible Meta Files、`Assets/Scenes` 下项目场景及所有 Prefab 的序列化引用/缺失脚本检查（第三方演示场景不在范围内）、DressingRoomPlayer 使用共享 Player 契约且不带网络组件、Lobby 资源接线（LobbyRoom 已注册、Network Prefab、启动场景与地图均在构建列表）；`OutfitSelection` 循环切换与取消恢复；`LobbyRules` 2–4 人与准备条件、`MapSelection` 随机地图；局域网房间号跳过 `169.254.x.x` 自分配地址。
-- PlayMode（10 项）：DressingRoom 镜子换装改变外观并记住；门打开虚化 Lobby、单人离线测试选地图后加载 Playground 并穿着外观；Host 建房后单人不能开始、Lobby 中不生成角色、选图后加载地图并同步外观；无镜子时 E 仍交互马桶；Smoke 加载；Playground 四个出生点都站在房间内空地上（脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 同一房间）；墙体碰撞/高帧率位移/姿态停步；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。 Playground 测试从场景读取墙体位置与隔间马桶，只统计渲染到屏幕的摄像机（镜面摄像机渲染到贴图）；马桶测试先从门外开门再站到座位前，验证隔间内 E 先坐下、再按 E 站起。坐在马桶上时验证俯视镜头位于角色上方、看得到马桶开口且不被角色网格遮挡；站起后回到坐下前的位置并能走出隔间。已关联 Cloud 后，Host 建房用例走真实 Relay，需要联网。2026-11-03 全部通过。
+- PlayMode（11 项）：DressingRoom 镜子换装改变外观并记住；门打开虚化 Lobby、单人离线测试选地图后加载 Playground 并穿着外观；Host 建房后单人不能开始、Lobby 中不生成角色、选图后加载地图并同步外观；无镜子时 E 仍交互马桶；Smoke 加载；Playground 四个出生点都站在房间内空地上（脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 同一房间）；墙体碰撞/高帧率位移/姿态停步；站立模型脚底接触地图地面；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。Playground 测试从场景读取墙体位置与隔间马桶，只统计渲染到屏幕的摄像机（镜面摄像机渲染到贴图）；马桶测试先从门外开门再站到座位前，验证隔间内 E 先坐下、再按 E 站起。坐在马桶上时验证俯视镜头位于角色上方、看得到马桶开口且不被角色网格遮挡；站起后回到坐下前的位置并能走出隔间。已关联 Cloud 后，Host 建房用例走真实 Relay，需要联网。2026-11-03 合并后的完整回归 11/11 通过。
 - 仓库检查：路径大小写、JSON/asmdef、`.meta` 成对与 GUID 唯一性、生成目录忽略、包约束、相对 Markdown 文件链接；不请求外部链接，也不验证页面锚点。
 - 脚本单测：并发锁、虚假测试成功、Semantic Diff 格式及 baseline 边界。
 - 双 Player 验证：Development 构建通过 `scripts/multiplayer.py` 启动两个独立进程，在 localhost UnityTransport 上检查位置/朝向/姿态、所有权、独立镜头、可见远端角色、出生点与退出清理。开发探针只在显式 `-m1-probe` 参数下运行；普通游戏不自动操作角色，Release 不包含探针。
