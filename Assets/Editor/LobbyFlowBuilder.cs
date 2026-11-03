@@ -408,7 +408,17 @@ namespace NatureCalls.Editor
         private static GameObject BuildMatchHudPrefab()
         {
             var saved = AssetDatabase.LoadAssetAtPath<GameObject>(MatchHudPath);
-            if (saved != null && saved.GetComponent<MatchExit>() != null) return saved;
+            if (saved != null && saved.GetComponent<MatchExit>() != null)
+            {
+                var existing = PrefabUtility.LoadPrefabContents(MatchHudPath);
+                try
+                {
+                    EnsureStatusPlaceholder(existing.transform);
+                    PrefabUtility.SaveAsPrefabAsset(existing, MatchHudPath);
+                }
+                finally { PrefabUtility.UnloadPrefabContents(existing); }
+                return AssetDatabase.LoadAssetAtPath<GameObject>(MatchHudPath);
+            }
             var root = new GameObject("MatchHud", typeof(RectTransform));
             try
             {
@@ -425,10 +435,55 @@ namespace NatureCalls.Editor
                 rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1);
                 rect.anchoredPosition = new Vector2(24, -24);
                 SetReference(root.AddComponent<MatchExit>(), "button", button);
+                EnsureStatusPlaceholder(root.transform);
                 PrefabUtility.SaveAsPrefabAsset(root, MatchHudPath);
             }
             finally { Object.DestroyImmediate(root); }
             return AssetDatabase.LoadAssetAtPath<GameObject>(MatchHudPath);
+        }
+
+        [MenuItem("NatureCalls/Configure Match HUD Status Placeholder")]
+        public static void ConfigureMatchHudStatusPlaceholder()
+        {
+            if (Application.isPlaying)
+                throw new InvalidOperationException("Exit Play Mode before configuring the Match HUD.");
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                return;
+
+            BuildMatchHudPrefab();
+            ConfigurePlayground();
+            AssetDatabase.SaveAssets();
+            Debug.Log("NatureCalls Match HUD status placeholder configured.");
+        }
+
+        private static void EnsureStatusPlaceholder(Transform parent)
+        {
+            if (parent.Find("PlayerStatusPanel") != null)
+                return;
+
+            var panel = Box(parent, "PlayerStatusPanel", new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -100), new Vector2(330, 144));
+            MakeStatusBar(panel, "Urgency", "急迫值", .65f, new Color(.95f, .45f, .10f), -18f);
+            MakeStatusBar(panel, "Disgust", "恶心值", .20f, new Color(.35f, .70f, .30f), -80f);
+        }
+
+        private static void MakeStatusBar(Transform parent, string name, string label, float value, Color color, float y)
+        {
+            MakeLabel(parent, name + "Label", label + "  " + Mathf.RoundToInt(value * 100f) + "%", 24,
+                TextAnchor.MiddleLeft, new Vector2(-8, y), new Vector2(286, 28));
+
+            var track = MakeImage(name + "Track", parent, new Color(.02f, .03f, .05f, .72f));
+            var trackRect = track.rectTransform;
+            trackRect.anchorMin = trackRect.anchorMax = new Vector2(.5f, 1f);
+            trackRect.pivot = new Vector2(.5f, 1f);
+            trackRect.anchoredPosition = new Vector2(0, y - 30f);
+            trackRect.sizeDelta = new Vector2(286, 18);
+
+            var fill = MakeImage(name + "Fill", track.transform, color);
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = 0;
+            fill.fillAmount = value;
+            Stretch(fill.gameObject);
         }
 
         /// <summary>Adds the exit HUD and an EventSystem to the open map scene, replacing the old IMGUI menu.</summary>
