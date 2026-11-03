@@ -59,4 +59,4 @@
 - 测试：`CameraBlendsAndInteriorIsVisible` 改为验证俯视镜头，身体遮挡改用烘焙网格射线检测，第一人称隐藏身体改为检查摄像机 Culling Mask（镜子仍可渲染本地身体）；马桶测试增加「站起后回到原位并能走出隔间」。EditMode 10/10（`Artifacts/20261102T153838Z-a88c19-test-editmode/`），PlayMode 9/9（`Artifacts/20261102T153821Z-aee617-test-playmode/`），重新构建后双进程探针两端通过（`Artifacts/20261102T153855Z-da88a4-multiplayer/`），`toilet-anchors` 记录 `Artifacts/20261102T153611Z-e15ec4-toilet-anchors/`。
 - 记录玩家测出的跳跃越界问题（未修复）：跳上小便池可以跳出房间；跳上卷纸架可以跳进隔间或跳出房间；跳上马桶可以跳出隔间并卡在隔间顶部的杆子上。
 - 同日双机实测（同一 iPhone 热点）：加入方报 `Failed to connect to server`，Editor 日志 35 次 `Baselib failed to send 1 packets`；房主大厅显示的房间号是 `169.254.2.43`（未取得地址的网卡的自分配地址），加入方无路由可达，ping 不通。`Session.LocalAddresses()` 改为跳过 `169.254.x.x`、按「有网关 → 局域网网段 → 其他」排序，大厅显示首选地址并列出其他候选；新增 EditMode 断言。仅以 Unity 自带编译器编译通过，Unity 测试与双机复测待执行（当时 Unity GUI 正在使用）。
-
+- 同日关联 Unity Cloud 项目（`cloudProjectId` 写入 `ProjectSettings.asset`）：大厅「创建房间」由此改走 Relay Join Code。Editor 日志只见 Services 初始化，未记录 Relay 建房结果；Relay 真实联机与 Unity 测试待执行。

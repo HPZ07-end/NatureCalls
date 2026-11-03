@@ -104,7 +104,7 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 ## Relay / Join Code 的最少人工配置
 
-当前用户没有 Unity Cloud 项目，仓库未填写或伪造 Project ID。已有 Hub 登录/Editor 许可不等于已创建 Cloud 项目。
+2026-11-03 已关联 Cloud 项目 NatureCalls（`ProjectSettings.asset` 的 `cloudProjectId`，组织 `herryying30`）。拉取后无需再关联即可使用 Relay；队友只有在需要查看 Dashboard 时才要加入该组织。以下步骤保留给更换项目时参考。关联后大厅不再提供局域网建房，只能用 IP 加入局域网房间；大厅建房的 PlayMode 测试也会走真实 Relay，需要联网。
 
 1. 团队在 Unity Cloud 中创建/选择共同项目及组织；登录、组织权限、服务条款和可能的计费启用由人类负责人处理。
 2. Editor → Edit → Project Settings → Services 关联该 Cloud Project；按 Dashboard 提示启用 Multiplayer 所需的 Relay/Lobby，确保 Authentication 可匿名登录。双方使用同一个项目和环境；场景 `Session.EnvironmentName` 默认 `production`。
