@@ -88,6 +88,55 @@ namespace NatureCalls.Tests
         }
 
         [UnityTest]
+        public IEnumerator HostPublishesDoorAndPaperRollInteractions()
+        {
+            var session = Object.FindFirstObjectByType<NatureCalls.Network.Session>();
+            Assert.That(session.StartDirect(true), Is.True);
+            float deadline = Time.time + 5;
+            while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
+            var playerObject = session.Manager.LocalClient.PlayerObject;
+            Assert.That(playerObject, Is.Not.Null);
+            var avatar = playerObject.GetComponent<NatureCalls.Network.Avatar>();
+            var player = playerObject.GetComponent<Movement>();
+            var controller = playerObject.GetComponent<CharacterController>();
+            var doors = Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None);
+            var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
+            Assert.That(doors.Length, Is.EqualTo(3));
+            Assert.That(rolls.Length, Is.EqualTo(3));
+            Assert.That(avatar.SharedDoors.Count, Is.EqualTo(doors.Length));
+            Assert.That(avatar.SharedPaperRolls.Count, Is.EqualTo(rolls.Length));
+
+            controller.enabled = false;
+            player.transform.position = doors[0].DoorColliderPivot.position + doors[0].transform.forward * .4f;
+            controller.enabled = true;
+            Assert.That(avatar.RequestDoor(doors[0]), Is.True);
+            deadline = Time.time + 2;
+            while (doors[0].State == StallDoorState.Closed && Time.time < deadline) yield return null;
+            Assert.That(doors[0].State, Is.Not.EqualTo(StallDoorState.Closed));
+            Assert.That(Enumerable.Range(0, avatar.SharedDoors.Count)
+                .Any(index => avatar.SharedDoors[index] == (byte)doors[0].State), Is.True);
+
+            controller.enabled = false;
+            player.transform.position = rolls[0].transform.position + Vector3.back * .4f;
+            controller.enabled = true;
+            Assert.That(avatar.RequestPickup(rolls[0]), Is.True);
+            deadline = Time.time + 2;
+            while (!rolls[0].IsPickedUp && Time.time < deadline) yield return null;
+            Assert.That(rolls[0].PickedUpBy, Is.EqualTo(player));
+            Assert.That(Enumerable.Range(0, avatar.SharedPaperRolls.Count)
+                .Any(index => avatar.SharedPaperRolls[index].Mode == 1 && avatar.SharedPaperRolls[index].Carrier == avatar.OwnerClientId), Is.True);
+            Assert.That(rolls[0].GetComponentsInChildren<Renderer>(true).All(renderer => !renderer.enabled), Is.True);
+
+            Assert.That(avatar.RequestThrow(rolls[0], player.transform.forward), Is.True);
+            deadline = Time.time + 2;
+            while (rolls[0].IsPickedUp && Time.time < deadline) yield return null;
+            Assert.That(rolls[0].IsPickedUp, Is.False);
+            Assert.That(Enumerable.Range(0, avatar.SharedPaperRolls.Count)
+                .Any(index => avatar.SharedPaperRolls[index].Mode == 2), Is.True);
+            Assert.That(rolls[0].GetComponent<Rigidbody>().isKinematic, Is.False);
+        }
+
+        [UnityTest]
         public IEnumerator RelayFailurePreservesOfflinePractice()
         {
             var session = Object.FindFirstObjectByType<NatureCalls.Network.Session>();

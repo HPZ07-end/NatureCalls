@@ -37,6 +37,17 @@ namespace NatureCalls.Facility
         public bool Pickup(Movement player)
         {
             if (!CanPickup(player)) return false;
+            ApplySharedPickup(player);
+#if UNITY_EDITOR
+            Debug.Log($"PAPER_ROLL_PICKUP_OK|roll={name}|player={player.name}");
+#endif
+            return true;
+        }
+
+        // Applied after the server has validated the pickup. Repeating a snapshot is safe.
+        public void ApplySharedPickup(Movement player)
+        {
+            if (player == null || PickedUpBy == player) return;
             PickedUpBy = player;
             var body = GetComponent<Rigidbody>();
             if (body != null)
@@ -49,10 +60,6 @@ namespace NatureCalls.Facility
             transform.SetParent(player.transform, true);
             foreach (var renderer in GetComponentsInChildren<Renderer>(true)) renderer.enabled = false;
             foreach (var collider in GetComponentsInChildren<Collider>(true)) collider.enabled = false;
-#if UNITY_EDITOR
-            Debug.Log($"PAPER_ROLL_PICKUP_OK|roll={name}|player={player.name}");
-#endif
-            return true;
         }
 
         public bool Throw(Movement player, Vector3 direction)
@@ -61,23 +68,30 @@ namespace NatureCalls.Facility
             var forward = Vector3.ProjectOnPlane(direction, Vector3.up).normalized;
             if (forward.sqrMagnitude < .01f) forward = player.transform.forward;
 
+            var position = player.transform.position + Vector3.up + forward * .65f;
+            var velocity = forward * ThrowSpeed + Vector3.up * ThrowUpwardSpeed;
+            ApplySharedThrow(position, transform.rotation, velocity, true);
+#if UNITY_EDITOR
+            Debug.Log($"PAPER_ROLL_THROW_OK|roll={name}|player={player.name}|speed={velocity.magnitude:F2}");
+#endif
+            return true;
+        }
+
+        public void ApplySharedThrow(Vector3 position, Quaternion rotation, Vector3 velocity, bool simulate)
+        {
             PickedUpBy = null;
             transform.SetParent(null, true);
-            transform.position = player.transform.position + Vector3.up + forward * .65f;
+            transform.SetPositionAndRotation(position, rotation);
             foreach (var renderer in GetComponentsInChildren<Renderer>(true)) renderer.enabled = true;
             foreach (var collider in GetComponentsInChildren<Collider>(true)) collider.enabled = true;
 
             var body = GetComponent<Rigidbody>();
             if (body == null) body = gameObject.AddComponent<Rigidbody>();
-            body.isKinematic = false;
-            body.useGravity = true;
+            body.isKinematic = !simulate;
+            body.useGravity = simulate;
             body.interpolation = RigidbodyInterpolation.Interpolate;
-            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            body.linearVelocity = forward * ThrowSpeed + Vector3.up * ThrowUpwardSpeed;
-#if UNITY_EDITOR
-            Debug.Log($"PAPER_ROLL_THROW_OK|roll={name}|player={player.name}|speed={body.linearVelocity.magnitude:F2}");
-#endif
-            return true;
+            body.collisionDetectionMode = simulate ? CollisionDetectionMode.ContinuousDynamic : CollisionDetectionMode.ContinuousSpeculative;
+            if (simulate) body.linearVelocity = velocity;
         }
     }
 }

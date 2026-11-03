@@ -69,3 +69,9 @@
 - 修复前新增用例按预期失败（PlayMode 9/10，`Artifacts/20261103T030302Z-3da449-test-playmode/`）；修复后 Unity 6000.3.26f1 PlayMode 10/10（`Artifacts/20261103T030547Z-f0e5b5-test-playmode/`）、EditMode 11/11（`Artifacts/20261103T030727Z-a06596-test-editmode/`）、导入/编译验证通过（`Artifacts/20261103T030801Z-1594fb-validate/`）。这些是接地分支当时的测试结果；合并后的结果见下条。这是既有 Player/Standing 表现的技术修复，`Semantic-Diff: none`。
 
 - 合入联网分支后，Unity 6000.3.26f1 导入/编译验证通过（`Artifacts/20261103T105454Z-7be5f1-validate/`），EditMode 11/11（`Artifacts/20261103T105725Z-ca9d88-test-editmode/`），PlayMode 11/11（`Artifacts/20261103T105814Z-f0b993-test-playmode/`）；仓库检查 837 个文件/417 个 GUID 与 Python 单测 21/21 通过。真实两机 Relay 复测未执行。
+
+## 2026-11-03 Playground 设施状态同步
+
+- 基线 `eaa77453b38bb09a6a9dacb64f0a94c8d08cb689`，Windows Unity 6000.3.26f1。用户反馈联网中一端拾取卷纸或操作隔间门，另一端看不到变化。检查 Playground 交互路径后确认门与卷纸只有本地状态；马桶姿态、镜子外观和大厅阶段已有各自同步路径。
+- 现有玩家 Avatar 接收交互请求，Host 使用原有距离、携带容量及门锁规则验证，再发布隔间门状态和卷纸的携带者、显隐、丢掷位置与飞行位置。卷纸在非 Host 端使用 Host 位置和非模拟 Rigidbody；同一地图的设施按层级路径固定索引。单人离线交互仍直接使用设施组件。
+- Unity batchmode 导入/运行时代码编译验证通过（`Artifacts/20261103T113830Z-56d1cd-validate/`）；随后 Unity GUI Test Runner PlayMode 12/12、EditMode 11/11 通过。新增 PlayMode 用例覆盖 Host 发起开门、拾取、丢掷并写入共享列表。GUI 结果未导出 XML；双端本地网络、Relay 和真实跨设备的可见性与丢掷落点仍未执行。`Semantic-Diff: changed`：`NatureCalls/Infrastructure/Network` 增加 Door 与 PaperRoll 状态在玩家间共享的关系；批准来源为用户 2026-11-03 的明确请求，设施交互规则未变。
