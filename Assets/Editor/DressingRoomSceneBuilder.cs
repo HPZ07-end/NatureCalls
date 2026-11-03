@@ -12,8 +12,15 @@ namespace NatureCalls.Editor
     {
         private const string ScenePath = "Assets/Scenes/DressingRoom.unity";
         private const string RootName = "DressingRoomBlockout";
+        private const string PropsRootName = "DressingRoomProps";
         private const string MaterialsFolder = "Assets/Materials";
         private const string MirrorTexturePath = MaterialsFolder + "/DressingRoomMirror.renderTexture";
+        private const string SinkPrefabPath = "Assets/WC/Prefabs/props/SM_sink Variant.prefab";
+        private const string SoapPrefabPath = "Assets/WC/Prefabs/props/SM_soap Variant.prefab";
+        private const string DryerPrefabPath = "Assets/WC/Prefabs/props/SM_dryer Variant.prefab";
+        private const string TrashPrefabPath = "Assets/WC/Prefabs/props/SM_trash_can Variant.prefab";
+        private const string SignPrefabPath = "Assets/WC/Prefabs/props/SM_sign_2 Variant.prefab";
+        private const string LampPrefabPath = "Assets/WC/Prefabs/props/SM_lamp Variant.prefab";
 
         [MenuItem("NatureCalls/Build Dressing Room Blockout")]
         public static void Build()
@@ -44,6 +51,7 @@ namespace NatureCalls.Editor
             CreateDoor(root.transform, door);
             CreateAnchor(root.transform, "MirrorStandingPoint", new Vector3(1.1f, 0f, 1.65f));
             CreateAnchor(root.transform, "DoorInteractionPoint", new Vector3(-4.25f, 0f, 2.7f));
+            ConfigurePublicWashroomProps();
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene))
@@ -84,6 +92,29 @@ namespace NatureCalls.Editor
             AssetDatabase.SaveAssets();
             Selection.activeGameObject = mirrorRoot;
             Debug.Log("NatureCalls DressingRoom mirror reflection configured.");
+        }
+
+        [MenuItem("NatureCalls/Configure Dressing Room Public Washroom Props")]
+        public static void ConfigureExistingPublicWashroomProps()
+        {
+            if (Application.isPlaying)
+                throw new InvalidOperationException("Exit Play Mode before configuring DressingRoom props.");
+            if (!File.Exists(ScenePath))
+                throw new FileNotFoundException("DressingRoom scene is missing.", ScenePath);
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                return;
+
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            if (GameObject.Find(RootName) == null)
+                throw new InvalidOperationException("DressingRoomBlockout was not found.");
+
+            var props = ConfigurePublicWashroomProps();
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene))
+                throw new IOException("Could not save " + ScenePath);
+            AssetDatabase.SaveAssets();
+            Selection.activeGameObject = props;
+            Debug.Log("NatureCalls DressingRoom public washroom props configured.");
         }
 
         private static void ConfigureSceneLighting()
@@ -221,6 +252,56 @@ namespace NatureCalls.Editor
             planarMirror.Surface = surface;
             EditorUtility.SetDirty(reflectionCamera);
             EditorUtility.SetDirty(planarMirror);
+        }
+
+        private static GameObject ConfigurePublicWashroomProps()
+        {
+            var props = GameObject.Find(PropsRootName);
+            if (props == null)
+                props = new GameObject(PropsRootName);
+
+            // Keep the mirror wall and its standing point clear. The two sinks face into the room from the right wall.
+            EnsureProp(props.transform, "Sink A", SinkPrefabPath, new Vector3(5.89f, 0f, 1.10f), Quaternion.Euler(0f, -90f, 0f), Vector3.one * 1.25f);
+            EnsureProp(props.transform, "Sink B", SinkPrefabPath, new Vector3(5.89f, 0f, -0.55f), Quaternion.Euler(0f, -90f, 0f), Vector3.one * 1.25f);
+            EnsureProp(props.transform, "Soap A", SoapPrefabPath, new Vector3(5.42f, .98f, 1.10f), Quaternion.Euler(0f, -90f, 0f), Vector3.one);
+            EnsureProp(props.transform, "Soap B", SoapPrefabPath, new Vector3(5.42f, .98f, -0.55f), Quaternion.Euler(0f, -90f, 0f), Vector3.one);
+            EnsureProp(props.transform, "Hand Dryer", DryerPrefabPath, new Vector3(5.84f, 1.35f, -2.15f), Quaternion.Euler(0f, -90f, 0f), Vector3.one);
+            EnsureProp(props.transform, "Waste Bin", TrashPrefabPath, new Vector3(5.38f, 0f, 2.45f), Quaternion.Euler(0f, -90f, 0f), Vector3.one * 1.25f);
+            var signPosition = new Vector3(-2.55f, 1.60f, 3.84f);
+            var sign = EnsureProp(props.transform, "Restroom Sign", SignPrefabPath, signPosition, Quaternion.Euler(0f, 180f, 0f), Vector3.one * 1.5f);
+            if (Vector3.Distance(sign.transform.position, new Vector3(-3.35f, 1.60f, 3.84f)) < .001f)
+                sign.transform.position = signPosition;
+            EnsureProp(props.transform, "Lamp A", LampPrefabPath, new Vector3(-1.30f, 2.74f, 3.65f), Quaternion.Euler(0f, 180f, 0f), Vector3.one);
+            EnsureProp(props.transform, "Lamp B", LampPrefabPath, new Vector3(3.50f, 2.74f, 3.65f), Quaternion.Euler(0f, 180f, 0f), Vector3.one);
+            return props;
+        }
+
+        private static GameObject EnsureProp(Transform parent, string name, string prefabPath, Vector3 position, Quaternion rotation, Vector3 scale)
+        {
+            var existing = parent.Find(name);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (prefab == null)
+                throw new FileNotFoundException("DressingRoom prop prefab is missing.", prefabPath);
+
+            if (existing != null && PrefabUtility.GetCorrespondingObjectFromSource(existing.gameObject) == prefab)
+            {
+                if (existing.localScale == Vector3.one && scale != Vector3.one)
+                    existing.localScale = scale;
+                return existing.gameObject;
+            }
+
+            if (existing != null)
+            {
+                position = existing.position;
+                rotation = existing.rotation;
+                UnityEngine.Object.DestroyImmediate(existing.gameObject);
+            }
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            instance.name = name;
+            instance.transform.SetPositionAndRotation(position, rotation);
+            instance.transform.localScale = scale;
+            return instance;
         }
 
         private static void CreateDoor(Transform parent, Material material)
