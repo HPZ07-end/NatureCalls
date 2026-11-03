@@ -115,6 +115,25 @@ namespace NatureCalls.Tests
             for (int i = 0; i < 20; i++) { player.Move(Vector2.up, .05f); yield return null; }
             Assert.That(Vector2.Distance(new Vector2(start.x, start.z), new Vector2(player.transform.position.x, player.transform.position.z)), Is.LessThan(.01f));
         }
+
+        [UnityTest]
+        public IEnumerator StandingVisualTouchesTheFloor()
+        {
+            var player = world.OfflinePlayer;
+            var controller = player.GetComponent<CharacterController>();
+            player.Move(Vector2.zero, .05f);
+            yield return null;
+
+            var rayOrigin = player.transform.position + Vector3.up * .5f;
+            var worldLayers = ~(1 << player.gameObject.layer);
+            Assert.That(Physics.Raycast(rayOrigin, Vector3.down, out var floor, 2, worldLayers, QueryTriggerInteraction.Ignore),
+                Is.True, "No floor was found under the standing player.");
+            var visualBottom = player.Body.GetComponentsInChildren<Renderer>()
+                .Min(renderer => renderer.bounds.min.y);
+            Assert.That(Mathf.Abs(visualBottom - floor.point.y), Is.LessThan(.015f),
+                $"The standing visual is {visualBottom - floor.point.y:F3}m above the floor; " +
+                $"controller root gap is {player.transform.position.y - floor.point.y:F3}m and skin width is {controller.skinWidth:F3}m.");
+        }
         [UnityTest]
         public IEnumerator InputStillUsesToiletWhenNoMirrorIsNearby()
         {

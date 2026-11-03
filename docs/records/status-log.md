@@ -60,3 +60,9 @@
 - 记录玩家测出的跳跃越界问题（未修复）：跳上小便池可以跳出房间；跳上卷纸架可以跳进隔间或跳出房间；跳上马桶可以跳出隔间并卡在隔间顶部的杆子上。
 - 同日双机实测（同一 iPhone 热点）：加入方报 `Failed to connect to server`，Editor 日志 35 次 `Baselib failed to send 1 packets`；房主大厅显示的房间号是 `169.254.2.43`（未取得地址的网卡的自分配地址），加入方无路由可达，ping 不通。`Session.LocalAddresses()` 改为跳过 `169.254.x.x`、按「有网关 → 局域网网段 → 其他」排序，大厅显示首选地址并列出其他候选；新增 EditMode 断言。仅以 Unity 自带编译器编译通过，Unity 测试与双机复测待执行（当时 Unity GUI 正在使用）。
 - 同日关联 Unity Cloud 项目（`cloudProjectId` 写入 `ProjectSettings.asset`）：大厅「创建房间」由此改走 Relay Join Code。Editor 日志只见 Services 初始化，未记录 Relay 建房结果；Relay 真实联机与 Unity 测试待执行。
+
+## 2026-11-03 Player 脚底接地修复
+
+- 用户反馈站立角色脚部离地。回归检查实测脚底高出地图地面 `0.067m`；CharacterController 根节点与地面的间隙为 `0.080m`，与 `skinWidth=0.080m` 一致。角色模型此前直接跟随碰撞体根节点，因此把碰撞余量表现成了可见悬空。
+- `Movement` 在首帧站立姿态的 SkinnedMesh Bounds 可用后，将 `Body` 一次性对齐到 CharacterController 的接触平面；不改变碰撞体、玩家根 Transform、移动、跳跃或网络同步位置。新增 PlayMode 回归从场景地面射线与实际 Renderer Bounds 验证脚底接触地面。
+- 修复前新增用例按预期失败（PlayMode 9/10，`Artifacts/20261103T030302Z-3da449-test-playmode/`）；修复后 Unity 6000.3.26f1 PlayMode 10/10（`Artifacts/20261103T030547Z-f0e5b5-test-playmode/`）、EditMode 11/11（`Artifacts/20261103T030727Z-a06596-test-editmode/`）、导入/编译验证通过（`Artifacts/20261103T030801Z-1594fb-validate/`）。这是既有 Player/Standing 表现的技术修复，`Semantic-Diff: none`。

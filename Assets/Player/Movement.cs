@@ -21,6 +21,9 @@ namespace NatureCalls.Player
         private float verticalSpeed;
         private Quaternion returnRotation;
         private Vector3 returnPosition;
+        private Vector3 bodyBaseLocalPosition;
+        private Vector3 bodyGroundedLocalPosition;
+        private bool bodyGroundingPending;
         /// <summary>The toilet anchor the player is seated at, or null.</summary>
         public Transform Seat { get; private set; }
 #if UNITY_EDITOR
@@ -34,10 +37,32 @@ namespace NatureCalls.Player
             // Enable physics only when ownership and the initial transform are ready.
             controller.enabled = false;
             posture = GetComponent<Posture>();
+            if (Body != null)
+            {
+                bodyBaseLocalPosition = Body.localPosition;
+                bodyGroundedLocalPosition = bodyBaseLocalPosition;
+                bodyGroundingPending = true;
+            }
             posture.Changed += ApplyPosture;
             ApplyPosture(posture.State);
         }
         private void Start() { if (startControlled && !Controlled) SetControl(true); }
+        private void LateUpdate()
+        {
+            if (!bodyGroundingPending || Body == null || posture.IsSquatting) return;
+            bodyGroundingPending = false;
+            Body.localPosition = bodyBaseLocalPosition;
+            var renderers = Body.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return;
+
+            var visualBottom = renderers[0].bounds.min.y;
+            for (int index = 1; index < renderers.Length; index++)
+                visualBottom = Mathf.Min(visualBottom, renderers[index].bounds.min.y);
+            var desiredBottom = transform.position.y - controller.skinWidth;
+            var worldCorrection = Vector3.up * (desiredBottom - visualBottom);
+            bodyGroundedLocalPosition = bodyBaseLocalPosition + Body.parent.InverseTransformVector(worldCorrection);
+            Body.localPosition = bodyGroundedLocalPosition;
+        }
         private void OnDestroy() { if (posture != null) posture.Changed -= ApplyPosture; }
         public void SetControl(bool value) { Controlled = value; controller.enabled = value; }
         public void Look(Vector2 delta)
@@ -90,7 +115,11 @@ namespace NatureCalls.Player
             bool squat = state == PostureState.Squatting;
             controller.height = squat ? SquattingHeight : StandingHeight;
             controller.center = new Vector3(0, controller.height / 2, 0);
-            if (Body != null) Body.localScale = new Vector3(1, squat ? .56f : 1, 1);
+            if (Body != null)
+            {
+                Body.localPosition = bodyGroundedLocalPosition;
+                Body.localScale = new Vector3(1, squat ? .56f : 1, 1);
+            }
             if (!squat && Seat != null)
             {
                 // Stand up where the player was before sitting: the seat itself sits against the bowl.
