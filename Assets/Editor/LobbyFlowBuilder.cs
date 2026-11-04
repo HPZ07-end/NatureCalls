@@ -415,6 +415,7 @@ namespace NatureCalls.Editor
                 {
                     EnsureStatusPlaceholder(existing.transform);
                     EnsureMatchClock(existing);
+                    EnsureNeedsView(existing);
                     PrefabUtility.SaveAsPrefabAsset(existing, MatchHudPath);
                 }
                 finally { PrefabUtility.UnloadPrefabContents(existing); }
@@ -438,6 +439,7 @@ namespace NatureCalls.Editor
                 SetReference(root.AddComponent<MatchExit>(), "button", button);
                 EnsureStatusPlaceholder(root.transform);
                 EnsureMatchClock(root);
+                EnsureNeedsView(root);
                 PrefabUtility.SaveAsPrefabAsset(root, MatchHudPath);
             }
             finally { Object.DestroyImmediate(root); }
@@ -478,13 +480,42 @@ namespace NatureCalls.Editor
             SetReference(hud.AddComponent<MatchClock>(), "label", label);
         }
 
-        /// <summary>Adds the round timer to the map HUD and stops the DressingRoom floor from flickering.</summary>
-        [MenuItem("NatureCalls/Configure Match Clock")]
-        public static void ConfigureMatchClock()
+        /// <summary>
+        /// Match runtime wiring: round timer and needs bars on the map HUD, PlayerNeeds on the Player prefab,
+        /// and the DressingRoom floor fix.
+        /// </summary>
+        [MenuItem("NatureCalls/Configure Match Flow")]
+        public static void ConfigureMatchFlow()
         {
+            EnsurePlayerNeeds();
             BuildMatchHudPrefab();
             HideCoplanarDressingRoomPlane();
             AssetDatabase.SaveAssets();
+        }
+
+        private static void EnsurePlayerNeeds()
+        {
+            var root = PrefabUtility.LoadPrefabContents(PlayerPrefabPath);
+            try
+            {
+                if (root.GetComponent<PlayerNeeds>() != null) return;
+                root.AddComponent<PlayerNeeds>();
+                PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        // Drives PR #12's placeholder Urgency / Disgust bars from the local player's needs.
+        private static void EnsureNeedsView(GameObject hud)
+        {
+            if (hud.GetComponent<NeedsView>() != null) return;
+            Transform Find(string name) => hud.GetComponentsInChildren<Transform>(true).FirstOrDefault(item => item.name == name)
+                ?? throw new InvalidOperationException("MatchHud has no " + name);
+            var view = hud.AddComponent<NeedsView>();
+            SetReference(view, "urgencyLabel", Find("UrgencyLabel").GetComponent<Text>());
+            SetReference(view, "urgencyFill", Find("UrgencyFill").GetComponent<Image>());
+            SetReference(view, "disgustLabel", Find("DisgustLabel").GetComponent<Text>());
+            SetReference(view, "disgustFill", Find("DisgustFill").GetComponent<Image>());
         }
 
         // The DressingRoom's default-material Plane lies exactly on the Floor's top face (y = 0), so the two

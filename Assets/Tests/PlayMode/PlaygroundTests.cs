@@ -209,14 +209,17 @@ namespace NatureCalls.Tests
             var player = world.OfflinePlayer;
             var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
             var posture = player.GetComponent<Posture>();
+            input.enabled = true; // PlayerInput times the toileting; batchmode has no real keyboard to interfere.
 
-            // Outside any stall C squats where the player stands, as before.
+            // Outside any stall C squats where the player stands, for a fixed time.
             Assert.That(StallDoor.Containing(player), Is.Null);
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(posture.State, Is.EqualTo(PostureState.Squatting));
             Assert.That(player.Seat, Is.Null, "Squatting outside a stall uses no toilet.");
-            Assert.That(input.TryToilet(), Is.True);
-            Assert.That(posture.State, Is.EqualTo(PostureState.Standing));
+            Assert.That(input.TryToilet(), Is.False, "C is one press: it cannot cut the toileting short.");
+            Assert.That(posture.State, Is.EqualTo(PostureState.Squatting));
+            yield return new WaitForSeconds(NatureCalls.Core.NeedsRules.ToiletingSeconds + .2f);
+            Assert.That(posture.State, Is.EqualTo(PostureState.Standing), "The player stands up by themselves after the toileting time.");
             Assert.That(input.TryInteract(), Is.False, "E no longer squats or sits.");
 
             // Inside each stall C picks that stall's own toilet, never a neighbour's.
@@ -227,8 +230,17 @@ namespace NatureCalls.Tests
                 var toilet = stall.Toilet;
                 Assert.That(toilet, Is.Not.Null, stall.name + " has a toilet.");
                 yield return OpenStallAndStandAt(player, toilet);
-                yield return Teleport(player, toilet.Anchor.position - toilet.Anchor.forward * .25f);
-                Assert.That(StallDoor.Containing(player), Is.SameAs(stall), "The player stands in " + stall.name);
+                // Anywhere between just inside the door and the seat, and to either side, counts as this stall.
+                var outward = -toilet.Anchor.forward;
+                var side = Vector3.Cross(Vector3.up, outward).normalized;
+                var depth = Vector3.Dot(new Vector3(stall.DoorLeaf.position.x, 0, stall.DoorLeaf.position.z) - new Vector3(toilet.Anchor.position.x, 0, toilet.Anchor.position.z), outward);
+                for (float along = 0; along <= depth - .2f; along += .2f)
+                for (float across = -.25f; across <= .25f; across += .25f)
+                {
+                    yield return Teleport(player, toilet.Anchor.position + outward * along + side * across);
+                    Assert.That(StallDoor.Containing(player), Is.SameAs(stall), $"{stall.name}: {along:F1}m from the seat, {across:F2}m to the side");
+                }
+                yield return Teleport(player, toilet.Anchor.position + outward * .25f);
                 var before = player.transform.position;
                 Assert.That(input.TryToilet(), Is.True);
                 Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "C sits on the toilet of the stall the player is in.");
@@ -244,8 +256,8 @@ namespace NatureCalls.Tests
                 Assert.That(input.TryInteract(), Is.True);
                 Assert.That(stall.State, Is.EqualTo(StallDoorState.Open));
 
-                Assert.That(input.TryToilet(), Is.True);
-                Assert.That(posture.State, Is.EqualTo(PostureState.Standing), "A second C stands back up.");
+                yield return new WaitForSeconds(NatureCalls.Core.NeedsRules.ToiletingSeconds + .2f);
+                Assert.That(posture.State, Is.EqualTo(PostureState.Standing), "The player stands up after the toileting time.");
                 Assert.That(player.Seat, Is.Null);
                 Assert.That(toilet.IsOccupied, Is.False, "Standing up frees the toilet.");
                 Assert.That(Vector3.Distance(player.transform.position, before), Is.LessThan(.01f), "Standing up returns to where the player sat down from.");
@@ -253,10 +265,48 @@ namespace NatureCalls.Tests
 
             // The last stall: after standing up the player can walk out.
             var last = doors[doors.Length - 1].Toilet;
-            var outward = -last.Anchor.forward;
+            var exit = -last.Anchor.forward;
             var start = player.transform.position;
             for (int i = 0; i < 20; i++) { player.Move(Vector2.down, .05f); yield return null; }
-            Assert.That(Vector3.Dot(player.transform.position - start, outward), Is.GreaterThan(.3f), "After standing up the player can walk out of the stall.");
+            Assert.That(Vector3.Dot(player.transform.position - start, exit), Is.GreaterThan(.3f), "After standing up the player can walk out of the stall.");
+        }
+        [UnityTest]
+        public IEnumerator NeedsRiseClearOnToiletingAndOutsideAStallLeaveADropping()
+        {
+            var player = world.OfflinePlayer;
+            var needs = player.GetComponent<PlayerNeeds>();
+            var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+            input.enabled = true; // PlayerInput times the toileting.
+            Assert.That(needs, Is.Not.Null, "The Player prefab carries PlayerNeeds.");
+            needs.BeginRound(0);
+            Assert.That(needs.Urgency, Is.Zero);
+            yield return new WaitForSeconds(1);
+            Assert.That(needs.Urgency, Is.EqualTo(NatureCalls.Core.NeedsRules.UrgencyPerSecond).Within(.5f), "Urgency fills once a minute.");
+
+            // Outside a stall: Urgency pauses while toileting, then clears; Disgust +10 and a dropping stays behind.
+            Assert.That(input.TryToilet(), Is.True);
+            var paused = needs.Urgency;
+            yield return new WaitForSeconds(1);
+            Assert.That(needs.Urgency, Is.EqualTo(paused), "Urgency does not rise while toileting.");
+            var posture = player.GetComponent<Posture>();
+            float deadline = Time.time + NatureCalls.Core.NeedsRules.ToiletingSeconds + 1;
+            while (posture.IsSquatting && Time.time < deadline) yield return null;
+            Assert.That(posture.IsSquatting, Is.False);
+            Assert.That(needs.Urgency, Is.LessThan(.5f), "Finishing a toileting clears Urgency.");
+            Assert.That(needs.Disgust, Is.EqualTo(NatureCalls.Core.NeedsRules.OutsideStallDisgust));
+            Assert.That(world.DroppingCount, Is.EqualTo(1), "A black ball is left where the player toileted.");
+
+            // In a stall: Urgency clears, no Disgust and no dropping.
+            var toilet = FindToilet();
+            yield return OpenStallAndStandAt(player, toilet);
+            yield return Teleport(player, toilet.Anchor.position - toilet.Anchor.forward * .25f);
+            Assert.That(input.TryToilet(), Is.True);
+            Assert.That(player.Seat, Is.EqualTo(toilet.Anchor));
+            deadline = Time.time + NatureCalls.Core.NeedsRules.ToiletingSeconds + 1;
+            while (posture.IsSquatting && Time.time < deadline) yield return null;
+            Assert.That(needs.Disgust, Is.EqualTo(NatureCalls.Core.NeedsRules.OutsideStallDisgust));
+            Assert.That(world.DroppingCount, Is.EqualTo(1));
+            Assert.That(needs.Urgency, Is.LessThan(.5f), "Toileting in a stall clears Urgency too.");
         }
         [UnityTest]
         public IEnumerator AnOccupiedToiletRefusesASecondPlayer()
@@ -284,6 +334,7 @@ namespace NatureCalls.Tests
             var avatar = session.Manager.LocalClient.PlayerObject.GetComponent<NatureCalls.Network.Avatar>();
             var player = avatar.GetComponent<Movement>();
             var toilet = FindToilet();
+            player.GetComponent<NatureCalls.Input.PlayerInput>().enabled = true;
             yield return OpenStallAndStandAt(player, toilet);
             yield return Teleport(player, toilet.Anchor.position - toilet.Anchor.forward * .25f);
             Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryToilet(), Is.True);
@@ -291,8 +342,7 @@ namespace NatureCalls.Tests
             while (player.Seat == null && Time.time < deadline) yield return null;
             Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "The host grants the free seat.");
             Assert.That(avatar.SharedToilets.Contains(avatar.OwnerClientId + 1), Is.True, "The occupant is shared.");
-            Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryToilet(), Is.True);
-            deadline = Time.time + 2;
+            deadline = Time.time + NatureCalls.Core.NeedsRules.ToiletingSeconds + 2;
             while (avatar.SharedToilets.Contains(avatar.OwnerClientId + 1) && Time.time < deadline) yield return null;
             Assert.That(avatar.SharedToilets.Contains(avatar.OwnerClientId + 1), Is.False, "Standing up frees the shared seat.");
             Assert.That(toilet.IsOccupied, Is.False);

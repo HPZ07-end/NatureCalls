@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using NatureCalls.Core;
 using NatureCalls.Player;
 using NatureCalls.Facility;
 using NatureCalls.Map;
@@ -15,6 +16,11 @@ namespace NatureCalls.Input
         private Movement movement;
         private Posture posture;
         private Avatar avatar;
+        private PlayerNeeds needs;
+        // A press of C toilets for a fixed time. Pending until the squat begins (online the host grants the seat).
+        private float toiletingRequested = -1;
+        private float toiletingEnds = -1;
+        public bool IsToileting => toiletingEnds >= 0;
         public bool CaptureMouse = true;
         public bool Captured => Cursor.lockState == CursorLockMode.Locked;
         private void Awake()
@@ -22,6 +28,8 @@ namespace NatureCalls.Input
             movement = GetComponent<Movement>();
             posture = GetComponent<Posture>();
             avatar = GetComponent<Avatar>();
+            needs = GetComponent<PlayerNeeds>();
+            posture.Changed += PostureChanged;
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
                 .With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
@@ -38,11 +46,22 @@ namespace NatureCalls.Input
             move?.Disable(); look?.Disable(); jump?.Disable(); toggle?.Disable(); interact?.Disable(); throwRoll?.Disable(); release?.Disable();
             Unlock();
         }
-        private void OnDestroy() { move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); interact?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
+        private void PostureChanged(PostureState state)
+        {
+            if (state == PostureState.Squatting && toiletingRequested >= 0)
+            {
+                toiletingRequested = -1;
+                toiletingEnds = Time.time + NeedsRules.ToiletingSeconds;
+            }
+            else if (state == PostureState.Standing) toiletingEnds = -1;
+        }
+        private void OnDestroy() { if (posture != null) posture.Changed -= PostureChanged; move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); interact?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
         public static void Unlock() { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
         private void OnApplicationFocus(bool focused) { if (!focused) Unlock(); }
         private void Update()
         {
+            if (toiletingRequested >= 0 && Time.time > toiletingRequested + 2) toiletingRequested = -1; // seat refused
+            if (toiletingEnds >= 0 && Time.time >= toiletingEnds) FinishToileting();
             if (!movement.Controlled) return;
             if (release.WasPressedThisFrame()) Unlock();
             if (CaptureMouse && Application.isFocused && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
@@ -63,15 +82,33 @@ namespace NatureCalls.Input
         private static bool IsPointerOverUi() => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
         /// <summary>
-        /// C: all toileting. Inside a stall the player sits on that stall's toilet (if it is free); anywhere else
-        /// the player squats where they stand. Pressing C again stands up.
+        /// C: all toileting, one press. Inside a stall the player sits on that stall's toilet (if it is free);
+        /// anywhere else the player squats where they stand. After <see cref="NeedsRules.ToiletingSeconds"/> the
+        /// player stands up by themselves; C cannot cut it short.
         /// </summary>
         public bool TryToilet()
         {
-            if (posture.IsSquatting) { StandUp(); return true; }
+            if (posture.IsSquatting || toiletingRequested >= 0) return false;
             var stall = StallDoor.Containing(movement);
-            if (stall == null || stall.Toilet == null) { posture.Set(PostureState.Squatting); return true; }
-            return avatar != null && avatar.IsSpawned ? avatar.RequestSeat(stall.Toilet) : stall.Toilet.Seat(movement);
+            toiletingRequested = Time.time;
+            bool started;
+            if (stall == null || stall.Toilet == null) { posture.Set(PostureState.Squatting); started = true; }
+            else started = avatar != null && avatar.IsSpawned ? avatar.RequestSeat(stall.Toilet) : stall.Toilet.Seat(movement);
+            if (!started) toiletingRequested = -1;
+            Debug.Log($"TOILET_C|player={name}|stall={(stall != null ? stall.name : "none")}|occupied={(stall != null && stall.Toilet != null && stall.Toilet.IsOccupied)}|started={started}");
+            return started;
+        }
+
+        // Time is up: stand up, then report where the toileting happened.
+        private void FinishToileting()
+        {
+            toiletingEnds = -1;
+            bool insideStall = Toilet.SeatedOn(movement) != null;
+            var position = movement.transform.position;
+            StandUp();
+            if (avatar != null && avatar.IsSpawned) { avatar.ReportToileting(insideStall, position); return; }
+            if (needs != null) needs.CompleteToileting(insideStall);
+            if (!insideStall && needs != null && needs.Ticking) FindFirstObjectByType<Playground>()?.Drop(position);
         }
 
         private void StandUp()

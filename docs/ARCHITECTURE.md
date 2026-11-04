@@ -4,14 +4,14 @@
 
 | 目录 | 技术职责 / 当前内容 |
 | --- | --- |
-| `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非房主全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）。未完成 Stage 2 |
-| `Assets/Player` | Movement：CharacterController、朝向、跳跃与马桶 Anchor 对齐；Posture：姿态状态与通知；PlayerAppearance：身份颜色与外观（按 `OutfitCatalog` 编号）；PlayerOutfitController：DressingRoom 换装流程；OutfitCatalog：可选外观资源；LocalProfile：本地已确认外观（PlayerPrefs） |
+| `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非房主全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）、`NeedsRules`（急迫值、恶心值与全体判负）。未完成 Stage 2 |
+| `Assets/Player` | Movement：CharacterController、朝向、跳跃与马桶 Anchor 对齐；Posture：姿态状态与通知；PlayerAppearance：身份颜色与外观（按 `OutfitCatalog` 编号）；PlayerOutfitController：DressingRoom 换装流程；OutfitCatalog：可选外观资源；LocalProfile：本地已确认外观（PlayerPrefs）；PlayerNeeds：急迫值与恶心值（由离线 Playground 或房主驱动） |
 | `Assets/Input` | PlayerInput：本地键鼠操作请求，只为 Owner 启用；C 负责全部如厕，E 按固定顺序分派其他交互 |
 | `Assets/Camera` | CameraController：本地 Cinemachine 目标、优先级、Blend 与渲染 |
 | `Assets/Facility` | Toilet：测试 Anchor 和可见目标；StallDoor：隔间门开/关/锁；PaperRoll：拾取、携带与丢掷；PlanarMirror：镜面渲染。门与卷纸由 Avatar 接入房主权威同步，尚无冲水、堵塞等正式玩法 |
-| `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生与联机对局全局计时；Avatar：NGO 所有权与姿态/颜色/外观同步；Probe：显式启动的 Development 验证程序 |
+| `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生、联机对局全局计时与全体判负；Avatar：NGO 所有权与姿态/颜色/外观同步；Probe：显式启动的 Development 验证程序 |
 | `Assets/Map` | Playground：地图资源引用、出生点、离线练习；MapCatalog：可选地图；Match：本局模式（离线/联机）、场景切换与离线对局计时；DressingMirror / LobbyDoor：DressingRoom 中镜子与门的 E 键入口 |
-| `Assets/UI` | MatchExit：地图左上角「退出」按钮（`MatchHud.prefab`），联机时先离开房间再回到准备房；MatchClock：同一 HUD 顶部的本局剩余时间；`UI/Lobby`：LobbyView（纯引用）、LobbyController（行为）、BackgroundBlur（URP 景深虚化） |
+| `Assets/UI` | MatchExit：地图左上角「退出」按钮（`MatchHud.prefab`），联机时先离开房间再回到准备房；MatchClock：同一 HUD 顶部的本局剩余时间；NeedsView：左上角本地玩家的急迫值/恶心值条；`UI/Lobby`：LobbyView（纯引用）、LobbyController（行为）、BackgroundBlur（URP 景深虚化） |
 | `Assets/Scenes` | 构建顺序：DressingRoom（启动场景）、Playground（地图）、Smoke；Sandbox 原样保留 |
 | `Assets/Prefabs` | `Characters/Player`（网络玩家基础 Prefab）与 Variant `DressingRoomPlayer`（带换装组件）；`Network/Network`（Lobby 的持久 NetworkManager + Session）、`Network/LobbyRoom`；`Levels/WCStall` 与早期 `Levels/Stall6x8`；`Toilet` 由 Playground 重建工具生成 |
 | `Assets/Materials`、`Assets/Settings` | 原型材质、URP 管线与 Renderer |
@@ -23,7 +23,7 @@
 
 依赖流：Input → Movement/Posture/Facility/Map 交互对象；Camera 读取 Movement/Posture；Avatar 将 NGO 共享状态映射到角色，并只绑定本地 Camera；Session 管理连接和出生，UI 调用 Session、LobbyRoom 与 Match。Posture 不引用 Camera 或网络。未来正式如厕系统可调用 Posture/Movement 的现有能力。
 
-如厕由 `PlayerInput.TryToilet`（C）处理：如厕姿态中则站起并释放马桶；位于某个隔间内（`StallDoor.Containing`）时请求坐到该隔间的马桶（联机时房主检查占用和所在隔间后回复 Owner 坐下）；否则原地如厕。E 键交互没有统一接口，由 `PlayerInput.TryInteract` 依次尝试：最近可拾取 PaperRoll → DressingMirror → 最近 StallDoor → LobbyDoor，首个成功者生效；坐着时也可用，因此能在隔间内关门上锁。新增可交互设施时需要在此加入并确定优先级。
+如厕由 `PlayerInput.TryToilet`（C）处理，一次性：如厕中再按无效，5 秒后 `PlayerInput` 自动站起、释放马桶并报告结束（离线直接改 `PlayerNeeds`，联机发给房主）；位于某个隔间内（`StallDoor.Containing`）时请求坐到该隔间的马桶（联机时房主检查占用和所在隔间后回复 Owner 坐下）；否则原地如厕。E 键交互没有统一接口，由 `PlayerInput.TryInteract` 依次尝试：最近可拾取 PaperRoll → DressingMirror → 最近 StallDoor → LobbyDoor，首个成功者生效；坐着时也可用，因此能在隔间内关门上锁。新增可交互设施时需要在此加入并确定优先级。
 
 ## 游戏流程
 
@@ -40,7 +40,7 @@
 - 离线：`Match.Begin(Offline)` 直接加载地图，地图的 Playground 生成本地玩家并穿上 `LocalProfile` 外观，不创建网络对象。
 - 联机：LobbyController 在需要时实例化 `Network.prefab`（NGO 自动 DontDestroyOnLoad），`Session.LobbyMode` 使连接审批只分配槽位、不生成玩家；Host 启动后生成 `LobbyRoom`（同样跨场景保留）。未关联 Unity Cloud 时，创建房间走局域网直连，房间号显示房主局域网地址；加入时输入 IP 走直连，否则走 Relay Join Code。
 - 房主选择地图后，LobbyRoom 用 RPC 让所有端各自加载地图场景；每端加载完成后回报，Host 在**全员加载完成后**统一 `SpawnAsPlayerObject`，并在生成前写入 `Avatar.OutfitIndex`，避免玩家对象被生成进旧场景。
-- 全局计时：联机时 Host 在全员生成后写入 `LobbyRoom.RoundEndTime`（服务器时间），各端据此显示剩余时间；到点后 Host 把阶段改回 Waiting、清除准备、Despawn 所有角色，再用 RPC 让所有端回到 DressingRoom，大厅界面重新打开在原房间上。离线时 `Match` 在本地计时并在到点后返回。时长取自 `MapCatalog` 每张地图的 `RoundSeconds`（默认 180 秒）。
+- 全局计时：联机时 Host 在全员生成后写入 `LobbyRoom.RoundEndTime`（服务器时间），各端据此显示剩余时间；到点后 Host 把阶段改回 Waiting、清除准备、Despawn 所有角色，再用 RPC 让所有端回到 DressingRoom，大厅界面重新打开在原房间上。离线时 `Match` 在本地计时并在到点后返回。时长取自 `MapCatalog` 每张地图的 `RoundSeconds`（默认 180 秒）。房主同时驱动每个玩家的 `PlayerNeeds`，任一玩家急迫值或恶心值达到阈值即按同一流程结束本局并带上失败原因；大厅在房间状态上方显示上一局结果。
 - 地图场景自带的 Network 对象（用于直接打开地图开发测试）在已有持久 Session 时于 Awake 中自毁，保证只有一个 NetworkManager。
 
 ## 网络模型

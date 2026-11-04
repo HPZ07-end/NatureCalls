@@ -6,6 +6,7 @@
   ],
   "references": [
     "NatureCalls.Runtime",
+    "NatureCalls.Core",
     "Unity.Cinemachine",
     "Unity.Netcode.Runtime",
     "Unity.InputSystem",

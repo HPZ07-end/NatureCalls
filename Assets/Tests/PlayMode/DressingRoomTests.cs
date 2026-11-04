@@ -168,7 +168,7 @@ namespace NatureCalls.Tests
             room.Phase.Value = LobbyPhase.SelectingMap;
             yield return null;
             Assert.That(lobby.IsMapPanelOpen, Is.True);
-            ShortenRound(room.Maps, 2);
+            ShortenRound(room.Maps, 20);
             lobby.ChooseMap(0);
             deadline = Time.realtimeSinceStartup + 10;
             Avatar avatar = null;
@@ -186,14 +186,19 @@ namespace NatureCalls.Tests
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[outfit].Color));
             Assert.That(NetworkManager.Singleton, Is.SameAs(Session.Instance.Manager), "The map's own Network object yields to the Lobby's.");
 
-            // The global round clock starts once everyone is on the map; at zero everyone returns to the room.
-            Assert.That(room.RoundRemaining, Is.InRange(0, 2));
+            // The global round clock and the needs start once everyone is on the map.
+            Assert.That(room.RoundRemaining, Is.InRange(0, 20));
             yield return null;
             Assert.That(ClockLabel().enabled, Is.True, "The map HUD shows the round clock.");
-            Assert.That(ClockLabel().text, Does.Contain("00:0"));
+            var needs = avatar.GetComponent<PlayerNeeds>();
+            Assert.That(needs.Ticking, Is.True, "The host runs every player's needs.");
+            Assert.That(needs.Urgency, Is.InRange(0, NatureCalls.Core.NeedsRules.InitialUrgencyMax));
+
+            // Any player's Urgency at the threshold loses the round for everyone.
+            needs.ApplyShared(NatureCalls.Core.NeedsRules.UrgencyMax, 0);
             deadline = Time.realtimeSinceStartup + 8;
             while (SceneManager.GetActiveScene().path != ScenePath && Time.realtimeSinceStartup < deadline) yield return null;
-            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(ScenePath), "When time is up the round ends in the DressingRoom.");
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(ScenePath), "A lost round ends in the DressingRoom.");
             yield return null;
             Assert.That(LobbyRoom.Current, Is.SameAs(room), "Players stay in the room after the round.");
             Assert.That(room.Phase.Value, Is.EqualTo(LobbyPhase.Waiting));
@@ -201,6 +206,8 @@ namespace NatureCalls.Tests
             Assert.That(Object.FindObjectsByType<Avatar>(FindObjectsSortMode.None), Is.Empty, "Map players are despawned.");
             var returned = Object.FindFirstObjectByType<LobbyController>();
             Assert.That(returned.IsLobbyOpen, Is.True, "The Lobby reopens on the room after the round.");
+            yield return null;
+            Assert.That(returned.GetComponent<LobbyView>().Status.text, Does.Contain("失败"), "The room shows why the round was lost.");
         }
 
         [UnityTest]

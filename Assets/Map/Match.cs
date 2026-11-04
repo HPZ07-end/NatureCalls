@@ -18,7 +18,7 @@ namespace NatureCalls.Map
         public static int MapIndex { get; private set; } = -1;
         public static string ReturnMessage { get; private set; } = "";
         public static float RoundSeconds { get; private set; } = RoundClock.DefaultSeconds;
-        public const string RoundOverMessage = "本局结束。";
+        public const string RoundOverMessage = "时间到，本局结束。";
         private static double offlineRoundEnd = -1;
 
         /// <summary>Seconds left in an offline round; -1 before it starts or outside an offline match.</summary>
@@ -57,6 +57,10 @@ namespace NatureCalls.Map
             if (Mode == MatchMode.Offline && offlineRoundEnd >= 0 && RoundClock.IsOver(offlineRoundEnd, Time.timeAsDouble))
                 ReturnToDressingRoom(RoundOverMessage);
         }
+
+        /// <summary>The team-loss line; <paramref name="who"/> is empty offline.</summary>
+        public static string FailureMessage(string who, bool urgency) =>
+            "失败：" + (string.IsNullOrEmpty(who) ? "" : who + " 的") + (urgency ? "急迫值满了。" : "恶心值达到上限。");
 
         /// <summary>Returns the message once, for the Lobby status line.</summary>
         public static string TakeReturnMessage()

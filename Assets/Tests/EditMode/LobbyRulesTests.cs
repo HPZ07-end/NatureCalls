@@ -43,6 +43,21 @@ namespace NatureCalls.Tests
         }
 
         [Test]
+        public void NeedsFillOnceAMinuteAndEitherThresholdLosesTheRound()
+        {
+            Assert.That(NeedsRules.TickUrgency(0, 60, false), Is.EqualTo(NeedsRules.UrgencyMax), "Full once a minute from zero.");
+            Assert.That(NeedsRules.TickUrgency(30, 1, false), Is.EqualTo(30 + NeedsRules.UrgencyMax / 60).Within(1e-4));
+            Assert.That(NeedsRules.TickUrgency(30, 5, true), Is.EqualTo(30), "No rise while toileting.");
+            Assert.That(NeedsRules.TickUrgency(99, 10, false), Is.EqualTo(NeedsRules.UrgencyMax));
+            Assert.That(NeedsRules.InitialUrgency(.5f), Is.InRange(0, NeedsRules.InitialUrgencyMax));
+            Assert.That(NeedsRules.DisgustAfterToileting(5, insideStall: true), Is.EqualTo(5));
+            Assert.That(NeedsRules.DisgustAfterToileting(5, insideStall: false), Is.EqualTo(15));
+            Assert.That(NeedsRules.Failed(99.9f, 99.9f), Is.False);
+            Assert.That(NeedsRules.Failed(NeedsRules.UrgencyMax, 0), Is.True);
+            Assert.That(NeedsRules.Failed(0, NeedsRules.DisgustThreshold), Is.True);
+        }
+
+        [Test]
         public void MapSelectionKeepsExplicitChoicesAndResolvesRandom()
         {
             Assert.That(MapSelection.Resolve(1, 3, _ => throw new InvalidOperationException()), Is.EqualTo(1));

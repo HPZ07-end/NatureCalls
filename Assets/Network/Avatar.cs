@@ -36,6 +36,13 @@ namespace NatureCalls.Network
         public NetworkList<PaperRollSnapshot> SharedPaperRolls;
         // Toilet occupants: 0 when free, otherwise the sitting player's client id + 1.
         public NetworkList<ulong> SharedToilets;
+        // Where players toileted outside a stall during this round.
+        public NetworkList<Vector3> SharedDroppings;
+        // Server-write copies of this player's needs; the host's PlayerNeeds is the authority.
+        public NetworkVariable<float> SharedUrgency = new(0);
+        public NetworkVariable<float> SharedDisgust = new(0);
+        private PlayerNeeds needs;
+        private float nextNeedsUpdate;
         private Movement movement;
         private Posture posture;
         private PlayerAppearance appearance;
@@ -55,6 +62,7 @@ namespace NatureCalls.Network
             SharedDoors = new NetworkList<byte>();
             SharedPaperRolls = new NetworkList<PaperRollSnapshot>();
             SharedToilets = new NetworkList<ulong>();
+            SharedDroppings = new NetworkList<Vector3>();
         }
 
         public override void OnNetworkSpawn()
@@ -62,6 +70,7 @@ namespace NatureCalls.Network
             movement = GetComponent<Movement>();
             posture = GetComponent<Posture>();
             appearance = GetComponent<PlayerAppearance>();
+            needs = GetComponent<PlayerNeeds>();
             world = FindFirstObjectByType<Map.Playground>();
             if (world != null)
             {
@@ -94,6 +103,8 @@ namespace NatureCalls.Network
                 SharedDoors.OnListChanged += DoorChanged;
                 SharedPaperRolls.OnListChanged += PaperRollChanged;
                 SharedToilets.OnListChanged += ToiletChanged;
+                SharedDroppings.OnListChanged += DroppingsChanged;
+                ShowDroppings();
                 if (!IsServer) ApplyAllFacilityState();
             }
             if (IsServer) ColorIndex.Value = Session.Instance.Slot(OwnerClientId);
@@ -217,6 +228,48 @@ namespace NatureCalls.Network
             }
         }
 
+        /// <summary>The host starts this player's needs for a round.</summary>
+        public void BeginNeeds()
+        {
+            if (IsServer && needs != null) needs.BeginRound(UnityEngine.Random.value);
+        }
+
+        public bool NeedsFailed => needs != null && needs.Failed;
+        public bool UrgencyFailed => needs != null && Core.NeedsRules.UrgencyFailed(needs.Urgency);
+
+        /// <summary>The owner finished a toileting; the host applies its needs and drops.</summary>
+        public void ReportToileting(bool insideStall, Vector3 position)
+        {
+            if (IsSpawned && IsOwner) ToiletingDoneRpc(insideStall, position);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void ToiletingDoneRpc(bool insideStall, Vector3 position, RpcParams rpc = default)
+        {
+            if (rpc.Receive.SenderClientId != OwnerClientId || needs == null || !needs.Ticking) return;
+            needs.CompleteToileting(insideStall);
+            PublishNeeds();
+            var host = ServerFacilityAvatar();
+            if (!insideStall && host != null) host.SharedDroppings.Add(position);
+        }
+
+        private void DroppingsChanged(NetworkListEvent<Vector3> change) => ShowDroppings();
+
+        private void ShowDroppings()
+        {
+            if (world == null) return;
+            var positions = new System.Collections.Generic.List<Vector3>();
+            foreach (var position in SharedDroppings) positions.Add(position);
+            world.ShowDroppings(positions);
+        }
+
+        private void PublishNeeds()
+        {
+            if (!IsServer || needs == null) return;
+            if (Mathf.Abs(SharedUrgency.Value - needs.Urgency) > .05f) SharedUrgency.Value = needs.Urgency;
+            if (Mathf.Abs(SharedDisgust.Value - needs.Disgust) > .05f) SharedDisgust.Value = needs.Disgust;
+        }
+
         [Rpc(SendTo.Server)]
         private void InteractDoorRpc(int index, RpcParams rpc = default)
         {
@@ -295,6 +348,11 @@ namespace NatureCalls.Network
 
         private void Update()
         {
+            if (IsSpawned && needs != null)
+            {
+                if (!IsServer) needs.ApplyShared(SharedUrgency.Value, SharedDisgust.Value);
+                else if (Time.time >= nextNeedsUpdate) { nextNeedsUpdate = Time.time + .2f; PublishNeeds(); }
+            }
             if (!IsSpawned || !OwnsFacilityState || !IsServer || Time.time < nextPaperRollUpdate) return;
             nextPaperRollUpdate = Time.time + .1f;
             for (var index = 0; index < paperRolls.Length && index < SharedPaperRolls.Count; index++)
@@ -334,6 +392,7 @@ namespace NatureCalls.Network
                 SharedDoors.OnListChanged -= DoorChanged;
                 SharedPaperRolls.OnListChanged -= PaperRollChanged;
                 SharedToilets.OnListChanged -= ToiletChanged;
+                SharedDroppings.OnListChanged -= DroppingsChanged;
             }
             else if (IsServer) ReleaseToiletsOf(OwnerClientId);
             SharedPosture.OnValueChanged -= PostureChanged;

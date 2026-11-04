@@ -90,6 +90,7 @@ GameObject:
   - component: {fileID: 6558042196863803579}
   - component: {fileID: 8912625278864500220}
   - component: {fileID: 2359400631028014661}
+  - component: {fileID: 7718998927823567932}
   m_Layer: 0
   m_Name: MatchHud
   m_TagString: Untagged
@@ -208,6 +209,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.UI.MatchClock
   label: {fileID: 7973269379521641800}
+--- !u!114 &7718998927823567932
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 344572168650708816}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a452b376015494432bbcb878ecc5b5e1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.UI.NeedsView
+  urgencyLabel: {fileID: 3370262307792935334}
+  urgencyFill: {fileID: 7608911188951816290}
+  disgustLabel: {fileID: 1160922562414080099}
+  disgustFill: {fileID: 7306352843445552389}
 --- !u!1 &604100630068209928
 GameObject:
   m_ObjectHideFlags: 0

@@ -66,9 +66,9 @@ namespace NatureCalls.Editor
             Validate();
         }
 
-        public static void MatchClock()
+        public static void MatchFlow()
         {
-            LobbyFlowBuilder.ConfigureMatchClock();
+            LobbyFlowBuilder.ConfigureMatchFlow();
             Validate();
         }
 
