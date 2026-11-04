@@ -29,6 +29,9 @@ namespace NatureCalls.UI
         private bool wasInRoom;
         private string message = "";
 
+        /// <summary>Create LAN rooms even when Unity Cloud is linked (tests, or a network without Relay access).</summary>
+        public bool PreferLan;
+
         public bool IsOutfitPanelOpen => view.OutfitPanel.activeSelf;
         public bool IsLobbyOpen => view.LobbyPanel.activeSelf;
         public bool IsMapPanelOpen => view.MapPanel.activeSelf;
@@ -143,7 +146,7 @@ namespace NatureCalls.UI
             session.LobbyMode = true;
             awaitingConnection = true;
             message = "正在创建房间…";
-            if (Session.CloudLinked) _ = session.ConnectRelayAsync(true);
+            if (Session.CloudLinked && !PreferLan) _ = session.ConnectRelayAsync(true);
             else if (!session.StartDirect(true)) message = session.Status;
         }
 

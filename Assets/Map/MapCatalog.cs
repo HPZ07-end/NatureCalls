@@ -14,6 +14,7 @@ namespace NatureCalls.Map
         {
             public string DisplayName;
             public string ScenePath;
+            [Min(1)] public float RoundSeconds = Core.RoundClock.DefaultSeconds;
         }
 
         public const string RandomName = "随机地图";

@@ -22,6 +22,8 @@ namespace NatureCalls.Tests
         private LobbyController lobby;
         private LobbyView view;
         private int savedOutfit;
+        private MapCatalog timedCatalog;
+        private float savedRoundSeconds;
 
         [UnitySetUp]
         public IEnumerator Load()
@@ -52,6 +54,7 @@ namespace NatureCalls.Tests
         public IEnumerator Unload()
         {
             LocalProfile.OutfitIndex = savedOutfit;
+            if (timedCatalog != null) { timedCatalog[0].RoundSeconds = savedRoundSeconds; timedCatalog = null; }
             Match.End();
             var session = Session.Instance;
             if (session != null)
@@ -122,6 +125,7 @@ namespace NatureCalls.Tests
             yield return null;
             yield return null;
             Assert.That(Match.Mode, Is.EqualTo(MatchMode.Offline));
+            Assert.That(Match.OfflineRemaining, Is.InRange(0, Match.RoundSeconds), "The offline round clock is running.");
             Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo("Assets/Scenes/Playground.unity"));
             var map = Object.FindFirstObjectByType<Playground>();
             Assert.That(map.OfflinePlayer, Is.Not.Null);
@@ -143,6 +147,8 @@ namespace NatureCalls.Tests
             var outfit = (LocalProfile.OutfitIndex + 3) % world.OfflinePlayer.GetComponent<PlayerAppearance>().Catalog.Count;
             LocalProfile.OutfitIndex = outfit;
             lobby.OpenLobby();
+            // A LAN room on this machine: the test must not depend on reaching Unity's Relay service.
+            lobby.PreferLan = true;
             lobby.CreateRoom();
             float deadline = Time.realtimeSinceStartup + 10;
             while (LobbyRoom.Current == null && Time.realtimeSinceStartup < deadline) yield return null;
@@ -162,6 +168,7 @@ namespace NatureCalls.Tests
             room.Phase.Value = LobbyPhase.SelectingMap;
             yield return null;
             Assert.That(lobby.IsMapPanelOpen, Is.True);
+            ShortenRound(room.Maps, 2);
             lobby.ChooseMap(0);
             deadline = Time.realtimeSinceStartup + 10;
             Avatar avatar = null;
@@ -178,6 +185,52 @@ namespace NatureCalls.Tests
             var appearance = avatar.GetComponent<PlayerAppearance>();
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[outfit].Color));
             Assert.That(NetworkManager.Singleton, Is.SameAs(Session.Instance.Manager), "The map's own Network object yields to the Lobby's.");
+
+            // The global round clock starts once everyone is on the map; at zero everyone returns to the room.
+            Assert.That(room.RoundRemaining, Is.InRange(0, 2));
+            yield return null;
+            Assert.That(ClockLabel().enabled, Is.True, "The map HUD shows the round clock.");
+            Assert.That(ClockLabel().text, Does.Contain("00:0"));
+            deadline = Time.realtimeSinceStartup + 8;
+            while (SceneManager.GetActiveScene().path != ScenePath && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(ScenePath), "When time is up the round ends in the DressingRoom.");
+            yield return null;
+            Assert.That(LobbyRoom.Current, Is.SameAs(room), "Players stay in the room after the round.");
+            Assert.That(room.Phase.Value, Is.EqualTo(LobbyPhase.Waiting));
+            Assert.That(room.RoundRemaining, Is.EqualTo(-1));
+            Assert.That(Object.FindObjectsByType<Avatar>(FindObjectsSortMode.None), Is.Empty, "Map players are despawned.");
+            var returned = Object.FindFirstObjectByType<LobbyController>();
+            Assert.That(returned.IsLobbyOpen, Is.True, "The Lobby reopens on the room after the round.");
+        }
+
+        [UnityTest]
+        public IEnumerator OfflineRoundEndsInTheDressingRoomWhenTimeIsUp()
+        {
+            lobby.OpenLobby();
+            lobby.StartOffline();
+            ShortenRound(Resources.FindObjectsOfTypeAll<MapCatalog>()[0], 1);
+            lobby.ChooseMap(0);
+            yield return null;
+            yield return null;
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo("Assets/Scenes/Playground.unity"));
+            float deadline = Time.realtimeSinceStartup + 5;
+            while (SceneManager.GetActiveScene().path != ScenePath && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(ScenePath));
+            Assert.That(Match.Mode, Is.EqualTo(MatchMode.None));
+        }
+
+        private void ShortenRound(MapCatalog catalog, float seconds)
+        {
+            timedCatalog = catalog;
+            savedRoundSeconds = catalog[0].RoundSeconds;
+            catalog[0].RoundSeconds = seconds;
+        }
+
+        private static UnityEngine.UI.Text ClockLabel()
+        {
+            var clock = Object.FindFirstObjectByType<MatchClock>();
+            Assert.That(clock, Is.Not.Null, "The map HUD has a round clock.");
+            return clock.transform.Find("MatchClock").GetComponent<UnityEngine.UI.Text>();
         }
 
         private static IEnumerator Teleport(Movement player, Vector3 position)

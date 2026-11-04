@@ -83,3 +83,12 @@
 - 验证通过：Unity 导入/编译 `Artifacts/20261103T122405Z-252925-validate/`；EditMode 11/11 `Artifacts/20261103T122606Z-6ebe27-test-editmode/`；PlayMode 12/12 `Artifacts/20261103T122621Z-5807a1-test-playmode/`，两者均有非空且全部 Passed 的 XML；Windows Development 构建 `Artifacts/20261103T122656Z-2ff797-build-windows/`。
 - 真实双 Player localhost UnityTransport 验证通过：`Artifacts/20261103T123015Z-d52d2e-multiplayer/summary.json`。Host、Client 均实际发起门开/关/锁/解锁、卷纸拾取与丢掷，两端均验证实际场景携带者、Renderer/Collider 显隐、丢掷落点一致（差值 < 0.15m），角色同步、独立镜头及退出清理也全部通过。步骤标记文件只同步测试时序，不传输或修改游戏设施状态。
 - 上述不代表人工键鼠、大厅路径、真实 LAN/Relay 或 Mac/Windows 互联通过；这些仍待验收。更新架构中门/卷纸仍为纯本地状态的过期描述。此次新增测试与构建工具没有引入领域语义；整个设施共享 PR 相对 dev 的声明仍为 `Semantic-Diff: changed`，影响 Network，批准来源沿用上条设施共享请求。PR 合并仍须其他成员 Review，不以本地测试代替。
+
+## 2026-11-04 C 键如厕、马桶占用、全局计时与准备房地板
+
+- 按用户决定（GLOSSARY 已记录批准来源）：所有如厕改由 C 触发。隔间内按所在隔间（`StallDoor.Containing`：门后方且在隔间范围内）坐到该隔间的马桶上，取代按距离选马桶，修复在隔间 B 坐下时选中隔间 A/C 马桶的问题；隔间外原地如厕；再按 C 站起。E 不再处理马桶，坐着时也能关门上锁，原「隔间内马桶优先于门」导致的困在隔间问题随之消失。`Toilet.SeatPose` 为以后的如厕准度机制留位。
+- 马桶一人占用：离线由 `Toilet` 本地判定；联机由房主检查占用和所在隔间后回复 Owner 坐下，占用经房主 Avatar 的 `SharedToilets` 同步，站起、离开地图时释放。
+- 全局计时：联机由 `LobbyRoom.RoundEndTime`（服务器时间）计时，到点后房主 Despawn 角色、阶段回到 Waiting、清除准备，所有端回到准备房并留在原房间；离线由 `Match` 本地计时。时长为 `MapCatalog` 每张地图的 `RoundSeconds`，默认 180 秒；HUD 顶部 `MatchClock` 显示剩余时间。
+- 准备房地板闪烁：默认材质的 `Plane` 与 `Floor` 顶面同在 y=0 造成 z-fighting，已关闭 `Plane` 的渲染（保留碰撞体），由 `python3 scripts/unity.py match-clock` 执行（`Artifacts/20261104T115823Z-15a776-match-clock/`）。
+- 大厅新增 `LobbyController.PreferLan`：已关联 Cloud 时也可创建局域网房间。首次 PlayMode 运行中 Relay 建房超过 10 秒导致建房用例超时，未完成的 Relay 连接又干扰了后续镜头用例；建房用例改为固定走局域网后稳定。
+- 结果：EditMode 12/12（`Artifacts/20261104T120013Z-fc8786-test-editmode/`），PlayMode 15/15（`Artifacts/20261104T115950Z-015d0a-test-playmode/`），macOS 构建 `Builds/macOS/20261104T120020Z-10dee6/`，仓库检查通过。真人键鼠、两台机器联机下的占用与计时尚未验收。

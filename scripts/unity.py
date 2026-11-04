@@ -93,12 +93,12 @@ def run(action, timeout):
         build = (ROOT / "Builds/Windows" / stamp / "NatureCalls.exe" if action == "build-windows"
                  else ROOT / "Builds/macOS" / stamp / "NatureCalls.app")
         command = [str(editor), "-batchmode", "-projectPath", str(ROOT), "-logFile", str(directory / "editor.log")]
-        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points"):
+        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-clock"):
             if use_nographics():
                 command += ["-nographics"]
             command += ["-quit", "-executeMethod", "NatureCalls.Editor.Automation." +
                         {"setup": "Setup", "playground": "Playground", "camera": "Camera",
-                         "lobby-flow": "LobbyFlow", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "validate": "Validate"}[action]]
+                         "lobby-flow": "LobbyFlow", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "match-clock": "MatchClock", "validate": "Validate"}[action]]
         elif action in ("test-editmode", "test-playmode"):
             if action == "test-editmode" and use_nographics():
                 command += ["-nographics"]
@@ -145,7 +145,7 @@ def run(action, timeout):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "test-editmode", "test-playmode", "build-macos", "build-windows"])
+    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-clock", "test-editmode", "test-playmode", "build-macos", "build-windows"])
     parser.add_argument("--timeout", type=int, default=1800, help="Editor timeout in seconds (default 1800)")
     arguments = parser.parse_args()
     try:

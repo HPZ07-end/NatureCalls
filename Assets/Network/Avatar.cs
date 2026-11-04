@@ -34,22 +34,27 @@ namespace NatureCalls.Network
         public NetworkVariable<int> OutfitIndex = new(-1);
         public NetworkList<byte> SharedDoors;
         public NetworkList<PaperRollSnapshot> SharedPaperRolls;
+        // Toilet occupants: 0 when free, otherwise the sitting player's client id + 1.
+        public NetworkList<ulong> SharedToilets;
         private Movement movement;
         private Posture posture;
         private PlayerAppearance appearance;
         private Map.Playground world;
         private StallDoor[] doors;
         private PaperRoll[] paperRolls;
+        private Toilet[] toilets;
         private float nextPaperRollUpdate;
         private static int facilitySceneHandle = -1;
         private static StallDoor[] sceneDoors;
         private static PaperRoll[] scenePaperRolls;
+        private static Toilet[] sceneToilets;
         private static readonly Color[] Colors = { new(.12f, .5f, .9f), new(.95f, .35f, .15f), new(.65f, .3f, .85f), new(.15f, .75f, .4f) };
 
         private void Awake()
         {
             SharedDoors = new NetworkList<byte>();
             SharedPaperRolls = new NetworkList<PaperRollSnapshot>();
+            SharedToilets = new NetworkList<ulong>();
         }
 
         public override void OnNetworkSpawn()
@@ -61,7 +66,7 @@ namespace NatureCalls.Network
             if (world != null)
             {
                 // Capture the map ordering once, before a carried roll is reparented to a player.
-                if (facilitySceneHandle != world.gameObject.scene.handle || sceneDoors == null || scenePaperRolls == null)
+                if (facilitySceneHandle != world.gameObject.scene.handle || sceneDoors == null || scenePaperRolls == null || sceneToilets == null)
                 {
                     facilitySceneHandle = world.gameObject.scene.handle;
                     sceneDoors = FindObjectsByType<StallDoor>(FindObjectsSortMode.None)
@@ -70,9 +75,13 @@ namespace NatureCalls.Network
                     scenePaperRolls = FindObjectsByType<PaperRoll>(FindObjectsSortMode.None)
                         .Where(item => item.gameObject.scene == world.gameObject.scene)
                         .OrderBy(item => FacilityPath(item.transform), StringComparer.Ordinal).ToArray();
+                    sceneToilets = FindObjectsByType<Toilet>(FindObjectsSortMode.None)
+                        .Where(item => item.gameObject.scene == world.gameObject.scene)
+                        .OrderBy(item => FacilityPath(item.transform), StringComparer.Ordinal).ToArray();
                 }
                 doors = sceneDoors;
                 paperRolls = scenePaperRolls;
+                toilets = sceneToilets;
             }
             if (OwnsFacilityState)
             {
@@ -80,9 +89,11 @@ namespace NatureCalls.Network
                 {
                     foreach (var door in doors) SharedDoors.Add((byte)door.State);
                     foreach (var roll in paperRolls) SharedPaperRolls.Add(Snapshot(roll, 0, 0));
+                    foreach (var toilet in toilets) SharedToilets.Add(0);
                 }
                 SharedDoors.OnListChanged += DoorChanged;
                 SharedPaperRolls.OnListChanged += PaperRollChanged;
+                SharedToilets.OnListChanged += ToiletChanged;
                 if (!IsServer) ApplyAllFacilityState();
             }
             if (IsServer) ColorIndex.Value = Session.Instance.Slot(OwnerClientId);
@@ -98,7 +109,7 @@ namespace NatureCalls.Network
             name = "Player " + (ColorIndex.Value + 1) + (IsOwner ? " (you)" : " (remote)");
             if (!IsServer) FindHostAvatar()?.ApplyAllFacilityState();
         }
-        private bool OwnsFacilityState => OwnerClientId == NetworkManager.ServerClientId && doors != null && paperRolls != null;
+        private bool OwnsFacilityState => OwnerClientId == NetworkManager.ServerClientId && doors != null && paperRolls != null && toilets != null;
 
         private static string FacilityPath(Transform item)
         {
@@ -148,6 +159,64 @@ namespace NatureCalls.Network
             return true;
         }
 
+        public bool RequestSeat(Toilet toilet)
+        {
+            if (!IsSpawned || !IsOwner || toilets == null) return false;
+            var index = Array.IndexOf(toilets, toilet);
+            if (index < 0 || toilet.IsOccupied) return false;
+            SeatToiletRpc(index);
+            return true;
+        }
+
+        public void ReleaseSeat(Toilet toilet)
+        {
+            if (!IsSpawned || !IsOwner || toilets == null) return;
+            toilet.Release(movement);
+            var index = Array.IndexOf(toilets, toilet);
+            if (index >= 0) ReleaseToiletRpc(index);
+        }
+
+        // The host checks the seat is free and the player stands in its stall, then lets the owner sit down.
+        [Rpc(SendTo.Server)]
+        private void SeatToiletRpc(int index, RpcParams rpc = default)
+        {
+            var host = ServerFacilityAvatar();
+            if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.toilets.Length ||
+                index >= host.SharedToilets.Count || host.SharedToilets[index] != 0) return;
+            var toilet = host.toilets[index];
+            var stall = toilet.GetComponentInParent<StallDoor>();
+            if (stall != null && !stall.Contains(movement)) return;
+            host.SharedToilets[index] = OwnerClientId + 1;
+            toilet.ApplySharedOccupant(movement);
+            SeatGrantedRpc(index);
+        }
+
+        [Rpc(SendTo.Owner)]
+        private void SeatGrantedRpc(int index)
+        {
+            if (toilets == null || index < 0 || index >= toilets.Length || posture.IsSquatting) return;
+            toilets[index].Seat(movement);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void ReleaseToiletRpc(int index, RpcParams rpc = default)
+        {
+            if (rpc.Receive.SenderClientId == OwnerClientId) ReleaseToiletsOf(OwnerClientId);
+        }
+
+        // Frees every seat the player holds (on standing up, or when they leave the map).
+        private void ReleaseToiletsOf(ulong clientId)
+        {
+            var host = ServerFacilityAvatar();
+            if (host == null || host.toilets == null) return;
+            for (var index = 0; index < host.toilets.Length && index < host.SharedToilets.Count; index++)
+            {
+                if (host.SharedToilets[index] != clientId + 1) continue;
+                host.SharedToilets[index] = 0;
+                host.toilets[index].ApplySharedOccupant(null);
+            }
+        }
+
         [Rpc(SendTo.Server)]
         private void InteractDoorRpc(int index, RpcParams rpc = default)
         {
@@ -194,6 +263,14 @@ namespace NatureCalls.Network
 
         private void DoorChanged(NetworkListEvent<byte> change) => ApplyAllFacilityState();
         private void PaperRollChanged(NetworkListEvent<PaperRollSnapshot> change) => ApplyAllFacilityState();
+        private void ToiletChanged(NetworkListEvent<ulong> change) => ApplyAllFacilityState();
+
+        private static Movement MovementOf(ulong clientId)
+        {
+            foreach (var avatar in FindObjectsByType<Avatar>(FindObjectsSortMode.None))
+                if (avatar.IsSpawned && avatar.OwnerClientId == clientId) return avatar.movement;
+            return null;
+        }
 
         private void ApplyAllFacilityState()
         {
@@ -212,6 +289,8 @@ namespace NatureCalls.Network
                 else if (state.Mode == 2)
                     paperRolls[index].ApplySharedThrow(state.Position, state.Rotation, state.Velocity, false);
             }
+            for (var index = 0; index < toilets.Length && index < SharedToilets.Count; index++)
+                toilets[index].ApplySharedOccupant(SharedToilets[index] == 0 ? null : MovementOf(SharedToilets[index] - 1));
         }
 
         private void Update()
@@ -229,8 +308,17 @@ namespace NatureCalls.Network
                     SharedPaperRolls[index] = current;
             }
         }
-        private void PublishPosture(PostureState value) { if (IsSpawned && IsOwner) SharedPosture.Value = value; }
-        private void PostureChanged(PostureState previous, PostureState current) { posture.Set(current); }
+        private void PublishPosture(PostureState value)
+        {
+            if (!IsSpawned || !IsOwner) return;
+            SharedPosture.Value = value;
+            if (IsServer && value == PostureState.Standing) ReleaseToiletsOf(OwnerClientId);
+        }
+        private void PostureChanged(PostureState previous, PostureState current)
+        {
+            posture.Set(current);
+            if (IsServer && current == PostureState.Standing) ReleaseToiletsOf(OwnerClientId);
+        }
         private void AppearanceChanged(int previous, int current) => RefreshAppearance();
         private void RefreshAppearance()
         {
@@ -245,7 +333,9 @@ namespace NatureCalls.Network
             {
                 SharedDoors.OnListChanged -= DoorChanged;
                 SharedPaperRolls.OnListChanged -= PaperRollChanged;
+                SharedToilets.OnListChanged -= ToiletChanged;
             }
+            else if (IsServer) ReleaseToiletsOf(OwnerClientId);
             SharedPosture.OnValueChanged -= PostureChanged;
             ColorIndex.OnValueChanged -= AppearanceChanged;
             OutfitIndex.OnValueChanged -= AppearanceChanged;

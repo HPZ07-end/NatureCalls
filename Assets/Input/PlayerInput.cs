@@ -53,7 +53,7 @@ namespace NatureCalls.Input
             {
                 movement.Look(look.ReadValue<Vector2>());
                 if (jump.WasPressedThisFrame()) movement.Jump();
-                if (toggle.WasPressedThisFrame()) posture.Toggle();
+                if (toggle.WasPressedThisFrame()) TryToilet();
                 if (interact.WasPressedThisFrame()) TryInteract();
                 if (throwRoll.WasPressedThisFrame()) TryThrowCarriedPaperRoll();
             }
@@ -62,32 +62,36 @@ namespace NatureCalls.Input
 
         private static bool IsPointerOverUi() => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
+        /// <summary>
+        /// C: all toileting. Inside a stall the player sits on that stall's toilet (if it is free); anywhere else
+        /// the player squats where they stand. Pressing C again stands up.
+        /// </summary>
+        public bool TryToilet()
+        {
+            if (posture.IsSquatting) { StandUp(); return true; }
+            var stall = StallDoor.Containing(movement);
+            if (stall == null || stall.Toilet == null) { posture.Set(PostureState.Squatting); return true; }
+            return avatar != null && avatar.IsSpawned ? avatar.RequestSeat(stall.Toilet) : stall.Toilet.Seat(movement);
+        }
+
+        private void StandUp()
+        {
+            var toilet = Toilet.SeatedOn(movement);
+            posture.Set(PostureState.Standing);
+            if (toilet == null) return;
+            if (avatar != null && avatar.IsSpawned) avatar.ReleaseSeat(toilet);
+            else toilet.Release(movement);
+        }
+
+        /// <summary>E: paper rolls, the mirror, stall doors and the Lobby door. Works while seated, so a seated player can lock the door.</summary>
         public bool TryInteract()
         {
-            // A second E while seated stands back up.
-            if (posture.IsSquatting) { posture.Set(PostureState.Standing); return true; }
             if (TryPickupNearestPaperRoll()) return true;
             foreach (var mirror in FindObjectsByType<DressingMirror>(FindObjectsSortMode.None))
                 if (mirror.Interact(movement)) return true;
-            // Inside a stall the toilet comes before the door.
-            if (IsInsideStall() && TryEnterToilet()) return true;
             if (TryInteractNearestStallDoor()) return true;
             foreach (var door in FindObjectsByType<LobbyDoor>(FindObjectsSortMode.None))
                 if (door.Interact(movement)) return true;
-            return TryEnterToilet();
-        }
-
-        private bool TryEnterToilet()
-        {
-            foreach (var toilet in FindObjectsByType<Toilet>(FindObjectsSortMode.None))
-                if (toilet.Enter(movement)) return true;
-            return false;
-        }
-
-        private bool IsInsideStall()
-        {
-            foreach (var door in FindObjectsByType<StallDoor>(FindObjectsSortMode.None))
-                if (door.CanInteract(movement) && door.IsInside(movement)) return true;
             return false;
         }
 
