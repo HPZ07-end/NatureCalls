@@ -28,6 +28,8 @@ namespace NatureCalls.UI
         private bool awaitingConnection;
         private bool wasInRoom;
         private string message = "";
+        // How the last round ended; shown above the room status until the next round starts.
+        private string roundResult = "";
 
         /// <summary>Create LAN rooms even when Unity Cloud is linked (tests, or a network without Relay access).</summary>
         public bool PreferLan;
@@ -59,7 +61,7 @@ namespace NatureCalls.UI
         private void Start()
         {
             message = Match.TakeReturnMessage();
-            if (!string.IsNullOrEmpty(message)) OpenLobby();
+            if (!string.IsNullOrEmpty(message)) { roundResult = message; OpenLobby(); }
         }
 
         // ---- Prompts and mirror (wired from DressingMirror / LobbyDoor UnityEvents) ----
@@ -126,6 +128,7 @@ namespace NatureCalls.UI
         {
             if (InRoom) return;
             offlineMapSelection = false;
+            roundResult = "";
             view.LobbyPanel.SetActive(false);
             view.MapPanel.SetActive(false);
             view.Blur.Set(false);
@@ -230,7 +233,9 @@ namespace NatureCalls.UI
                 message = session.Status;
             }
             wasInRoom = inRoom;
-            view.Status.text = busy && session != null ? session.Status : message;
+            if (inRoom && room.Phase.Value != LobbyPhase.Waiting) roundResult = "";
+            var status = busy && session != null ? session.Status : message;
+            view.Status.text = string.IsNullOrEmpty(roundResult) || status == roundResult ? status : roundResult + "\n" + status;
         }
 
         private void RefreshRoom(LobbyRoom room, Session session)

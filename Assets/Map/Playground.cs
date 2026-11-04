@@ -2,7 +2,9 @@ using UnityEngine;
 using NatureCalls.Camera;
 using NatureCalls.Player;
 using PlayerInput = NatureCalls.Input.PlayerInput;
+using System.Collections.Generic;
 using System.Linq;
+using NatureCalls.Core;
 
 namespace NatureCalls.Map
 {
@@ -14,12 +16,42 @@ namespace NatureCalls.Map
         public bool StartOffline = true;
         public Movement OfflinePlayer { get; private set; }
         // A networked match spawns its players through the Lobby room instead.
+        private readonly List<GameObject> droppings = new();
+
         private void Start()
         {
             if (StartOffline && Match.Mode != MatchMode.Networked) Practice();
             Match.StartOfflineRound();
+            if (Match.Mode == MatchMode.Offline && OfflinePlayer != null)
+                OfflinePlayer.GetComponent<PlayerNeeds>()?.BeginRound(Random.value);
         }
-        private void Update() => Match.TickOfflineRound();
+        private void Update()
+        {
+            var needs = Match.Mode == MatchMode.Offline && OfflinePlayer != null ? OfflinePlayer.GetComponent<PlayerNeeds>() : null;
+            if (needs != null && needs.Failed) { Match.ReturnToDressingRoom(Match.FailureMessage("", NeedsRules.UrgencyFailed(needs.Urgency))); return; }
+            Match.TickOfflineRound();
+        }
+
+        /// <summary>Leaves a dropping (a small black ball) where a player toileted outside a stall.</summary>
+        public void Drop(Vector3 position)
+        {
+            var ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            ball.name = "Dropping";
+            Destroy(ball.GetComponent<Collider>());
+            ball.transform.SetParent(transform, true);
+            ball.transform.localScale = Vector3.one * .22f;
+            ball.transform.position = position + Vector3.up * .11f;
+            ball.GetComponent<Renderer>().material.color = Color.black;
+            droppings.Add(ball);
+        }
+
+        public int DroppingCount => droppings.Count;
+
+        /// <summary>Shows the host's shared droppings: adds any this peer has not placed yet.</summary>
+        public void ShowDroppings(IReadOnlyList<Vector3> positions)
+        {
+            for (int index = droppings.Count; index < positions.Count; index++) Drop(positions[index]);
+        }
         public void Practice()
         {
             StopPractice();

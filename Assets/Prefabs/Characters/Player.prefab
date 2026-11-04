@@ -356,6 +356,7 @@ GameObject:
   - component: {fileID: 1017802884890019193}
   - component: {fileID: 6790970259935118925}
   - component: {fileID: 637219802969424778}
+  - component: {fileID: 5202596231649312621}
   m_Layer: 2
   m_Name: Player
   m_TagString: Untagged
@@ -550,6 +551,32 @@ MonoBehaviour:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: -1
+  SharedDoors:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+  SharedPaperRolls:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+  SharedToilets:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+  SharedDroppings:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+  SharedUrgency:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  SharedDisgust:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
 --- !u!114 &637219802969424778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -564,6 +591,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Player.PlayerAppearance
   body: {fileID: 4225825121762883759}
   catalog: {fileID: 11400000, guid: 028f2682081eb4f50aabb9d82ba0e7f5, type: 2}
+--- !u!114 &5202596231649312621
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8662370015226847803}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ea93be156a074a5d82bc6c162f7fd32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Player.PlayerNeeds
 --- !u!1 &8951562719708982805
 GameObject:
   m_ObjectHideFlags: 0

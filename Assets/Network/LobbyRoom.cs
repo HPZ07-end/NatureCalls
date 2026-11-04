@@ -38,7 +38,7 @@ namespace NatureCalls.Network
         public NetworkVariable<LobbyPhase> Phase = new(LobbyPhase.Waiting);
         // Server time at which the current round ends; -1 while no round is running.
         public NetworkVariable<double> RoundEndTime = new(-1);
-        public const string RoundOverMessage = "本局结束，回到房间。";
+        public const string RoundOverMessage = "时间到，本局结束，回到房间。";
         private readonly HashSet<ulong> loaded = new();
         private bool spawnedPlayers;
 
@@ -194,19 +194,27 @@ namespace NatureCalls.Network
                 player.GetComponent<Avatar>().OutfitIndex.Value = member.Outfit;
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(member.ClientId, true);
             }
-            // The global round clock starts once everyone is on the map.
+            // The global round clock and everyone's needs start once everyone is on the map.
             RoundEndTime.Value = NetworkManager.ServerTime.Time + Match.RoundSeconds;
+            foreach (var avatar in FindObjectsByType<Avatar>(FindObjectsSortMode.None)) avatar.BeginNeeds();
         }
 
         private void Update()
         {
-            if (IsServer && Phase.Value == LobbyPhase.InGame && RoundEndTime.Value >= 0 &&
-                RoundClock.IsOver(RoundEndTime.Value, NetworkManager.ServerTime.Time))
-                EndRound();
+            if (!IsServer || Phase.Value != LobbyPhase.InGame || RoundEndTime.Value < 0) return;
+            // Any player's Urgency or Disgust at its threshold loses the round for everyone.
+            foreach (var avatar in FindObjectsByType<Avatar>(FindObjectsSortMode.None))
+            {
+                if (!avatar.IsSpawned || !avatar.NeedsFailed) continue;
+                var who = TryGetMember(avatar.OwnerClientId, out var member) ? $"玩家 {member.Slot + 1}" : "一名玩家";
+                EndRound(Match.FailureMessage(who, avatar.UrgencyFailed));
+                return;
+            }
+            if (RoundClock.IsOver(RoundEndTime.Value, NetworkManager.ServerTime.Time)) EndRound(RoundOverMessage);
         }
 
-        // Time is up: everyone goes back to the DressingRoom and stays in the room for another round.
-        private void EndRound()
+        // The round is over: everyone goes back to the DressingRoom and stays in the room for another round.
+        private void EndRound(string message)
         {
             RoundEndTime.Value = -1;
             Phase.Value = LobbyPhase.Waiting;
@@ -218,13 +226,13 @@ namespace NatureCalls.Network
             }
             foreach (var client in NetworkManager.ConnectedClientsList)
                 if (client.PlayerObject != null && client.PlayerObject.IsSpawned) client.PlayerObject.Despawn(true);
-            ReturnToRoomRpc();
+            ReturnToRoomRpc(message);
         }
 
         [Rpc(SendTo.Everyone)]
-        private void ReturnToRoomRpc()
+        private void ReturnToRoomRpc(string message)
         {
-            Match.ReturnToDressingRoom(RoundOverMessage);
+            Match.ReturnToDressingRoom(message);
         }
     }
 }

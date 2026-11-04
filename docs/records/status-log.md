@@ -92,3 +92,10 @@
 - 准备房地板闪烁：默认材质的 `Plane` 与 `Floor` 顶面同在 y=0 造成 z-fighting，已关闭 `Plane` 的渲染（保留碰撞体），由 `python3 scripts/unity.py match-clock` 执行（`Artifacts/20261104T115823Z-15a776-match-clock/`）。
 - 大厅新增 `LobbyController.PreferLan`：已关联 Cloud 时也可创建局域网房间。首次 PlayMode 运行中 Relay 建房超过 10 秒导致建房用例超时，未完成的 Relay 连接又干扰了后续镜头用例；建房用例改为固定走局域网后稳定。
 - 结果：EditMode 12/12（`Artifacts/20261104T120013Z-fc8786-test-editmode/`），PlayMode 15/15（`Artifacts/20261104T115950Z-015d0a-test-playmode/`），macOS 构建 `Builds/macOS/20261104T120020Z-10dee6/`，仓库检查通过。真人键鼠、两台机器联机下的占用与计时尚未验收。
+
+## 2026-11-04 急迫值、恶心值、一次性 C 与全体判负
+
+- 用户试玩反馈：隔间内按 C 仍是原地蹲下；非房主按 R 丢卷纸掉帧。本机日志显示这台 Mac 是房主，用的是新构建；没有非房主一端的日志。新增扫描测试，确认每个隔间从门内到座位、左右两侧都判定为本隔间；另外让 C 在所有构建里写一行 `TOILET_C|…|stall=…|started=…` 日志，方便下次对照。怀疑另一台机器运行的是没重新构建的旧版本，未证实。丢卷纸掉帧记为已知问题，暂不处理。
+- 按用户要求（GLOSSARY 已记录，部分数值为 Agent 暂定、待确认）：急迫值上限 100、从 0 涨满 60 秒、开局随机 0–40、如厕中不涨、一次如厕结束后清零；C 改为一次性 5 秒如厕并自动站起；隔间外如厕站起后留下黑色小球、该玩家恶心值 +10；任意玩家急迫值或恶心值到 100 全队失败，按全局计时的结束流程回到房间并显示原因。规则在 Core `NeedsRules`，状态在 Player `PlayerNeeds`（`Player.prefab` 已添加），联机由房主驱动并同步；HUD 的 `NeedsView` 改为显示真实数值（取代 PR #12 的固定占位）。
+- `scripts/unity.py match-clock` 更名为 `match-flow`（菜单 `NatureCalls/Configure Match Flow`），同时添加 PlayerNeeds、HUD 数值条与时钟（`Artifacts/20261104T123808Z-05698b-match-flow/`）。PlayMode 测试程序集补上对 `NatureCalls.Core` 的引用。一次因编译错误失败的 batchmode 运行留下了 `Temp/UnityLockfile`，确认没有 Unity 进程后，经用户同意删除。
+- 结果：EditMode 13/13（`Artifacts/20261104T123819Z-89889f-test-editmode/`），PlayMode 16/16（`Artifacts/20261104T124015Z-1e07d2-test-playmode/`），macOS 构建 `Builds/macOS/20261104T124203Z-c5b7ef/`，仓库检查通过。两台机器下的人工验收未执行。
