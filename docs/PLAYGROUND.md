@@ -17,7 +17,7 @@
 
 ## 打开和重建
 
-先在 Unity Hub 中打开仓库根目录对应的 NatureCalls 工程。完整流程从 **Editor 的 Project 面板**双击 `Assets/Scenes/DressingRoom.unity` 开始（构建后的游戏也从这里启动，见下方「Lobby 流程」）；只想测试厕所地图时可直接双击 `Assets/Scenes/Playground.unity` 后 Play。不是在 Finder 中双击场景文件来启动工程。在 Playground 中点击 Game 视图取得键盘焦点后，WASD 移动、Space 跳跃、鼠标观察、C 切换姿态、靠近卷纸后 E 拾取、R 向前丢掷携带中的卷纸、靠近隔间门或测试马桶后 E 交互。跳跃只允许在站立且着地时触发。隔间门打开时 E 关闭；关闭时隔间外 E 打开、隔间内 E 上锁；锁住后隔间外操作被拒绝、隔间内 E 解锁并打开。卷纸交互优先于门和马桶交互；站在隔间内时马桶优先于门（因此隔间内无法用 E 操作门，已知问题），坐下后再按 E 站起，每名玩家同时最多携带一个卷纸；丢掷后卷纸恢复物理运动并可再次拾取，当前不提供使用或消耗规则。当前 Player 使用导入的 `Peasant Nolant Brown` 嵌套 Prefab及 URP/Lit 兼容材质，离线练习无需连接 Unity Cloud。已有 Smoke/Sandbox 场景保留。
+先在 Unity Hub 中打开仓库根目录对应的 NatureCalls 工程。完整流程从 **Editor 的 Project 面板**双击 `Assets/Scenes/DressingRoom.unity` 开始（构建后的游戏也从这里启动，见下方「Lobby 流程」）；只想测试厕所地图时可直接双击 `Assets/Scenes/Playground.unity` 后 Play。不是在 Finder 中双击场景文件来启动工程。在 Playground 中点击 Game 视图取得键盘焦点后，WASD 移动、Space 跳跃、鼠标观察、C 如厕、靠近卷纸后 E 拾取、R 向前丢掷携带中的卷纸、靠近隔间门后 E 交互。跳跃只允许在站立且着地时触发。隔间门打开时 E 关闭；关闭时隔间外 E 打开、隔间内 E 上锁；锁住后隔间外操作被拒绝、隔间内 E 解锁并打开。卷纸交互优先于门。所有如厕都按 C：站在某个隔间里时坐到该隔间的马桶上（按玩家所在隔间判定，不会选到相邻隔间），马桶被别人占用时不坐下；不在隔间里时原地如厕；再按 C 站起，回到坐下前的位置。坐在马桶上时仍可按 E 关门、上锁和开门。每名玩家同时最多携带一个卷纸；丢掷后卷纸恢复物理运动并可再次拾取，当前不提供使用或消耗规则。当前 Player 使用导入的 `Peasant Nolant Brown` 嵌套 Prefab及 URP/Lit 兼容材质，离线练习无需连接 Unity Cloud。已有 Smoke/Sandbox 场景保留。
 
 `python3 scripts/unity.py playground`（Windows：`py -3 scripts/unity.py playground`）通过 Editor API **重建原型 Playground、Player/Toilet Prefab 和原型材质**，只在明确需要恢复生成场景时运行；不要用它覆盖人工修改的原型。普通队友使用已提交场景即可，不需要补接组件。脚本保存原 GUID、不改旧场景；Playground 不在构建列表时追加，不改变 DressingRoom 作为启动场景。
 
@@ -29,7 +29,7 @@
 - `Player/Movement`：CharacterController、角色朝向、俯仰、姿态下的身体与碰撞体调整。
 - `Input/PlayerInput`：Input System 将本地键鼠转化为移动、跳跃、观察、姿态与交互调用。
 - `Camera/CameraController`：唯一实际 Camera + CinemachineBrain，两个 CinemachineCamera 的优先级和 Blend；仅绑定本地角色。
-- `Facility/Toilet`：距离检测、姿态 Anchor 与内部可见目标；没有正式设施占用或冲水状态。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
+- `Facility/Toilet`：姿态 Anchor、内部可见目标与占用（同一时间一人，站起释放；联机时由房主判定并经房主 Avatar 的 `SharedToilets` 同步）；`SeatPose` 为以后的如厕准度机制留出位置。没有冲水状态。使用哪个马桶由 `StallDoor.Containing`（隔间门后方且在隔间范围内）决定。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
 - `Map/Playground` 出生点：`Spawns[i]` 对应房间槽位 i（房主为 Spawn 1）。由 `python3 scripts/unity.py spawn-points`（菜单 `NatureCalls/Place Playground Spawn Points`）以 Spawn 1 为起点在场景中实测放置：脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 之间无遮挡，间距至少 1.2m。修改房间布局后重新运行。
 - `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
 - `Facility/PlanarMirror`：为每个 WC 镜面实例创建独立运行时 RenderTexture；第一人称主摄像机隐藏本地身体时，镜面摄像机仍可渲染本地 Brown 角色。
@@ -74,9 +74,9 @@
 
 2026-10-30 按用户反馈改为正后方居中近景：Third Person Distance **1.6**、Third Person Height **0.8**、Third Person Pitch **50°**、Shoulder Offset **0**。距离是 Cinemachine 沿观察方向的距离，高度是跟随目标高度；保留俯角以看见马桶内部。Shoulder Offset 是横向偏移参数，不表示把摄像机绑在人物肩膀上；当前默认没有左右偏移。
 
-Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance/Height/Pitch、Shoulder Offset、Transition Duration、Camera Collision Layers/Radius。当前没有墙体全局隐藏。C 可在任意位置测试姿态；要验证马桶内部构图，请走到马桶附近按 E。
+Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance/Height/Pitch、Shoulder Offset、Transition Duration、Camera Collision Layers/Radius。当前没有墙体全局隐藏。C 在隔间外可在任意位置测试姿态；要验证马桶内部构图，请走进隔间按 C。
 
-坐在马桶上（E 对齐坐下）时，隔间太窄放不下正后方镜头，第三人称改为从上方俯视：Inspector 的 Seated Distance（默认 1.9）与 Seated Pitch（默认 80°）控制距离和俯角；任意位置按 C 进入的如厕姿态仍用正后方镜头。再按 E 站起时回到坐下前的位置。
+坐在马桶上（隔间内按 C 对齐坐下）时，隔间太窄放不下正后方镜头，第三人称改为从上方俯视：Inspector 的 Seated Distance（默认 1.9）与 Seated Pitch（默认 80°）控制距离和俯角；隔间外按 C 进入的如厕姿态仍用正后方镜头。再按 C 站起时回到坐下前的位置。
 
 旧场景需要应用上述参数时，可以运行菜单 `NatureCalls/Center Playground Camera`；关闭 Editor 后也可用 `python3 scripts/unity.py camera`（Windows 用 `py -3`）。这只保存 Playground 的四个镜头参数，不重新生成地形、Prefab 或材质。已更新的仓库场景无需再次运行。
 
@@ -119,7 +119,7 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 实际日志及测试结果见 [M1 验收记录](records/m1-2026-10-20.md)，2026-10-30 居中镜头回归见 [开发记录](records/status-log.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。
 
-原型以可调镜头验证为目标，没有设施占用管理，多个玩家可能同时使用同一 Anchor；不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，未来设施、Tidiness 与胜负状态走 Host 权威。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。C 在任意地点切换不保证都有马桶构图；E Anchor 是本次可复现的可见性测试位置。
+原型以可调镜头验证为目标；马桶有一人占用，但没有排队、冲水或如厕完成判定，不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，未来设施、Tidiness 与胜负状态走 Host 权威。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。隔间外 C 原地如厕不保证有马桶构图；马桶 Anchor 是可复现的可见性测试位置。
 
 ## 官方依据
 

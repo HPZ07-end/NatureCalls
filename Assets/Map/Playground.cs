@@ -14,7 +14,12 @@ namespace NatureCalls.Map
         public bool StartOffline = true;
         public Movement OfflinePlayer { get; private set; }
         // A networked match spawns its players through the Lobby room instead.
-        private void Start() { if (StartOffline && Match.Mode != MatchMode.Networked) Practice(); }
+        private void Start()
+        {
+            if (StartOffline && Match.Mode != MatchMode.Networked) Practice();
+            Match.StartOfflineRound();
+        }
+        private void Update() => Match.TickOfflineRound();
         public void Practice()
         {
             StopPractice();

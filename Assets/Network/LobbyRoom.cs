@@ -36,6 +36,9 @@ namespace NatureCalls.Network
         [SerializeField] private MapCatalog maps;
         public NetworkList<LobbyMember> Members;
         public NetworkVariable<LobbyPhase> Phase = new(LobbyPhase.Waiting);
+        // Server time at which the current round ends; -1 while no round is running.
+        public NetworkVariable<double> RoundEndTime = new(-1);
+        public const string RoundOverMessage = "本局结束，回到房间。";
         private readonly HashSet<ulong> loaded = new();
         private bool spawnedPlayers;
 
@@ -85,6 +88,9 @@ namespace NatureCalls.Network
                 if (member.ClientId != NetworkManager.ServerClientId && member.Ready) ready++;
             return ready;
         }
+
+        /// <summary>Seconds left in the running round, or -1 before the players have spawned.</summary>
+        public double RoundRemaining => RoundEndTime.Value < 0 ? -1 : RoundClock.Remaining(RoundEndTime.Value, NetworkManager.ServerTime.Time);
 
         public bool CanStart => Phase.Value == LobbyPhase.Waiting && LobbyRules.CanStart(Members.Count, ReadyGuests());
 
@@ -188,6 +194,37 @@ namespace NatureCalls.Network
                 player.GetComponent<Avatar>().OutfitIndex.Value = member.Outfit;
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(member.ClientId, true);
             }
+            // The global round clock starts once everyone is on the map.
+            RoundEndTime.Value = NetworkManager.ServerTime.Time + Match.RoundSeconds;
+        }
+
+        private void Update()
+        {
+            if (IsServer && Phase.Value == LobbyPhase.InGame && RoundEndTime.Value >= 0 &&
+                RoundClock.IsOver(RoundEndTime.Value, NetworkManager.ServerTime.Time))
+                EndRound();
+        }
+
+        // Time is up: everyone goes back to the DressingRoom and stays in the room for another round.
+        private void EndRound()
+        {
+            RoundEndTime.Value = -1;
+            Phase.Value = LobbyPhase.Waiting;
+            for (int index = 0; index < Members.Count; index++)
+            {
+                var member = Members[index];
+                member.Ready = false;
+                Members[index] = member;
+            }
+            foreach (var client in NetworkManager.ConnectedClientsList)
+                if (client.PlayerObject != null && client.PlayerObject.IsSpawned) client.PlayerObject.Despawn(true);
+            ReturnToRoomRpc();
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void ReturnToRoomRpc()
+        {
+            Match.ReturnToDressingRoom(RoundOverMessage);
         }
     }
 }

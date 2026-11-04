@@ -204,33 +204,98 @@ namespace NatureCalls.Tests
                 $"controller root gap is {player.transform.position.y - floor.point.y:F3}m and skin width is {controller.skinWidth:F3}m.");
         }
         [UnityTest]
-        public IEnumerator InputStillUsesToiletWhenNoMirrorIsNearby()
+        public IEnumerator CSitsOnTheStallsOwnToiletAndESeatedOperatesTheDoor()
         {
             var player = world.OfflinePlayer;
+            var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+            var posture = player.GetComponent<Posture>();
+
+            // Outside any stall C squats where the player stands, as before.
+            Assert.That(StallDoor.Containing(player), Is.Null);
+            Assert.That(input.TryToilet(), Is.True);
+            Assert.That(posture.State, Is.EqualTo(PostureState.Squatting));
+            Assert.That(player.Seat, Is.Null, "Squatting outside a stall uses no toilet.");
+            Assert.That(input.TryToilet(), Is.True);
+            Assert.That(posture.State, Is.EqualTo(PostureState.Standing));
+            Assert.That(input.TryInteract(), Is.False, "E no longer squats or sits.");
+
+            // Inside each stall C picks that stall's own toilet, never a neighbour's.
+            var doors = Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None);
+            Assert.That(doors.Length, Is.GreaterThanOrEqualTo(2));
+            foreach (var stall in doors)
+            {
+                var toilet = stall.Toilet;
+                Assert.That(toilet, Is.Not.Null, stall.name + " has a toilet.");
+                yield return OpenStallAndStandAt(player, toilet);
+                yield return Teleport(player, toilet.Anchor.position - toilet.Anchor.forward * .25f);
+                Assert.That(StallDoor.Containing(player), Is.SameAs(stall), "The player stands in " + stall.name);
+                var before = player.transform.position;
+                Assert.That(input.TryToilet(), Is.True);
+                Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "C sits on the toilet of the stall the player is in.");
+                Assert.That(toilet.Occupant, Is.EqualTo(player));
+                yield return null;
+
+                // Seated, E reaches the door: close, then lock from inside, then unlock and open.
+                Assert.That(input.TryInteract(), Is.True);
+                Assert.That(stall.State, Is.EqualTo(StallDoorState.Closed));
+                Assert.That(input.TryInteract(), Is.True);
+                Assert.That(stall.State, Is.EqualTo(StallDoorState.Locked), "A seated player can lock the stall.");
+                Assert.That(posture.State, Is.EqualTo(PostureState.Squatting), "E does not stand the player up.");
+                Assert.That(input.TryInteract(), Is.True);
+                Assert.That(stall.State, Is.EqualTo(StallDoorState.Open));
+
+                Assert.That(input.TryToilet(), Is.True);
+                Assert.That(posture.State, Is.EqualTo(PostureState.Standing), "A second C stands back up.");
+                Assert.That(player.Seat, Is.Null);
+                Assert.That(toilet.IsOccupied, Is.False, "Standing up frees the toilet.");
+                Assert.That(Vector3.Distance(player.transform.position, before), Is.LessThan(.01f), "Standing up returns to where the player sat down from.");
+            }
+
+            // The last stall: after standing up the player can walk out.
+            var last = doors[doors.Length - 1].Toilet;
+            var outward = -last.Anchor.forward;
+            var start = player.transform.position;
+            for (int i = 0; i < 20; i++) { player.Move(Vector2.down, .05f); yield return null; }
+            Assert.That(Vector3.Dot(player.transform.position - start, outward), Is.GreaterThan(.3f), "After standing up the player can walk out of the stall.");
+        }
+        [UnityTest]
+        public IEnumerator AnOccupiedToiletRefusesASecondPlayer()
+        {
+            var toilet = FindToilet();
+            var other = Object.Instantiate(world.PlayerPrefab, world.Spawns[1].position, world.Spawns[1].rotation).GetComponent<Movement>();
+            other.SetControl(true);
+            yield return null;
+            Assert.That(toilet.Seat(world.OfflinePlayer), Is.True);
+            Assert.That(toilet.CanSeat(other), Is.False, "One player at a time.");
+            Assert.That(toilet.Seat(other), Is.False);
+            Assert.That(other.GetComponent<Posture>().State, Is.EqualTo(PostureState.Standing));
+            world.OfflinePlayer.GetComponent<Posture>().Set(PostureState.Standing);
+            toilet.Release(world.OfflinePlayer);
+            Assert.That(toilet.Seat(other), Is.True, "The toilet is free again.");
+            Object.Destroy(other.gameObject);
+        }
+        [UnityTest]
+        public IEnumerator HostSeatIsGrantedAndSharedThroughTheHostAvatar()
+        {
+            var session = Object.FindFirstObjectByType<NatureCalls.Network.Session>();
+            Assert.That(session.StartDirect(true), Is.True);
+            float deadline = Time.time + 5;
+            while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
+            var avatar = session.Manager.LocalClient.PlayerObject.GetComponent<NatureCalls.Network.Avatar>();
+            var player = avatar.GetComponent<Movement>();
             var toilet = FindToilet();
             yield return OpenStallAndStandAt(player, toilet);
-            var controller = player.GetComponent<CharacterController>();
-
-            // Stand a little back from the seat, still inside the stall, facing the bowl.
-            var outward = -toilet.Anchor.forward;
-            controller.enabled = false;
-            player.transform.position = toilet.Anchor.position + outward * .25f;
-            controller.enabled = true;
-            var before = player.transform.position;
-            var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
-            Assert.That(input.TryInteract(), Is.True);
-            Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Squatting), "Inside the stall the toilet comes before the door.");
-            Assert.That(player.Seat, Is.EqualTo(toilet.Anchor));
-            var door = toilet.GetComponentInParent<StallDoor>();
-            var doorState = door.State;
-            yield return null;
-            Assert.That(input.TryInteract(), Is.True);
-            Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Standing), "A second E stands back up.");
-            Assert.That(door.State, Is.EqualTo(doorState));
-            Assert.That(player.Seat, Is.Null);
-            Assert.That(Vector3.Distance(player.transform.position, before), Is.LessThan(.01f), "Standing up returns to where the player sat down from.");
-            for (int i = 0; i < 20; i++) { player.Move(Vector2.down, .05f); yield return null; }
-            Assert.That(Vector3.Dot(player.transform.position - before, outward), Is.GreaterThan(.3f), "After standing up the player can walk out of the stall.");
+            yield return Teleport(player, toilet.Anchor.position - toilet.Anchor.forward * .25f);
+            Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryToilet(), Is.True);
+            deadline = Time.time + 2;
+            while (player.Seat == null && Time.time < deadline) yield return null;
+            Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "The host grants the free seat.");
+            Assert.That(avatar.SharedToilets.Contains(avatar.OwnerClientId + 1), Is.True, "The occupant is shared.");
+            Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryToilet(), Is.True);
+            deadline = Time.time + 2;
+            while (avatar.SharedToilets.Contains(avatar.OwnerClientId + 1) && Time.time < deadline) yield return null;
+            Assert.That(avatar.SharedToilets.Contains(avatar.OwnerClientId + 1), Is.False, "Standing up frees the shared seat.");
+            Assert.That(toilet.IsOccupied, Is.False);
         }
         [UnityTest]
         public IEnumerator CameraBlendsAndInteriorIsVisible()
@@ -244,7 +309,7 @@ namespace NatureCalls.Tests
             var heading = player.ViewRotation;
             var camera = world.Camera.Output;
             Capture(camera, "standing.png");
-            Assert.That(toilet.Enter(player), Is.True);
+            Assert.That(toilet.Seat(player), Is.True);
             Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Squatting));
             var last = camera.transform.position;
             float deadline = Time.time + 1;
@@ -359,6 +424,15 @@ namespace NatureCalls.Tests
             }
             controller.enabled = false;
             player.transform.SetPositionAndRotation(toilet.Anchor.position, toilet.Anchor.rotation);
+            controller.enabled = true;
+            yield return null;
+        }
+
+        private static IEnumerator Teleport(Movement player, Vector3 position)
+        {
+            var controller = player.GetComponent<CharacterController>();
+            controller.enabled = false;
+            player.transform.position = position;
             controller.enabled = true;
             yield return null;
         }

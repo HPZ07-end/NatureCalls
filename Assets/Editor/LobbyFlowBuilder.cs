@@ -414,6 +414,7 @@ namespace NatureCalls.Editor
                 try
                 {
                     EnsureStatusPlaceholder(existing.transform);
+                    EnsureMatchClock(existing);
                     PrefabUtility.SaveAsPrefabAsset(existing, MatchHudPath);
                 }
                 finally { PrefabUtility.UnloadPrefabContents(existing); }
@@ -436,6 +437,7 @@ namespace NatureCalls.Editor
                 rect.anchoredPosition = new Vector2(24, -24);
                 SetReference(root.AddComponent<MatchExit>(), "button", button);
                 EnsureStatusPlaceholder(root.transform);
+                EnsureMatchClock(root);
                 PrefabUtility.SaveAsPrefabAsset(root, MatchHudPath);
             }
             finally { Object.DestroyImmediate(root); }
@@ -464,6 +466,40 @@ namespace NatureCalls.Editor
             var panel = Box(parent, "PlayerStatusPanel", new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -100), new Vector2(330, 144));
             MakeStatusBar(panel, "Urgency", "急迫值", .65f, new Color(.95f, .45f, .10f), -18f);
             MakeStatusBar(panel, "Disgust", "恶心值", .20f, new Color(.35f, .70f, .30f), -80f);
+        }
+
+        // Top-centre round timer.
+        private static void EnsureMatchClock(GameObject hud)
+        {
+            if (hud.GetComponent<MatchClock>() != null) return;
+            var label = MakeLabel(hud.transform, "MatchClock", "剩余时间  03:00", 40, TextAnchor.MiddleCenter, new Vector2(0, -24), new Vector2(420, 64));
+            var outline = label.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0, 0, 0, .8f);
+            SetReference(hud.AddComponent<MatchClock>(), "label", label);
+        }
+
+        /// <summary>Adds the round timer to the map HUD and stops the DressingRoom floor from flickering.</summary>
+        [MenuItem("NatureCalls/Configure Match Clock")]
+        public static void ConfigureMatchClock()
+        {
+            BuildMatchHudPrefab();
+            HideCoplanarDressingRoomPlane();
+            AssetDatabase.SaveAssets();
+        }
+
+        // The DressingRoom's default-material Plane lies exactly on the Floor's top face (y = 0), so the two
+        // surfaces z-fight. Its renderer is turned off; its collider stays.
+        private static void HideCoplanarDressingRoomPlane()
+        {
+            var scene = EditorSceneManager.OpenScene(DressingRoomPath, OpenSceneMode.Single);
+            var floor = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Transform>(true)).FirstOrDefault(item => item.name == "Floor");
+            var plane = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Transform>(true)).FirstOrDefault(item => item.name == "Plane");
+            if (floor == null || plane == null || !plane.TryGetComponent(out MeshRenderer renderer) || !floor.TryGetComponent(out Renderer floorRenderer)) return;
+            if (Mathf.Abs(floorRenderer.bounds.max.y - renderer.bounds.max.y) > .001f || !renderer.enabled) return;
+            renderer.enabled = false;
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Could not save " + DressingRoomPath);
+            Debug.Log("DRESSING_ROOM_FLOOR_PLANE_HIDDEN|floorTop=" + floorRenderer.bounds.max.y.ToString("F3"));
         }
 
         private static void MakeStatusBar(Transform parent, string name, string label, float value, Color color, float y)

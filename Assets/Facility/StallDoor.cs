@@ -22,6 +22,11 @@ namespace NatureCalls.Facility
 
         private Quaternion leafClosedRotation;
         private Quaternion colliderClosedRotation;
+        // The stall's footprint in its own space, measured with the door closed.
+        private Bounds footprint;
+
+        /// <summary>The stall's toilet, or null.</summary>
+        public Toilet Toilet { get; private set; }
 
         private void Awake()
         {
@@ -33,6 +38,8 @@ namespace NatureCalls.Facility
             }
             leafClosedRotation = DoorLeaf.localRotation;
             colliderClosedRotation = DoorColliderPivot.localRotation;
+            Toilet = GetComponentInChildren<Toilet>(true);
+            footprint = LocalFootprint();
             SetState(initialState);
         }
 
@@ -45,6 +52,45 @@ namespace NatureCalls.Facility
             var playerLocal = transform.InverseTransformPoint(player.transform.position);
             var doorLocal = transform.InverseTransformPoint(DoorLeaf.position);
             return playerLocal.z > doorLocal.z + .05f;
+        }
+
+        /// <summary>
+        /// Whether the player stands inside this stall: behind the door and within the stall's walls.
+        /// Unlike distance, this cannot pick a neighbouring stall.
+        /// </summary>
+        public bool Contains(Movement player)
+        {
+            if (!enabled || player == null || !IsInside(player)) return false;
+            var local = transform.InverseTransformPoint(player.transform.position);
+            return local.x >= footprint.min.x && local.x <= footprint.max.x && local.z >= footprint.min.z && local.z <= footprint.max.z;
+        }
+
+        /// <summary>The stall that contains the player, or null.</summary>
+        public static StallDoor Containing(Movement player)
+        {
+            foreach (var door in FindObjectsByType<StallDoor>(FindObjectsSortMode.None))
+                if (door.Contains(player)) return door;
+            return null;
+        }
+
+        private Bounds LocalFootprint()
+        {
+            var bounds = new Bounds();
+            bool first = true;
+            foreach (var renderer in GetComponentsInChildren<Renderer>(true))
+            {
+                var world = renderer.bounds;
+                for (int corner = 0; corner < 8; corner++)
+                {
+                    var point = transform.InverseTransformPoint(new Vector3(
+                        (corner & 1) == 0 ? world.min.x : world.max.x,
+                        (corner & 2) == 0 ? world.min.y : world.max.y,
+                        (corner & 4) == 0 ? world.min.z : world.max.z));
+                    if (first) { bounds = new Bounds(point, Vector3.zero); first = false; }
+                    else bounds.Encapsulate(point);
+                }
+            }
+            return bounds;
         }
 
         public bool Interact(Movement player)

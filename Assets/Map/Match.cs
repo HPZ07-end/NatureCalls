@@ -1,3 +1,4 @@
+using NatureCalls.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -16,6 +17,13 @@ namespace NatureCalls.Map
         public static MatchMode Mode { get; private set; }
         public static int MapIndex { get; private set; } = -1;
         public static string ReturnMessage { get; private set; } = "";
+        public static float RoundSeconds { get; private set; } = RoundClock.DefaultSeconds;
+        public const string RoundOverMessage = "本局结束。";
+        private static double offlineRoundEnd = -1;
+
+        /// <summary>Seconds left in an offline round; -1 before it starts or outside an offline match.</summary>
+        public static double OfflineRemaining =>
+            Mode == MatchMode.Offline && offlineRoundEnd >= 0 ? RoundClock.Remaining(offlineRoundEnd, Time.timeAsDouble) : -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetOnPlay() => End();
@@ -24,6 +32,8 @@ namespace NatureCalls.Map
         {
             Mode = mode;
             MapIndex = mapIndex;
+            RoundSeconds = catalog[mapIndex].RoundSeconds;
+            offlineRoundEnd = -1;
             ReturnMessage = "";
             SceneManager.LoadScene(catalog[mapIndex].ScenePath, LoadSceneMode.Single);
         }
@@ -33,6 +43,19 @@ namespace NatureCalls.Map
             End();
             ReturnMessage = message ?? "";
             SceneManager.LoadScene(DressingRoomScenePath, LoadSceneMode.Single);
+        }
+
+        /// <summary>Starts the offline round clock once the map is ready; a networked round runs on the Lobby room.</summary>
+        public static void StartOfflineRound()
+        {
+            if (Mode == MatchMode.Offline) offlineRoundEnd = Time.timeAsDouble + RoundSeconds;
+        }
+
+        /// <summary>Ends an offline round when its time is up.</summary>
+        public static void TickOfflineRound()
+        {
+            if (Mode == MatchMode.Offline && offlineRoundEnd >= 0 && RoundClock.IsOver(offlineRoundEnd, Time.timeAsDouble))
+                ReturnToDressingRoom(RoundOverMessage);
         }
 
         /// <summary>Returns the message once, for the Lobby status line.</summary>
@@ -48,6 +71,7 @@ namespace NatureCalls.Map
         {
             Mode = MatchMode.None;
             MapIndex = -1;
+            offlineRoundEnd = -1;
         }
     }
 }
