@@ -116,6 +116,14 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 代码通过 MPS `CreateSessionAsync(...WithRelayNetwork())` / `JoinSessionByCodeAsync` 使用官方连接生命周期；不同时手动 StartHost 干预 SDK。每进程使用独立匿名认证 profile，便于同机测试；不是正式账号系统。未关联 Cloud 会显示原因并保留离线角色；空 Code 会提示输入。真实服务权限、配额、过期 Code、服务端异常仍需关联后验收。
 
+**Relay over WebSocket**：Relay 默认走 UDP/DTLS。有些校园网或公司网络屏蔽 UDP，但放行 443 端口的 HTTPS 流量，这时可以改走安全 WebSocket（WSS）。WSS 仍然使用 Unity Cloud 的 Relay 服务，并不是脱离 Unity Cloud 的联机方式，它只是换一种连接协议。实现方式：
+- 建房和加入都通过 `WithNetworkOptions(new NetworkOptions { RelayProtocol = WSS })` 选择协议，并把 `UnityTransport.UseWebSockets` 设为 true。
+- 默认协议连接失败时自动改用 WSS 重试一次；重试成功后记住这个选择（PlayerPrefs `NatureCalls.RelayWebSockets`），以后直接用 WSS。
+- 启动参数 `-relay-wss` 强制使用 WSS，例如 `open -n NatureCalls.app --args -relay-wss`。
+- 连接成功时状态行末尾显示「(WebSocket)」。局域网直连始终是 UDP。
+
+房主和加入者可以分别用不同的协议；Relay 是否支持这种混用，以 Unity 文档为准，本项目尚未用两台机器验证。
+
 ## 验证状态与限制
 
 实际日志及测试结果见 [M1 验收记录](records/m1-2026-10-20.md)，2026-10-30 居中镜头回归见 [开发记录](records/status-log.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。

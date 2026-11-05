@@ -141,6 +141,30 @@ namespace NatureCalls.Tests
             Assert.That(avatar.SharedPaperRolls[thrown].Simulator, Is.Zero);
         }
 
+        // Needs Unity Cloud and internet access, so it runs only when NATURECALLS_RELAY_TESTS=1.
+        [UnityTest]
+        public IEnumerator RelayHostConnectsOverWebSockets()
+        {
+            if (System.Environment.GetEnvironmentVariable("NATURECALLS_RELAY_TESTS") != "1")
+                Assert.Ignore("Set NATURECALLS_RELAY_TESTS=1 to run Relay tests against Unity Cloud.");
+            var session = Object.FindFirstObjectByType<NatureCalls.Network.Session>();
+            var saved = NatureCalls.Network.Session.RelayWebSockets;
+            NatureCalls.Network.Session.RelayWebSockets = true;
+            try
+            {
+                var host = session.ConnectRelayAsync(true);
+                float deadline = Time.realtimeSinceStartup + 40;
+                while (!host.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
+                Assert.That(session.IsRelay, Is.True, "Relay host over WebSockets: " + session.Status);
+                Assert.That(session.UsingWebSockets, Is.True);
+                Assert.That(session.Transport.UseWebSockets, Is.True);
+                Assert.That(session.JoinCode, Is.Not.Empty);
+                var leaving = session.LeaveAsync();
+                deadline = Time.realtimeSinceStartup + 15;
+                while (!leaving.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
+            }
+            finally { NatureCalls.Network.Session.RelayWebSockets = saved; }
+        }
         [UnityTest]
         public IEnumerator RelayFailurePreservesOfflinePractice()
         {
