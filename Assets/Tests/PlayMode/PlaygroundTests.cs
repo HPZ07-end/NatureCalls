@@ -131,9 +131,14 @@ namespace NatureCalls.Tests
             deadline = Time.time + 2;
             while (rolls[0].IsPickedUp && Time.time < deadline) yield return null;
             Assert.That(rolls[0].IsPickedUp, Is.False);
-            Assert.That(Enumerable.Range(0, avatar.SharedPaperRolls.Count)
-                .Any(index => avatar.SharedPaperRolls[index].Mode == 2), Is.True);
-            Assert.That(rolls[0].GetComponent<Rigidbody>().isKinematic, Is.False);
+            // The thrower's machine simulates the flight and reports it; the roll is handed back once it rests.
+            var thrown = Enumerable.Range(0, avatar.SharedPaperRolls.Count).First(i => avatar.SharedPaperRolls[i].Mode == NatureCalls.Network.PaperRollSnapshot.Flying);
+            Assert.That(avatar.SharedPaperRolls[thrown].Simulator, Is.EqualTo(avatar.OwnerClientId + 1), "The thrower simulates its own throw.");
+            Assert.That(rolls.Any(roll => !roll.IsPickedUp && !roll.GetComponent<Rigidbody>().isKinematic), Is.True, "The thrown roll is simulated here, not followed.");
+            deadline = Time.time + 6;
+            while (avatar.SharedPaperRolls[thrown].Mode == NatureCalls.Network.PaperRollSnapshot.Flying && Time.time < deadline) yield return null;
+            Assert.That(avatar.SharedPaperRolls[thrown].Mode, Is.EqualTo(NatureCalls.Network.PaperRollSnapshot.Landed), "Once at rest the roll is handed back.");
+            Assert.That(avatar.SharedPaperRolls[thrown].Simulator, Is.Zero);
         }
 
         [UnityTest]

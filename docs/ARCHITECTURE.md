@@ -45,7 +45,7 @@
 
 ## 网络模型
 
-网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable；出生颜色与外观编号为 Server-write。LobbyRoom 的成员、准备与阶段由 Host 权威，客户端经 RPC 请求。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 的请求通过玩家 Avatar 到 Host，复用设施原有距离、门锁与容量验证；Host 玩家的 Avatar 用 NetworkList 发布门状态、卷纸携带者及丢掷位姿。设施在玩家生成时按地图层级路径固定索引；客户端卷纸不模拟刚体，由 Host 发布位置。Tidiness 与胜负规则尚未实现。
+网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable；出生颜色与外观编号为 Server-write。LobbyRoom 的成员、准备与阶段由 Host 权威，客户端经 RPC 请求。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 的请求通过玩家 Avatar 到 Host，复用设施原有距离、门锁与容量验证；Host 玩家的 Avatar 用 NetworkList 发布门状态、卷纸携带者及丢掷位姿。设施在玩家生成时按地图层级路径固定索引。拾取与丢掷的许可仍由 Host 判定，但**飞行中的卷纸临时归丢掷者所有**：丢掷者本机立即开始刚体模拟（不等往返），约每 0.1 秒把位姿经 RPC 报给 Host，Host 校验后写入 `SharedPaperRolls`（`Mode = Flying`、`Simulator = 丢掷者 id + 1`）；其他端（包括 Host 在内，只要不是丢掷者）用运动学刚体平滑跟随并沿抛物线外推。卷纸静止 0.3 秒后丢掷者报告落地，状态变为 `Landed` 并交还 Host；丢掷者中途离开时 Host 把卷纸留在最后报告的位置。Tidiness 与胜利规则尚未实现。
 
 M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 协调，地图中没有场景内 NetworkObject；以后需要场景内网络对象时再评估启用。没有 Host 迁移；对局中与房主断开的客户端回到准备房并看到原因。
 
