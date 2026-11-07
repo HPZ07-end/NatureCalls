@@ -11,7 +11,8 @@ Assets/Prefabs/Characters/Player.prefab
 ├─ Posture
 ├─ PlayerInput
 ├─ PlayerAppearance（引用 Assets/Player/OutfitCatalog.asset）
-├─ NetworkObject / NetworkTransform / Network.Avatar
+├─ PlayerNeeds
+├─ NetworkObject / NetworkTransform / Network.Avatar / AvatarAppearance / NeedsSync / FacilitySync（DressingRoomPlayer 变体中移除）
 └─ Body
    └─ 全场景共享的人物模型与 Renderer
 
@@ -36,8 +37,8 @@ Assets/Prefabs/Characters/DressingRoomPlayer.prefab
 - 场景交互通过 `Movement.SetControl(bool)` 控制玩家输入，不依赖具体本地或网络控制器。
 - 外观以 `OutfitCatalog` 中的编号表示；`PlayerAppearance.ApplyOutfit(int)` 是唯一的外观表现入口。
 - `PlayerOutfitController` 只管理预览、确认和取消；确认后写入 `LocalProfile.OutfitIndex`，供 Lobby 房间与之后的地图使用。
-- `Network.Avatar.OutfitIndex`（Server-write）在联机对局中同步外观；为 -1 时（直接打开地图联机测试、没有 Lobby 房间）改用 `ColorIndex` 身份颜色。
-- `Network.Avatar` 不直接遍历 Renderer，只调用 `PlayerAppearance`。
+- `Network.AvatarAppearance.OutfitIndex`（Server-write）在联机对局中同步外观；为 -1 时（直接打开地图联机测试、没有 Lobby 房间）改用 `ColorIndex` 身份颜色。
+- `Network.AvatarAppearance` 不直接遍历 Renderer，只调用 `PlayerAppearance`。
 
 身份颜色和外观是两个概念：`ColorIndex` 是出生槽位颜色，`OutfitIndex` 是玩家选择的外观，不得互相改名或复用。当前两者作用于同一组 Renderer，有外观时显示外观。
 
@@ -128,7 +129,7 @@ Assets/Editor/LobbyFlowBuilder.cs
 - DressingRoom 中的练习玩家来自共享 Prefab 的 Variant。
 - `Movement.Body` 与 `PlayerAppearance.Body` 指向同一个模型根节点。
 - 打开和关闭换装面板、Lobby 时分别调用 `Movement.SetControl(false/true)`。
-- Network Avatar 仍只为 Owner 启用输入，并通过 `PlayerAppearance` 应用外观或身份颜色。
+- Network Avatar 仍只为 Owner 启用输入；外观或身份颜色由 AvatarAppearance 通过 `PlayerAppearance` 应用。
 - 仓库检查、脚本单测、Unity validate、EditMode 和 PlayMode 测试分别记录真实结果。
 
 Windows 验证命令：

@@ -75,7 +75,7 @@ namespace NatureCalls.Network
             if (own == null || peer == null) { Finish("Ownership did not identify one local and one remote player."); yield break; }
             // Server-assigned NetworkVariables may arrive on the next network tick.
             deadline = Time.realtimeSinceStartup + 2;
-            while ((own.ColorIndex.Value == peer.ColorIndex.Value || Vector3.Distance(own.transform.position, peer.transform.position) <= 1) &&
+            while ((own.GetComponent<AvatarAppearance>().ColorIndex.Value == peer.GetComponent<AvatarAppearance>().ColorIndex.Value || Vector3.Distance(own.transform.position, peer.transform.position) <= 1) &&
                 Time.realtimeSinceStartup < deadline) yield return null;
             var movement = own.GetComponent<Movement>();
             var posture = own.GetComponent<Posture>();
@@ -85,12 +85,12 @@ namespace NatureCalls.Network
             report.singleCamera = ScreenCameras() == 1 && session.World.Camera.Target == movement;
             Vector3 ownStart = own.transform.position;
             Vector3 peerStart = peer.transform.position;
-            report.localColor = own.ColorIndex.Value;
-            report.remoteColor = peer.ColorIndex.Value;
+            report.localColor = own.GetComponent<AvatarAppearance>().ColorIndex.Value;
+            report.remoteColor = peer.GetComponent<AvatarAppearance>().ColorIndex.Value;
             report.localSpawn = ownStart;
             report.remoteSpawn = peerStart;
             Quaternion peerRotation = peer.transform.rotation;
-            report.distinctSpawns = Vector3.Distance(own.transform.position, peer.transform.position) > 1 && own.ColorIndex.Value != peer.ColorIndex.Value;
+            report.distinctSpawns = Vector3.Distance(own.transform.position, peer.transform.position) > 1 && own.GetComponent<AvatarAppearance>().ColorIndex.Value != peer.GetComponent<AvatarAppearance>().ColorIndex.Value;
             report.remoteVisible = true;
             bool turned = false;
             float started = Time.realtimeSinceStartup;
@@ -188,21 +188,21 @@ namespace NatureCalls.Network
                     movement.transform.position = position;
                 }
                 yield return new WaitForSecondsRealtime(.5f);
-                yield return FacilityStep(actor + "-door-open", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Open);
+                yield return FacilityStep(actor + "-door-open", acting, () => own.GetComponent<FacilitySync>().RequestDoor(door), () => door.State == StallDoorState.Open);
                 if (finished) yield break;
-                yield return FacilityStep(actor + "-door-close", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Closed);
+                yield return FacilityStep(actor + "-door-close", acting, () => own.GetComponent<FacilitySync>().RequestDoor(door), () => door.State == StallDoorState.Closed);
                 if (finished) yield break;
                 if (acting) movement.transform.position = door.DoorColliderPivot.position + door.transform.forward * .35f;
                 yield return new WaitForSecondsRealtime(.5f);
-                yield return FacilityStep(actor + "-door-lock", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Locked);
+                yield return FacilityStep(actor + "-door-lock", acting, () => own.GetComponent<FacilitySync>().RequestDoor(door), () => door.State == StallDoorState.Locked);
                 if (finished) yield break;
-                yield return FacilityStep(actor + "-door-unlock", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Open);
+                yield return FacilityStep(actor + "-door-unlock", acting, () => own.GetComponent<FacilitySync>().RequestDoor(door), () => door.State == StallDoorState.Open);
                 if (finished) yield break;
-                yield return FacilityStep(actor + "-door-reset", acting, () => own.RequestDoor(door), () => door.State == StallDoorState.Closed);
+                yield return FacilityStep(actor + "-door-reset", acting, () => own.GetComponent<FacilitySync>().RequestDoor(door), () => door.State == StallDoorState.Closed);
                 if (finished) yield break;
                 if (acting) movement.transform.position = roll.transform.position + Vector3.right * .3f;
                 yield return new WaitForSecondsRealtime(.5f);
-                yield return FacilityStep(actor + "-pickup", acting, () => own.RequestPickup(roll),
+                yield return FacilityStep(actor + "-pickup", acting, () => own.GetComponent<FacilitySync>().RequestPickup(roll),
                     () => roll.PickedUpBy == carrier.GetComponent<Movement>() &&
                         roll.GetComponentsInChildren<Renderer>(true).All(r => !r.enabled) &&
                         roll.GetComponentsInChildren<Collider>(true).All(c => !c.enabled));
@@ -210,7 +210,7 @@ namespace NatureCalls.Network
                 // Throw toward the room from an open floor position, independently of the shelf.
                 if (acting) movement.transform.position = session.World.Spawns[0].position;
                 yield return new WaitForSecondsRealtime(.5f);
-                yield return FacilityStep(actor + "-throw", acting, () => own.RequestThrow(roll, Vector3.forward),
+                yield return FacilityStep(actor + "-throw", acting, () => own.GetComponent<FacilitySync>().RequestThrow(roll, Vector3.forward),
                     () => !roll.IsPickedUp && roll.GetComponentsInChildren<Renderer>(true).All(r => r.enabled) &&
                         roll.GetComponentsInChildren<Collider>(true).All(c => c.enabled) && roll.GetComponent<Rigidbody>() != null);
                 if (finished) yield break;
