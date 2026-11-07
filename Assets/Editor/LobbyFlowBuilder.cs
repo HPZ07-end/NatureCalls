@@ -115,6 +115,9 @@ namespace NatureCalls.Editor
             {
                 // The DressingRoom player is local only: a NetworkObject left on it would be swept into the
                 // host's spawn when a Lobby room starts.
+                RemoveComponent<NeedsSync>(root);
+                RemoveComponent<FacilitySync>(root);
+                RemoveComponent<AvatarAppearance>(root);
                 RemoveComponent<Avatar>(root);
                 RemoveComponent<NetworkTransform>(root);
                 RemoveComponent<NetworkObject>(root);
@@ -493,14 +496,33 @@ namespace NatureCalls.Editor
             AssetDatabase.SaveAssets();
         }
 
+        // PlayerNeeds plus the network components that Avatar was split into; the DressingRoom variant strips them again.
         private static void EnsurePlayerNeeds()
         {
             var root = PrefabUtility.LoadPrefabContents(PlayerPrefabPath);
             try
             {
-                if (root.GetComponent<PlayerNeeds>() != null) return;
-                root.AddComponent<PlayerNeeds>();
-                PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
+                bool changed = false;
+                if (root.GetComponent<PlayerNeeds>() == null) { root.AddComponent<PlayerNeeds>(); changed = true; }
+                if (root.GetComponent<AvatarAppearance>() == null) { root.AddComponent<AvatarAppearance>(); changed = true; }
+                if (root.GetComponent<FacilitySync>() == null) { root.AddComponent<FacilitySync>(); changed = true; }
+                if (root.GetComponent<NeedsSync>() == null) { root.AddComponent<NeedsSync>(); changed = true; }
+                if (changed) PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            StripDressingRoomPlayerNetwork();
+        }
+
+        private static void StripDressingRoomPlayerNetwork()
+        {
+            var root = PrefabUtility.LoadPrefabContents(DressingRoomPlayerPath);
+            try
+            {
+                if (root.GetComponent<NeedsSync>() == null && root.GetComponent<FacilitySync>() == null && root.GetComponent<AvatarAppearance>() == null) return;
+                RemoveComponent<NeedsSync>(root);
+                RemoveComponent<FacilitySync>(root);
+                RemoveComponent<AvatarAppearance>(root);
+                PrefabUtility.SaveAsPrefabAsset(root, DressingRoomPlayerPath);
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }
         }

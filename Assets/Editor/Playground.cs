@@ -141,6 +141,9 @@ namespace NatureCalls.Editor
             BodyPart(movement.Body, "Right leg", PrimitiveType.Cube, new Vector3(.15f, .22f, 0), new Vector3(.18f, .44f, .24f), color);
             player.AddComponent<NatureCalls.Input.PlayerInput>().enabled = false;
             player.AddComponent<NatureCalls.Network.Avatar>();
+            player.AddComponent<NatureCalls.Network.AvatarAppearance>();
+            player.AddComponent<NatureCalls.Network.FacilitySync>();
+            player.AddComponent<NatureCalls.Network.NeedsSync>();
             var prefab = PrefabUtility.SaveAsPrefabAsset(player, "Assets/Prefabs/Characters/Player.prefab");
             Object.DestroyImmediate(player);
 

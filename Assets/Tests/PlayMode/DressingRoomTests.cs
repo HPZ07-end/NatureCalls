@@ -181,7 +181,7 @@ namespace NatureCalls.Tests
             Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo("Assets/Scenes/Playground.unity"));
             Assert.That(Match.Mode, Is.EqualTo(MatchMode.Networked));
             Assert.That(avatar.IsOwner, Is.True);
-            Assert.That(avatar.OutfitIndex.Value, Is.EqualTo(outfit));
+            Assert.That(avatar.GetComponent<AvatarAppearance>().OutfitIndex.Value, Is.EqualTo(outfit));
             var appearance = avatar.GetComponent<PlayerAppearance>();
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[outfit].Color));
             Assert.That(NetworkManager.Singleton, Is.SameAs(Session.Instance.Manager), "The map's own Network object yields to the Lobby's.");

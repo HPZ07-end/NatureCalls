@@ -191,23 +191,23 @@ namespace NatureCalls.Network
             {
                 var spawn = world.Spawns[Mathf.Clamp(member.Slot, 0, world.Spawns.Length - 1)];
                 var player = Instantiate(NetworkManager.NetworkConfig.PlayerPrefab, spawn.position, spawn.rotation);
-                player.GetComponent<Avatar>().OutfitIndex.Value = member.Outfit;
+                player.GetComponent<AvatarAppearance>().OutfitIndex.Value = member.Outfit;
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(member.ClientId, true);
             }
             // The global round clock and everyone's needs start once everyone is on the map.
             RoundEndTime.Value = NetworkManager.ServerTime.Time + Match.RoundSeconds;
-            foreach (var avatar in FindObjectsByType<Avatar>(FindObjectsSortMode.None)) avatar.BeginNeeds();
+            foreach (var player in FindObjectsByType<NeedsSync>(FindObjectsSortMode.None)) player.BeginNeeds();
         }
 
         private void Update()
         {
             if (!IsServer || Phase.Value != LobbyPhase.InGame || RoundEndTime.Value < 0) return;
             // Any player's Urgency or Disgust at its threshold loses the round for everyone.
-            foreach (var avatar in FindObjectsByType<Avatar>(FindObjectsSortMode.None))
+            foreach (var player in FindObjectsByType<NeedsSync>(FindObjectsSortMode.None))
             {
-                if (!avatar.IsSpawned || !avatar.NeedsFailed) continue;
-                var who = TryGetMember(avatar.OwnerClientId, out var member) ? $"玩家 {member.Slot + 1}" : "一名玩家";
-                EndRound(Match.FailureMessage(who, avatar.UrgencyFailed));
+                if (!player.IsSpawned || !player.NeedsFailed) continue;
+                var who = TryGetMember(player.OwnerClientId, out var member) ? $"玩家 {member.Slot + 1}" : "一名玩家";
+                EndRound(Match.FailureMessage(who, player.UrgencyFailed));
                 return;
             }
             if (RoundClock.IsOver(RoundEndTime.Value, NetworkManager.ServerTime.Time)) EndRound(RoundOverMessage);
