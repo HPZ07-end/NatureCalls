@@ -34,7 +34,7 @@
 - `Map/Playground` 出生点：`Spawns[i]` 对应房间槽位 i（房主为 Spawn 1）。由 `python3 scripts/unity.py spawn-points`（菜单 `NatureCalls/Place Playground Spawn Points`）以 Spawn 1 为起点在场景中实测放置：脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 之间无遮挡，间距至少 1.2m。修改房间布局后重新运行。
 - `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
 - `Facility/PlanarMirror`：为每个 WC 镜面实例创建独立运行时 RenderTexture；第一人称主摄像机隐藏本地身体时，镜面摄像机仍可渲染本地 Brown 角色。
-- `Facility/PaperRoll`：检测附近玩家并记录拾取者；拾取后随玩家保留并关闭场景渲染与碰撞，R 丢掷后恢复渲染、碰撞及 Rigidbody 运动。
+- `Facility/PaperRoll`：检测附近玩家并记录拾取者；拾取后随玩家保留并关闭场景渲染与碰撞，R 丢掷后恢复渲染、碰撞及 Rigidbody 运动。联机时由丢掷者本机模拟飞行，其他端经房主转发收到位姿后用 `FollowShared` 平滑跟随，落地后用 `ApplySharedRest` 放到最终位置（见 ARCHITECTURE「网络模型」）。
 - `Network/Session`：官方 MPS Session + Relay 的创建/加入/离开、匿名认证与错误状态；无需云端的 NGO 直连；Lobby 模式下只分配槽位并生成 LobbyRoom。跨场景保留，场景自带的重复对象自毁。
 - `Network/LobbyRoom`：房间成员、准备、外观与阶段（等待/选图/对局），地图加载完成后统一生成玩家。
 - `Network/Avatar`：Owner 本地控制、NetworkTransform、姿态 NetworkVariable、出生颜色、外观编号与镜头绑定生命周期。
@@ -115,6 +115,14 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 5. 分别测试 Mac Host → Windows Client 和 Windows Host → Mac Client，记录同一 Git SHA、操作、错误及退出结果。
 
 代码通过 MPS `CreateSessionAsync(...WithRelayNetwork())` / `JoinSessionByCodeAsync` 使用官方连接生命周期；不同时手动 StartHost 干预 SDK。每进程使用独立匿名认证 profile，便于同机测试；不是正式账号系统。未关联 Cloud 会显示原因并保留离线角色；空 Code 会提示输入。真实服务权限、配额、过期 Code、服务端异常仍需关联后验收。
+
+**Relay over WebSocket**：Relay 默认走 UDP/DTLS。有些校园网或公司网络屏蔽 UDP，但放行 443 端口的 HTTPS 流量，这时可以改走安全 WebSocket（WSS）。WSS 仍然使用 Unity Cloud 的 Relay 服务，并不是脱离 Unity Cloud 的联机方式，它只是换一种连接协议。实现方式：
+- 建房和加入都通过 `WithNetworkOptions(new NetworkOptions { RelayProtocol = WSS })` 选择协议，并把 `UnityTransport.UseWebSockets` 设为 true。
+- 默认协议连接失败时自动改用 WSS 重试一次；重试成功后记住这个选择（PlayerPrefs `NatureCalls.RelayWebSockets`），以后直接用 WSS。
+- 启动参数 `-relay-wss` 强制使用 WSS，例如 `open -n NatureCalls.app --args -relay-wss`。
+- 连接成功时状态行末尾显示「(WebSocket)」。局域网直连始终是 UDP。
+
+房主和加入者可以分别用不同的协议；Relay 是否支持这种混用，以 Unity 文档为准，本项目尚未用两台机器验证。
 
 ## 验证状态与限制
 

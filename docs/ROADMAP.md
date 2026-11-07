@@ -13,7 +13,7 @@
 1. M1 Playground（当前）：第一人称移动、姿态驱动第三人称、厕所占位环境、本地 NGO 验证；补齐 Cloud/Relay 和 Windows 验收后集成。
 2. 基础 Gameplay 闭环：先澄清相关子树的未定规则，再逐项实现与验证；不在 M1 提前实现。
 3. Map 初始化与配置：使用 Unity API 管理场景及每局配置，保留可复现的测试场景。
-4. Network：已采用 NGO + MPS/Relay；完成真实 LAN/Relay 跨设备验证及连接失败回归，再按批准需求扩展，暂不做完整大厅或 Host 迁移。
+4. Network：已采用 NGO + MPS/Relay；完成真实 LAN/Relay 跨设备验证及连接失败回归，再按批准需求扩展，暂不做完整大厅或 Host 迁移。专用服务器与其他拓扑的评估见 [ARCHITECTURE](ARCHITECTURE.md)「网络拓扑与专用服务器方案」，截止前不实施。
 5. 跨平台：Mac/Windows 在同一 Commit 验证导入、规则、场景与构建；LAN 用实际 Host/Client 组合记录。
 6. 发布：在截止日前留出团队联调、回归、课程材料整理时间。通过验收的版本经 PR 进入 main，Tag 与 Player Settings 版本一致，产物另行分发。
 

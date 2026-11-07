@@ -99,3 +99,15 @@
 - 按用户要求（GLOSSARY 已记录，部分数值为 Agent 暂定、待确认）：急迫值上限 100、从 0 涨满 60 秒、开局随机 0–40、如厕中不涨、一次如厕结束后清零；C 改为一次性 5 秒如厕并自动站起；隔间外如厕站起后留下黑色小球、该玩家恶心值 +10；任意玩家急迫值或恶心值到 100 全队失败，按全局计时的结束流程回到房间并显示原因。规则在 Core `NeedsRules`，状态在 Player `PlayerNeeds`（`Player.prefab` 已添加），联机由房主驱动并同步；HUD 的 `NeedsView` 改为显示真实数值（取代 PR #12 的固定占位）。
 - `scripts/unity.py match-clock` 更名为 `match-flow`（菜单 `NatureCalls/Configure Match Flow`），同时添加 PlayerNeeds、HUD 数值条与时钟（`Artifacts/20261104T123808Z-05698b-match-flow/`）。PlayMode 测试程序集补上对 `NatureCalls.Core` 的引用。一次因编译错误失败的 batchmode 运行留下了 `Temp/UnityLockfile`，确认没有 Unity 进程后，经用户同意删除。
 - 结果：EditMode 13/13（`Artifacts/20261104T123819Z-89889f-test-editmode/`），PlayMode 16/16（`Artifacts/20261104T124015Z-1e07d2-test-playmode/`），macOS 构建 `Builds/macOS/20261104T124203Z-c5b7ef/`，仓库检查通过。两台机器下的人工验收未执行。
+
+## 2026-11-05 卷纸飞行归丢掷者所有
+
+- 原因：非房主丢卷纸时，卷纸由房主模拟，房主每 0.1 秒广播一次位姿，非房主每收到一次就瞬移卷纸，因此一跳一跳；拾取时还会对运动学刚体设置速度，产生警告。
+- 改动：丢掷者本机立即模拟，约每 0.1 秒经 RPC 报告位姿，房主校验后写入 `SharedPaperRolls`（新增 `Simulator`，`Mode` 增加 `Landed`），其他端用 `PaperRoll.FollowShared` 平滑跟随并沿抛物线外推；静止 0.3 秒后交还房主，丢掷者离开时房主留在最后位置。拾取、丢掷许可仍由房主判定。
+- 结果：EditMode 13/13（`Artifacts/20261105T035210Z-5366d5-test-editmode/`），PlayMode 16/16（`Artifacts/20261105T035220Z-b7d16c-test-playmode/`，Host 丢掷用例改为验证 Flying→Landed 交还）；本机双进程探针两端通过，双方各丢一次，落点差 < 0.15 m，日志无运动学刚体警告（`Artifacts/20261105T035332Z-e9d3fd-multiplayer/`）。真实两台机器未复测。
+
+## 2026-11-05 Relay 支持 WebSocket（WSS）
+
+- 目的：在屏蔽 UDP 的网络里仍能使用 Relay。WSS 仍是 Unity Cloud 的 Relay 服务，只是连接协议不同，不是脱离 Unity Cloud 的联机方式。
+- 改动：`Session.ConnectRelayAsync` 先用默认协议，失败后自动改用 WSS 重试一次，成功后记住（PlayerPrefs `NatureCalls.RelayWebSockets`）；启动参数 `-relay-wss` 强制使用 WSS；协议通过 MPS 的 `WithNetworkOptions` 设置，并同时打开 `UnityTransport.UseWebSockets`；局域网直连固定为 UDP。
+- 结果：EditMode 13/13；默认 PlayMode 16 通过、1 项 Ignored（`Artifacts/20261105T035657Z-0b053b-test-playmode/`）。设置 `NATURECALLS_RELAY_TESTS=1` 后 17/17 通过，真实 Relay 以 WSS 建房并取得 Join Code（`Artifacts/20261105T035758Z-eec05b-test-playmode/`）。同样设置下的前一次运行里，`StandingVisualTouchesTheFloor` 失败过一次（站立模型低于地面 0.083 m，`Artifacts/20261105T035540Z-7d001b-test-playmode/`），重跑没有复现，原因未查明。两台机器经 WSS 联机、以及 UDP 被屏蔽时自动切换都未验证。

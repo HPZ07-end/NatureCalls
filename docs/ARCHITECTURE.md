@@ -45,9 +45,33 @@
 
 ## 网络模型
 
-网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable；出生颜色与外观编号为 Server-write。LobbyRoom 的成员、准备与阶段由 Host 权威，客户端经 RPC 请求。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 的请求通过玩家 Avatar 到 Host，复用设施原有距离、门锁与容量验证；Host 玩家的 Avatar 用 NetworkList 发布门状态、卷纸携带者及丢掷位姿。设施在玩家生成时按地图层级路径固定索引；客户端卷纸不模拟刚体，由 Host 发布位置。Tidiness 与胜负规则尚未实现。
+网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable；出生颜色与外观编号为 Server-write。LobbyRoom 的成员、准备与阶段由 Host 权威，客户端经 RPC 请求。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 的请求通过玩家 Avatar 到 Host，复用设施原有距离、门锁与容量验证；Host 玩家的 Avatar 用 NetworkList 发布门状态、卷纸携带者及丢掷位姿。设施在玩家生成时按地图层级路径固定索引。拾取与丢掷的许可仍由 Host 判定，但**飞行中的卷纸临时归丢掷者所有**：丢掷者本机立即开始刚体模拟（不等往返），约每 0.1 秒把位姿经 RPC 报给 Host，Host 校验后写入 `SharedPaperRolls`（`Mode = Flying`、`Simulator = 丢掷者 id + 1`）；其他端（包括 Host 在内，只要不是丢掷者）用运动学刚体平滑跟随并沿抛物线外推。卷纸静止 0.3 秒后丢掷者报告落地，状态变为 `Landed` 并交还 Host；丢掷者中途离开时 Host 把卷纸留在最后报告的位置。Tidiness 与胜利规则尚未实现。
 
 M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 协调，地图中没有场景内 NetworkObject；以后需要场景内网络对象时再评估启用。没有 Host 迁移；对局中与房主断开的客户端回到准备房并看到原因。
+
+### 网络拓扑与专用服务器方案（2026-11-05 记录，未实施）
+
+当前采用 **房主权威（listen server）+ Relay**，课程截止（2026-12-21）前不改变。规则类状态（计时、急迫值/恶心值、判负、门与马桶占用）继续由房主判定；玩家正在操作的物理物体可以临时归操作者所有（见 PLAYGROUND「卷纸」）。
+
+备选拓扑：专用服务器（云上无画面服务器，玩家对等，成本与运维较高）、分布式权威（NGO 2.x，每个对象由拥有者计算并由 Unity 服务协调，自带会话所有者迁移，但现有「请求发给房主」的写法要重写）、纯拥有者权威（只适合各管各的状态）、确定性同步（Unity 物理不满足确定性，不考虑）。
+
+团队成员的自有服务器可作为专用服务器原型与构建机：
+
+| 项 | 现状 / 计划 | 对游戏服务器的意义 |
+| --- | --- | --- |
+| CPU | 2 × Xeon E5-2673 v4，40 核 80 线程 | 每个 2–4 人房间约占一个核心以内，可同时承载几十个房间（估算，未实测） |
+| 内存 | 64 GB ECC DDR4 | 每个房间约 0.3–1 GB（估算） |
+| GPU | 计划 RTX 3090 / 3090 Ti | 无画面服务器版本不需要；可与 GPU 任务并存，用 systemd / Docker 限定游戏服务器的核心与内存 |
+| 存储 | 2 × 500 GB SATA SSD RAID 1，NVMe 待定 | 服务器程序约几百 MB，加日志，足够 |
+| 系统与管理 | Ubuntu Server 22.04 LTS，机房 IPMI + SSH | 可直接运行 Linux Dedicated Server 构建 |
+
+实施前提与工作量：
+
+1. **网络**：需要公网 IP 或机房端口映射，开放一段 UDP 端口（每个房间一个）。没有公网入口时，服务器同样可以作为 Relay 客户端，延迟多一跳。只开放游戏端口与 SSH，SSH 仅密钥登录，IPMI 不暴露在公网，游戏进程以普通用户运行。
+2. **构建**：Hub 为 6000.3.26f1 安装 Linux Dedicated Server Build Support，增加服务器构建命令；客户端与服务器必须来自同一提交。
+3. **无房主结构**：门、卷纸、马桶占用目前挂在房主玩家的 Avatar 上，需迁到服务器拥有的对象（如 `LobbyRoom` 或独立地图状态对象）；计时、需求与判负已由服务器端逻辑计算，可沿用。这一步对房主迁移和分布式权威同样有用。
+4. **语义**：「房主选图 / 房主开始」在无房主时要改为新规则（例如第一个进入的玩家），属于 GLOSSARY 变化，需人类批准。
+5. **房间分配**：先常驻固定几个房间（IP:端口），之后再考虑按需启动进程的分配程序。
 
 ## 命名
 

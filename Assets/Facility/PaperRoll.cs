@@ -12,6 +12,11 @@ namespace NatureCalls.Facility
         [Min(.1f)] public float ThrowSpeed = 4f;
         [Min(0)] public float ThrowUpwardSpeed = 1.5f;
         public Movement PickedUpBy { get; private set; }
+        /// <summary>True while this peer only shows a roll that another player's machine is simulating.</summary>
+        public bool IsFollowing { get; private set; }
+        private Vector3 followPosition, followVelocity;
+        private Quaternion followRotation;
+        private float followReceived;
         public bool IsPickedUp => PickedUpBy != null;
 
         public bool CanPickup(Movement player) => !IsPickedUp && player != null && CountCarriedBy(player) < CarryCapacityPerPlayer &&
@@ -49,11 +54,15 @@ namespace NatureCalls.Facility
         {
             if (player == null || PickedUpBy == player) return;
             PickedUpBy = player;
+            IsFollowing = false;
             var body = GetComponent<Rigidbody>();
             if (body != null)
             {
-                body.linearVelocity = Vector3.zero;
-                body.angularVelocity = Vector3.zero;
+                if (!body.isKinematic)
+                {
+                    body.linearVelocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                }
                 body.isKinematic = true;
                 body.useGravity = false;
             }
@@ -77,9 +86,44 @@ namespace NatureCalls.Facility
             return true;
         }
 
+        /// <summary>
+        /// Shows a roll in flight on another player's machine: kinematic here, eased toward the latest report and
+        /// extrapolated along its arc between reports, so it moves smoothly instead of jumping every update.
+        /// </summary>
+        public void FollowShared(Vector3 position, Quaternion rotation, Vector3 velocity)
+        {
+            if (!IsFollowing)
+            {
+                ApplySharedThrow(position, rotation, Vector3.zero, false);
+                // This peer moves the transform itself; Rigidbody interpolation would fight it.
+                GetComponent<Rigidbody>().interpolation = RigidbodyInterpolation.None;
+            }
+            IsFollowing = true;
+            followPosition = position;
+            followRotation = rotation;
+            followVelocity = velocity;
+            followReceived = Time.time;
+        }
+
+        /// <summary>Places a roll that has come to rest after a throw.</summary>
+        public void ApplySharedRest(Vector3 position, Quaternion rotation)
+        {
+            ApplySharedThrow(position, rotation, Vector3.zero, false);
+        }
+
+        private void Update()
+        {
+            if (!IsFollowing) return;
+            var elapsed = Mathf.Min(Time.time - followReceived, .15f);
+            var predicted = followPosition + followVelocity * elapsed + .5f * Physics.gravity * elapsed * elapsed;
+            var blend = 1 - Mathf.Exp(-20 * Time.deltaTime);
+            transform.SetPositionAndRotation(Vector3.Lerp(transform.position, predicted, blend), Quaternion.Slerp(transform.rotation, followRotation, blend));
+        }
+
         public void ApplySharedThrow(Vector3 position, Quaternion rotation, Vector3 velocity, bool simulate)
         {
             PickedUpBy = null;
+            IsFollowing = false;
             transform.SetParent(null, true);
             transform.SetPositionAndRotation(position, rotation);
             foreach (var renderer in GetComponentsInChildren<Renderer>(true)) renderer.enabled = true;

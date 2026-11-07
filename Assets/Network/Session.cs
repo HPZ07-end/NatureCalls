@@ -139,40 +139,80 @@ namespace NatureCalls.Network
             if (!AuthenticationService.Instance.IsSignedIn)
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
         }
+        // Relay normally runs over UDP/DTLS. Networks that block UDP (some campus or office networks) still allow
+        // secure WebSockets on port 443, so a failed attempt is retried once over WSS and WSS is remembered.
+        private const string WebSocketPreferenceKey = "NatureCalls.RelayWebSockets";
+        public static bool RelayWebSockets
+        {
+            get => PlayerPrefs.GetInt(WebSocketPreferenceKey, 0) == 1 || Environment.GetCommandLineArgs().Contains("-relay-wss");
+            set { PlayerPrefs.SetInt(WebSocketPreferenceKey, value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+        /// <summary>Whether the current Relay connection uses secure WebSockets.</summary>
+        public bool UsingWebSockets { get; private set; }
+
         public async Task ConnectRelayAsync(bool host, string code = "")
         {
             if (Busy || Active) return;
             Busy = true;
-            Status = "Connecting to Unity Services...";
             try
             {
                 if (!host && string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Enter a Session join code.");
+                Status = "Connecting to Unity Services...";
                 await Authenticate();
                 if (destroyed) return;
                 if (!LobbyMode) World.StopPractice();
-                slots.Clear();
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Application.exitCancellationToken);
-                timeout.CancelAfter(TimeSpan.FromSeconds(35));
-                if (host)
-                    session = await MultiplayerService.Instance.CreateSessionAsync(
-                        new SessionOptions { Name = "NatureCalls M1", MaxPlayers = MaxPlayers, IsPrivate = true }.WithRelayNetwork(), timeout.Token);
-                else
-                    session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant(), new JoinSessionOptions(), timeout.Token);
-                session.RemovedFromSession += Removed;
-                Status = host ? "Relay Host ready. Share the Session code." : "Joined Relay Session.";
+                bool webSockets = RelayWebSockets;
+                var failure = await TryConnectRelayAsync(host, code, webSockets);
+                if (failure != null && !webSockets && !destroyed)
+                {
+                    Status = "Retrying Relay over WebSockets...";
+                    failure = await TryConnectRelayAsync(host, code, true);
+                    if (failure == null) RelayWebSockets = true;
+                }
+                if (failure != null) throw failure;
+                Status = (host ? "Relay Host ready. Share the Session code." : "Joined Relay Session.") + (UsingWebSockets ? " (WebSocket)" : "");
             }
             catch (Exception error)
             {
                 Status = "Connection failed: " + error.Message;
-                if (session != null)
-                {
-                    try { await session.LeaveAsync(); } catch (Exception) { /* Original error is shown in the UI. */ }
-                    session = null;
-                }
-                if (Manager.IsListening) Manager.Shutdown();
                 PlayerInput.Unlock();
             }
             finally { Busy = false; }
+        }
+
+        // One attempt with the chosen protocol; returns the error instead of throwing so the caller can retry.
+        private async Task<Exception> TryConnectRelayAsync(bool host, string code, bool webSockets)
+        {
+            slots.Clear();
+            Transport.UseWebSockets = webSockets;
+            UsingWebSockets = webSockets;
+            var network = new NetworkOptions { RelayProtocol = webSockets ? RelayProtocol.WSS : RelayProtocol.Default };
+            try
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Application.exitCancellationToken);
+                timeout.CancelAfter(TimeSpan.FromSeconds(35));
+                if (host)
+                    session = await MultiplayerService.Instance.CreateSessionAsync(
+                        new SessionOptions { Name = "NatureCalls M1", MaxPlayers = MaxPlayers, IsPrivate = true }
+                            .WithRelayNetwork().WithNetworkOptions(network), timeout.Token);
+                else
+                    session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant(),
+                        new JoinSessionOptions().WithNetworkOptions(network), timeout.Token);
+                session.RemovedFromSession += Removed;
+                return null;
+            }
+            catch (Exception error)
+            {
+                if (session != null)
+                {
+                    try { await session.LeaveAsync(); } catch (Exception) { /* The original error is reported. */ }
+                    session = null;
+                }
+                if (Manager.IsListening) Manager.Shutdown();
+                UsingWebSockets = false;
+                Transport.UseWebSockets = false;
+                return error;
+            }
         }
         /// <summary>The most likely reachable IPv4 address, shown as the room code of a direct (no Relay) room.</summary>
         public static string LocalAddress() => LocalAddresses().FirstOrDefault() ?? "127.0.0.1";
@@ -211,6 +251,8 @@ namespace NatureCalls.Network
             {
                 if (!LobbyMode) World.StopPractice();
                 slots.Clear();
+                Transport.UseWebSockets = false; // LAN rooms use plain UDP.
+                UsingWebSockets = false;
                 Transport.SetConnectionData(address.Trim(), Port, host ? "0.0.0.0" : null);
                 Status = host ? "Local test Host (no Relay)." : "Connecting to local test Host...";
                 bool started = host ? Manager.StartHost() : Manager.StartClient();

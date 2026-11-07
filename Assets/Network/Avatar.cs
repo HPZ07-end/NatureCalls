@@ -11,16 +11,19 @@ namespace NatureCalls.Network
     // The scene facilities are not NetworkObjects. The host player's Avatar carries their state.
     public struct PaperRollSnapshot : INetworkSerializeByMemcpy, IEquatable<PaperRollSnapshot>
     {
-        public byte Mode; // 0: on the map, 1: carried, 2: thrown
+        public const byte OnMap = 0, Carried = 1, Flying = 2, Landed = 3;
+        public byte Mode; // OnMap (untouched), Carried, Flying (simulated by Simulator), Landed (at rest after a throw)
         public ulong Carrier;
+        // Client id + 1 of the player whose machine simulates a flying roll; 0 when no one does.
+        public ulong Simulator;
         public Vector3 Position;
         public Quaternion Rotation;
         public Vector3 Velocity;
 
-        public bool Equals(PaperRollSnapshot other) => Mode == other.Mode && Carrier == other.Carrier &&
+        public bool Equals(PaperRollSnapshot other) => Mode == other.Mode && Carrier == other.Carrier && Simulator == other.Simulator &&
             Position == other.Position && Rotation == other.Rotation && Velocity == other.Velocity;
         public override bool Equals(object obj) => obj is PaperRollSnapshot other && Equals(other);
-        public override int GetHashCode() => HashCode.Combine(Mode, Carrier, Position, Rotation, Velocity);
+        public override int GetHashCode() => HashCode.Combine(Mode, Carrier, Simulator, Position, Rotation, Velocity);
     }
 
     [RequireComponent(typeof(NetworkObject), typeof(Movement), typeof(Posture))]
@@ -50,7 +53,6 @@ namespace NatureCalls.Network
         private StallDoor[] doors;
         private PaperRoll[] paperRolls;
         private Toilet[] toilets;
-        private float nextPaperRollUpdate;
         private static int facilitySceneHandle = -1;
         private static StallDoor[] sceneDoors;
         private static PaperRoll[] scenePaperRolls;
@@ -161,12 +163,15 @@ namespace NatureCalls.Network
             return true;
         }
 
+        // A thrown roll belongs to the thrower until it lands: the thrower's machine simulates it right away
+        // (no round trip), streams its motion through the host, and hands it back once it comes to rest.
         public bool RequestThrow(PaperRoll roll, Vector3 direction)
         {
             if (!IsSpawned || !IsOwner || paperRolls == null) return false;
             var index = Array.IndexOf(paperRolls, roll);
-            if (index < 0) return false;
-            ThrowPaperRollRpc(index, direction);
+            if (index < 0 || !roll.Throw(movement, direction)) return false;
+            var body = roll.GetComponent<Rigidbody>();
+            ThrowPaperRollRpc(index, roll.transform.position, roll.transform.rotation, body != null ? body.linearVelocity : Vector3.zero);
             return true;
         }
 
@@ -293,14 +298,77 @@ namespace NatureCalls.Network
         }
 
         [Rpc(SendTo.Server)]
-        private void ThrowPaperRollRpc(int index, Vector3 direction, RpcParams rpc = default)
+        private void ThrowPaperRollRpc(int index, Vector3 position, Quaternion rotation, Vector3 velocity, RpcParams rpc = default)
         {
             var host = ServerFacilityAvatar();
             if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.paperRolls.Length ||
                 index >= host.SharedPaperRolls.Count) return;
+            var state = host.SharedPaperRolls[index];
+            if (state.Mode != PaperRollSnapshot.Carried || state.Carrier != OwnerClientId) return;
             var roll = host.paperRolls[index];
-            if (!roll.Throw(movement, direction)) return;
-            host.SharedPaperRolls[index] = Snapshot(roll, 2, 0);
+            if (!IsOwnedByServer) roll.FollowShared(position, rotation, velocity);
+            host.SharedPaperRolls[index] = Moving(PaperRollSnapshot.Flying, OwnerClientId + 1, position, rotation, velocity);
+        }
+
+        // The simulating player reports the flight; the host relays it to everyone else.
+        [Rpc(SendTo.Server)]
+        private void PaperRollMotionRpc(int index, Vector3 position, Quaternion rotation, Vector3 velocity, bool landed, RpcParams rpc = default)
+        {
+            var host = ServerFacilityAvatar();
+            if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.paperRolls.Length ||
+                index >= host.SharedPaperRolls.Count) return;
+            var state = host.SharedPaperRolls[index];
+            if (state.Mode != PaperRollSnapshot.Flying || state.Simulator != OwnerClientId + 1) return;
+            if (!IsOwnedByServer)
+            {
+                if (landed) host.paperRolls[index].ApplySharedRest(position, rotation);
+                else host.paperRolls[index].FollowShared(position, rotation, velocity);
+            }
+            host.SharedPaperRolls[index] = landed
+                ? Moving(PaperRollSnapshot.Landed, 0, position, rotation, Vector3.zero)
+                : Moving(PaperRollSnapshot.Flying, OwnerClientId + 1, position, rotation, velocity);
+        }
+
+        private static PaperRollSnapshot Moving(byte mode, ulong simulator, Vector3 position, Quaternion rotation, Vector3 velocity) =>
+            new() { Mode = mode, Simulator = simulator, Position = position, Rotation = rotation, Velocity = velocity };
+
+        // On the simulating player's machine: stream each roll it is flying, ~10 times a second, until it rests.
+        private float nextFlightReport;
+        private readonly System.Collections.Generic.Dictionary<int, float> restingSince = new();
+        private void ReportFlights()
+        {
+            if (!IsOwner || paperRolls == null || Time.time < nextFlightReport) return;
+            var host = FindHostAvatar();
+            if (host == null) return;
+            nextFlightReport = Time.time + .1f;
+            for (var index = 0; index < paperRolls.Length && index < host.SharedPaperRolls.Count; index++)
+            {
+                var state = host.SharedPaperRolls[index];
+                if (state.Mode != PaperRollSnapshot.Flying || state.Simulator != OwnerClientId + 1) { restingSince.Remove(index); continue; }
+                var roll = paperRolls[index];
+                var body = roll.GetComponent<Rigidbody>();
+                var velocity = body != null && !body.isKinematic ? body.linearVelocity : Vector3.zero;
+                bool still = body == null || body.IsSleeping() || velocity.sqrMagnitude < .0025f;
+                if (!still) restingSince.Remove(index);
+                else if (!restingSince.ContainsKey(index)) restingSince[index] = Time.time;
+                bool landed = still && Time.time - restingSince[index] > .3f;
+                if (landed) restingSince.Remove(index);
+                PaperRollMotionRpc(index, roll.transform.position, roll.transform.rotation, velocity, landed);
+            }
+        }
+
+        // A simulating player left mid-flight: the host keeps the roll where it was last seen.
+        private void LandFlightsOf(ulong clientId)
+        {
+            var host = ServerFacilityAvatar();
+            if (host == null || host.paperRolls == null) return;
+            for (var index = 0; index < host.paperRolls.Length && index < host.SharedPaperRolls.Count; index++)
+            {
+                var state = host.SharedPaperRolls[index];
+                if (state.Mode != PaperRollSnapshot.Flying || state.Simulator != clientId + 1) continue;
+                host.paperRolls[index].ApplySharedRest(state.Position, state.Rotation);
+                host.SharedPaperRolls[index] = Moving(PaperRollSnapshot.Landed, 0, state.Position, state.Rotation, Vector3.zero);
+            }
         }
 
         private static PaperRollSnapshot Snapshot(PaperRoll roll, byte mode, ulong carrier)
@@ -333,14 +401,17 @@ namespace NatureCalls.Network
             for (var index = 0; index < paperRolls.Length && index < SharedPaperRolls.Count; index++)
             {
                 var state = SharedPaperRolls[index];
-                if (state.Mode == 1)
+                if (state.Mode == PaperRollSnapshot.Carried)
                 {
                     foreach (var avatar in FindObjectsByType<Avatar>(FindObjectsSortMode.None))
                         if (avatar.IsSpawned && avatar.OwnerClientId == state.Carrier)
                         { paperRolls[index].ApplySharedPickup(avatar.movement); break; }
                 }
-                else if (state.Mode == 2)
-                    paperRolls[index].ApplySharedThrow(state.Position, state.Rotation, state.Velocity, false);
+                // The simulating player already has the roll in flight; everyone else follows its reports.
+                else if (state.Mode == PaperRollSnapshot.Flying && state.Simulator != NetworkManager.LocalClientId + 1)
+                    paperRolls[index].FollowShared(state.Position, state.Rotation, state.Velocity);
+                else if (state.Mode == PaperRollSnapshot.Landed)
+                    paperRolls[index].ApplySharedRest(state.Position, state.Rotation);
             }
             for (var index = 0; index < toilets.Length && index < SharedToilets.Count; index++)
                 toilets[index].ApplySharedOccupant(SharedToilets[index] == 0 ? null : MovementOf(SharedToilets[index] - 1));
@@ -353,18 +424,7 @@ namespace NatureCalls.Network
                 if (!IsServer) needs.ApplyShared(SharedUrgency.Value, SharedDisgust.Value);
                 else if (Time.time >= nextNeedsUpdate) { nextNeedsUpdate = Time.time + .2f; PublishNeeds(); }
             }
-            if (!IsSpawned || !OwnsFacilityState || !IsServer || Time.time < nextPaperRollUpdate) return;
-            nextPaperRollUpdate = Time.time + .1f;
-            for (var index = 0; index < paperRolls.Length && index < SharedPaperRolls.Count; index++)
-            {
-                if (SharedPaperRolls[index].Mode != 2) continue;
-                var current = Snapshot(paperRolls[index], 2, 0);
-                var previous = SharedPaperRolls[index];
-                if (Vector3.Distance(current.Position, previous.Position) > .01f ||
-                    Quaternion.Angle(current.Rotation, previous.Rotation) > 1f ||
-                    Vector3.Distance(current.Velocity, previous.Velocity) > .05f)
-                    SharedPaperRolls[index] = current;
-            }
+            if (IsSpawned) ReportFlights();
         }
         private void PublishPosture(PostureState value)
         {
@@ -394,7 +454,7 @@ namespace NatureCalls.Network
                 SharedToilets.OnListChanged -= ToiletChanged;
                 SharedDroppings.OnListChanged -= DroppingsChanged;
             }
-            else if (IsServer) ReleaseToiletsOf(OwnerClientId);
+            else if (IsServer) { ReleaseToiletsOf(OwnerClientId); LandFlightsOf(OwnerClientId); }
             SharedPosture.OnValueChanged -= PostureChanged;
             ColorIndex.OnValueChanged -= AppearanceChanged;
             OutfitIndex.OnValueChanged -= AppearanceChanged;
