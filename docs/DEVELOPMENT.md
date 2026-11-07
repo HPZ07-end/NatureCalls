@@ -96,6 +96,6 @@ Unity Editor 用于查看 Scene、Prefab、Inspector 引用及 Play Mode；VS Co
 
 服务器运行参数：`./NatureCalls -batchmode -nographics -server -port 8000 -logFile -`。Dedicated Server 构建默认启用服务器模式；普通桌面构建也可用 `-server` 在本机测试同一路径。端口默认 8000，非法/零端口拒绝启动；绑定所有网卡 UDP，30 FPS，不生成本地练习玩家、屏幕镜头或镜面运行时 RenderTexture。空房回到 Waiting，可再次加入；没有 Cloud 登录或 Relay 依赖。客户端在大厅输入 `49.233.132.244:8000`，裸 IP 保留默认 UDP 7777；IPv6 可写 `[地址]:端口`。Relay Join Code 路径保留，专用服务器不使用 WebSocket。
 
-课程部署使用 `scripts/naturecalls@.service` 模板，应用目录 `/opt/naturecalls/current`，普通 `ubuntu` 用户运行。先完成本机测试，再通过获授权的 SSH 密钥上传 Linux 构建。由管理员权限安装该 systemd 单元、daemon-reload，然后启用 `naturecalls@8000`；最多按实测资源余量增加 8001、8002，不修改 SSH、用户或防火墙配置。课程允许 UDP 8000–8100。检查命令：`systemctl status naturecalls@8000`、`journalctl -u naturecalls@8000 -n 100 --no-pager`、`ss -lunp`。具体部署实绩以 DEVELOPMENT_STATUS 和 status-log 为准，配置模板本身不表示已经部署或公网已验收。
+课程部署使用 `scripts/naturecalls@.service` 模板，应用目录 `/opt/naturecalls/current`，普通 `ubuntu` 用户运行；`StateDirectory` 为每个端口建立 `/var/lib/naturecalls-<端口>`，`XDG_CONFIG_HOME` 指向该目录，并用 `ProtectHome=true` 阻止 Unity 访问用户主目录。先完成本机测试，再通过获授权的 SSH 密钥上传 Linux 构建。由管理员权限安装该 systemd 单元、daemon-reload，然后启用 `naturecalls@8000`；最多按实测资源余量增加 8001、8002，不修改 SSH、用户或防火墙配置。课程允许 UDP 8000–8100。检查命令：`systemctl status naturecalls@8000`、`journalctl -u naturecalls@8000 -n 100 --no-pager`、`ss -lunp`。具体部署实绩以 DEVELOPMENT_STATUS 和 status-log 为准，配置模板本身不表示已经部署或公网已验收。
 
 Linux 首次构建时 Unity 自动添加官方 1.1.1 工具链依赖（linux-x86_64、linux-arm64 SDK、macos-arm64-linux toolchain 和 sysroot.base）；manifest 与 lock 一并保留，没有升级现有运行时包。

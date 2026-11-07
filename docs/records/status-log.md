@@ -152,3 +152,17 @@ Semantic-Diff: changed。落实已批准的 NatureCalls/Gameplay/UI/Lobby 与 Na
 - SSH 只用指定密钥；预检日志 Artifacts/deploy/preflight.log，主机记录写在该目录，未修改本机 SSH 配置。x86_64、UDP 8000 空闲、约 3.1 GB 可用内存；没有已有 NatureCalls 单元。尚未部署。
 
 Semantic-Diff: none（相对于第一步 125d0be）。本步实现纯服务器运行与运维工具，不增改游戏规则。
+
+
+## 2026-11-08 JST 课程服务器部署（日志 UTC 2026-11-07）
+
+实现提交 5b03702；PR #19 依赖 #18，暂以 feat/server-facilities 为 base，需人类先合并 #18 后改为 dev；两个 PR 均未合并。本条随后提交仅修改 systemd 配置和记录，不改变已验证的 Unity 代码与构建。
+
+- SSH 单连接上传持续偏慢，停止了本次创建且已核实 PID/命令的上传进程，未结束既有 SSH。改为 8 块并发 SSH，各块均校验成功；整包 SHA-256 为 `ebd72efe5474e11a10d5444f1a8cce71a596789ab14b84d0126601a4af7026e2`，本机与远端一致。Artifacts/deploy/upload.py、part-*.log、upload-complete.log 保存实际命令与结果。
+- 安装到 `/opt/naturecalls/releases/5b03702`，current 链接指向该版本；只安装本任务的 naturecalls@.service，启用 8000 一个房间。Artifacts/deploy/install.sh / install.log。tar 忽略 macOS provenance 扩展头并以 0 退出，systemd 初次启动成功。
+- 初次启动日志发现 Unity 原生 PlayerPrefs 自动创建了自己的用户目录。先停止本次创建的服务，给单元增加 `StateDirectory=naturecalls-%i`、对应 XDG_CONFIG_HOME 和 ProtectHome。仅 rmdir 清理失败（目录非空），随后把本次新生成的 NatureCalls 数据完整迁到 `/var/lib/naturecalls-8000/unity3d/DefaultCompany/NatureCalls` 并移除空的 DefaultCompany 目录，没有删除其内容或改动其它用户配置；再启动服务。失败与恢复分别记录于 Artifacts/deploy/isolate.log、isolate-recovery.log。
+- 最终核验：active/enabled，PID 1844231，NRestarts=0、ExecMainStatus=0、MemoryCurrent=122671104 bytes；`ss` 显示该 PID 监听 `0.0.0.0:8000/UDP`；新 PID 的日志有 `Server listening on UDP 8000.`、Null GfxDevice，没有再次创建用户配置目录。原 DefaultCompany 目录不存在的检查通过。Artifacts/deploy/verify-isolated.log；systemd-analyze verify 退出 0，仅报告系统既有其他单元的兼容性警告，未改动那些单元。
+- SSH、系统用户和防火墙配置未修改；没有安装额外软件。仅运行 1 个房间，8001/8002 未启动。应用持久目录由 systemd 管理，CPUQuota=100%、MemoryMax=1G。
+- 日志查询：`journalctl -u naturecalls@8000 -n 100 --no-pager`。客户端入口 `49.233.132.244:8000`；公网实际客户端联机未执行（本次联网授权仅包含 origin Git/PR 创建和部署 SSH），不能把监听成功写成公网验收通过。Windows、Relay、真人手感及负载测试未执行。
+
+Semantic-Diff: none。没有增加任何未批准游戏规则。
