@@ -172,7 +172,7 @@ namespace NatureCalls.UI
         {
             var room = Room;
             if (room == null) return;
-            if (room.IsHostPlayer) room.RequestStart();
+            if (room.IsLeader) room.RequestStart();
             else room.SetReady(!LocalMember(room).Ready);
         }
 
@@ -195,14 +195,14 @@ namespace NatureCalls.UI
                 return;
             }
             var room = Room;
-            if (room != null && room.IsHostPlayer) room.ChooseMap(choice);
+            if (room != null && room.IsLeader) room.ChooseMap(choice);
         }
 
         public void BackFromMap()
         {
             if (offlineMapSelection) { offlineMapSelection = false; message = ""; return; }
             var room = Room;
-            if (room != null && room.IsHostPlayer) room.CancelMapSelection();
+            if (room != null && room.IsLeader) room.CancelMapSelection();
         }
 
         // ---- View refresh ----
@@ -218,10 +218,10 @@ namespace NatureCalls.UI
             view.EntryGroup.SetActive(!inRoom && !offlineMapSelection);
             view.RoomGroup.SetActive(inRoom && !selectingMap);
             view.MapPanel.SetActive(selectingMap);
-            bool canChoose = offlineMapSelection || (inRoom && room.IsHostPlayer);
+            bool canChoose = offlineMapSelection || (inRoom && room.IsLeader);
             foreach (var button in mapButtons) button.gameObject.SetActive(canChoose);
             view.MapBack.gameObject.SetActive(canChoose);
-            view.MapHint.text = canChoose ? "选择本局地图" : "等待房主选择地图…";
+            view.MapHint.text = canChoose ? "选择本局地图" : "等待领队选择地图…";
 
             bool busy = Busy;
             view.OfflineButton.interactable = view.CreateButton.interactable = view.JoinButton.interactable = !busy;
@@ -248,14 +248,14 @@ namespace NatureCalls.UI
                 foreach (var member in room.Members)
                 {
                     if (member.Slot != slot) continue;
-                    var host = member.ClientId == Unity.Netcode.NetworkManager.ServerClientId;
+                    var host = member.ClientId == room.LeaderId;
                     var you = member.ClientId == room.LocalClientId ? "（你）" : "";
                     var outfit = catalog != null && catalog.Contains(member.Outfit) ? catalog[member.Outfit].Name : "-";
-                    var state = host ? "房主" : member.Ready ? "已准备" : "未准备";
+                    var state = host ? "领队" : member.Ready ? "已准备" : "未准备";
                     view.Slots[slot].text = $"玩家 {slot + 1}{you}\n{state} · {outfit}";
                 }
             }
-            if (room.IsHostPlayer)
+            if (room.IsLeader)
             {
                 view.PrimaryLabel.text = "开始游戏";
                 view.PrimaryButton.interactable = room.CanStart;
@@ -267,7 +267,7 @@ namespace NatureCalls.UI
                 bool ready = LocalMember(room).Ready;
                 view.PrimaryLabel.text = ready ? "取消准备" : "准备";
                 view.PrimaryButton.interactable = room.Phase.Value == LobbyPhase.Waiting;
-                message = ready ? "已准备，等待房主开始。" : "准备好后点击「准备」。";
+                message = ready ? "已准备，等待领队开始。" : "准备好后点击「准备」。";
             }
         }
 

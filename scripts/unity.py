@@ -83,7 +83,7 @@ def use_nographics(platform=None, environment=None):
     return platform != "win32"
 
 
-def run(action, timeout):
+def run(action, timeout, test_filter=None):
     editor = editor_path()
     with project_lock():
         version = verify_editor(editor)
@@ -93,12 +93,12 @@ def run(action, timeout):
         build = (ROOT / "Builds/Windows" / stamp / "NatureCalls.exe" if action == "build-windows"
                  else ROOT / "Builds/macOS" / stamp / "NatureCalls.app")
         command = [str(editor), "-batchmode", "-projectPath", str(ROOT), "-logFile", str(directory / "editor.log")]
-        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow"):
+        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities"):
             if use_nographics():
                 command += ["-nographics"]
             command += ["-quit", "-executeMethod", "NatureCalls.Editor.Automation." +
                         {"setup": "Setup", "playground": "Playground", "camera": "Camera",
-                         "lobby-flow": "LobbyFlow", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "match-flow": "MatchFlow", "validate": "Validate"}[action]]
+                         "lobby-flow": "LobbyFlow", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "match-flow": "MatchFlow", "facilities": "Facilities", "validate": "Validate"}[action]]
         elif action in ("test-editmode", "test-playmode"):
             if action == "test-editmode" and use_nographics():
                 command += ["-nographics"]
@@ -109,6 +109,10 @@ def run(action, timeout):
             command += ["-quit", "-buildTarget", "osxuniversal", "-executeMethod", "NatureCalls.Editor.Automation.BuildMac"]
         elif action == "build-windows":
             command += ["-quit", "-buildTarget", "Win64", "-executeMethod", "NatureCalls.Editor.Automation.BuildWindows"]
+        if test_filter:
+            if not action.startswith("test-"):
+                raise ValueError("--test-filter requires a test action.")
+            command += ["-testFilter", test_filter]
         environment = dict(os.environ, NATURECALLS_RUN_PATH=str(directory), NATURECALLS_BUILD_PATH=str(build))
         summary = {"action": action, "editor": str(editor), "version": version,
                    "command": command, "status": "failed"}
@@ -145,15 +149,16 @@ def run(action, timeout):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "test-editmode", "test-playmode", "build-macos", "build-windows"])
+    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities", "test-editmode", "test-playmode", "build-macos", "build-windows"])
     parser.add_argument("--timeout", type=int, default=1800, help="Editor timeout in seconds (default 1800)")
+    parser.add_argument("--test-filter", help="Explicit Unity test name/regex filter; recorded in summary.json")
     arguments = parser.parse_args()
     try:
         if arguments.action == "detect":
             editor = editor_path()
             print(json.dumps({"editor": str(editor), "version": verify_editor(editor)}, indent=2))
         else:
-            run(arguments.action, arguments.timeout)
+            run(arguments.action, arguments.timeout, arguments.test_filter)
     except (RuntimeError, OSError, ValueError, ET.ParseError, subprocess.TimeoutExpired) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1

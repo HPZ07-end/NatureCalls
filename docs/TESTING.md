@@ -71,3 +71,9 @@ Windows 可以在关闭同工程 GUI 后运行 `py -3 scripts/unity.py build-win
 每次验收记录 Commit、OS/架构、Editor、用例数、产物、日志位置、结果。Mac/Windows 尽量测试同一 SHA；Network 修改记录 Host OS/SHA、Client OS/SHA、连接和状态同步的真实结果。没运行就明确写未验证。
 
 Actions 的 `repository` 在 Linux/macOS/Windows 运行仓库检查与 Python 单测；`semantic-diff` 检查 PR 语义记录。没有 Unity runner/许可配置，绿色 Actions 不表示 Unity 跨平台通过。实际执行结果见 [治理记录](records/governance-2026-10-19.md) 与 [开发状态](DEVELOPMENT_STATUS.md)。
+
+## 专用服务器改造回归（2026-11-07）
+
+`python3 scripts/unity.py facilities` 通过 Unity API 生成/注册服务器拥有的 `Facilities.prefab`，并接线 Network Prefab 与 Playground。设施共享状态断言改读 `Facilities.Current`；玩家交互仍经 `FacilitySync`。新增 PlayMode 用例检查纯服务器不占房间成员名额、按进入顺序选领队、非领队服务器不能开始，以及继任者的准备状态不计入其他成员人数。此单进程用例不替代服务器与两个真实客户端的联机验收。
+
+可用 `--test-filter` 向 Unity 传入明确测试方法名（多个名字以分号分隔）；实际参数记入 summary.json。不要用能匹配父套件的正则排除单个测试。仅允许本地网络的运行应明确选择本地方法，单列 Relay 未执行；未筛选运行出现 Ignored 时仍由严格检查器判为失败。

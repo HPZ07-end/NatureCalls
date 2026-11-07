@@ -118,3 +118,19 @@
 - 黑色小球改用 `UnityEngine.Pool.ObjectPool`，`Playground.RemoveDropping` 回收，再次出现时复用。
 - ARCHITECTURE 新增「分层（MVC）」与「设计模式」两节；IMPLEMENTATION 增加分层与"判定以 IsServer 为准"的规则。专用服务器改造由 Codex 在 `feat/dedicated-server` 上继续，设施同步迁移只需改 `FacilitySync`。
 - 结果：EditMode 13/13（`Artifacts/20261107T125105Z-4318f3-test-editmode/`），PlayMode 16 通过 + 1 Ignored（`Artifacts/20261107T125317Z-17f522-test-playmode/`），本机双进程探针两端通过（`Builds/macOS/20261107T125122Z-6c477d/`）。
+
+
+## 2026-11-07 无房主设施状态与领队
+
+起点 40fbb4b，fetch 后 origin/dev 为 8aaf363；完整阅读任务 Glossary 并核对公共版本差异，领队审批为分支已有 28f304d。全部操作在独立 server 工作副本；没有手动删锁。
+
+- `unity.py detect`：6000.3.26f1；首次 `validate` 通过，Artifacts/20261107T142949Z-d3f676-validate。
+- `unity.py facilities`：通过 Unity API 生成、注册和接线，Artifacts/20261107T143117Z-bdb052-facilities。
+- EditMode 13/13：Artifacts/20261107T143138Z-4fa7d4-test-editmode。
+- 默认 PlayMode 17 passed / 1 Relay ignored，严格运行器失败：Artifacts/20261107T143207Z-16371d-test-playmode；负向正则仍匹配父套件，同结果：Artifacts/20261107T143337Z-8cd84c-test-playmode。
+- 明确本地方法名单 PlayMode 17/17：Artifacts/20261107T143505Z-e08271-test-playmode（筛选参数在 summary.json）。Relay 未执行，本次不允许访问 Cloud。
+- macOS ARM64 Development 构建通过：Artifacts/20261107T143615Z-a091c1-build-macos；产物 Builds/macOS/20261107T143615Z-a091c1/NatureCalls.app。
+- `multiplayer.py` 两端全部断言通过：Artifacts/20261107T143705Z-695a08-multiplayer。
+- 仓库检查通过，Python 单测 21/21；Windows/跨设备/Relay 未执行。
+
+Semantic-Diff: changed。落实已批准的 NatureCalls/Gameplay/UI/Lobby 与 NatureCalls/Content/Map/MapSelection 领队规则；没有增加其他语义。设施列表从玩家 FacilitySync 移到服务器 Facilities，玩家 RPC 保留；旧 FindHost 依赖移除。

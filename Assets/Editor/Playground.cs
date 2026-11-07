@@ -189,6 +189,9 @@ namespace NatureCalls.Editor
             };
             manager.NetworkConfig.Prefabs.NetworkPrefabsLists.Clear();
             var session = network.AddComponent<NatureCalls.Network.Session>();
+            session.FacilitiesPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Network/Facilities.prefab");
+            var facilityList = AssetDatabase.LoadAssetAtPath<NetworkPrefabsList>("Assets/DefaultNetworkPrefabs.asset");
+            if (facilityList != null) manager.NetworkConfig.Prefabs.NetworkPrefabsLists.Add(facilityList);
             session.Manager = manager; session.Transport = transport; session.World = world;
             // The map HUD (exit button) and its EventSystem come from LobbyFlowBuilder.
             LobbyFlowBuilder.AddMatchHud();

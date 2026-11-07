@@ -4,16 +4,16 @@
 
 | 目录 | 技术职责 / 当前内容 |
 | --- | --- |
-| `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非房主全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）、`NeedsRules`（急迫值、恶心值与全体判负）。未完成 Stage 2 |
+| `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非领队全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）、`NeedsRules`（急迫值、恶心值与全体判负）。未完成 Stage 2 |
 | `Assets/Player` | Movement：CharacterController、朝向、跳跃与马桶 Anchor 对齐；Posture：姿态状态与通知；PlayerAppearance：身份颜色与外观（按 `OutfitCatalog` 编号）；PlayerOutfitController：DressingRoom 换装流程；OutfitCatalog：可选外观资源；LocalProfile：本地已确认外观（PlayerPrefs）；PlayerNeeds：急迫值与恶心值（由离线 Playground 或房主驱动） |
 | `Assets/Input` | PlayerInput：本地键鼠操作请求，只为 Owner 启用；C 负责全部如厕，E 按固定顺序分派其他交互 |
 | `Assets/Camera` | CameraController：本地 Cinemachine 目标、优先级、Blend 与渲染 |
 | `Assets/Facility` | Toilet：测试 Anchor 和可见目标；StallDoor：隔间门开/关/锁；PaperRoll：拾取、携带与丢掷；PlanarMirror：镜面渲染。门、卷纸与马桶占用由 Network/FacilitySync 接入房主权威同步，尚无冲水、堵塞等正式玩法 |
-| `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生、联机对局全局计时与全体判负；Avatar：所有权、控制与镜头绑定、姿态同步；AvatarAppearance：身份颜色与外观编号；NeedsSync：急迫值/恶心值同步与如厕结束上报；FacilitySync：设施共享状态与请求（房主玩家的实例保存列表）；Probe：显式启动的 Development 验证程序 |
+| `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生、联机对局全局计时与全体判负；Avatar：所有权、控制与镜头绑定、姿态同步；AvatarAppearance：身份颜色与外观编号；NeedsSync：急迫值/恶心值同步与如厕结束上报；FacilitySync：玩家设施请求与服务器校验；Facilities：服务器拥有的地图设施共享状态；Probe：显式启动的 Development 验证程序 |
 | `Assets/Map` | Playground：地图资源引用、出生点、离线练习；MapCatalog：可选地图；Match：本局模式（离线/联机）、场景切换与离线对局计时；DressingMirror / LobbyDoor：DressingRoom 中镜子与门的 E 键入口 |
 | `Assets/UI` | MatchExit：地图左上角「退出」按钮（`MatchHud.prefab`），联机时先离开房间再回到准备房；MatchClock：同一 HUD 顶部的本局剩余时间；NeedsView：左上角本地玩家的急迫值/恶心值条；`UI/Lobby`：LobbyView（纯引用）、LobbyController（行为）、BackgroundBlur（URP 景深虚化） |
 | `Assets/Scenes` | 构建顺序：DressingRoom（启动场景）、Playground（地图）、Smoke；Sandbox 原样保留 |
-| `Assets/Prefabs` | `Characters/Player`（网络玩家基础 Prefab）与 Variant `DressingRoomPlayer`（带换装组件）；`Network/Network`（Lobby 的持久 NetworkManager + Session）、`Network/LobbyRoom`；`Levels/WCStall` 与早期 `Levels/Stall6x8`；`Toilet` 由 Playground 重建工具生成 |
+| `Assets/Prefabs` | `Characters/Player`（网络玩家基础 Prefab）与 Variant `DressingRoomPlayer`（带换装组件）；`Network/Network`（Lobby 的持久 NetworkManager + Session）、`Network/LobbyRoom`、`Network/Facilities`；`Levels/WCStall` 与早期 `Levels/Stall6x8`；`Toilet` 由 Playground 重建工具生成 |
 | `Assets/Materials`、`Assets/Settings` | 原型材质、URP 管线与 Renderer |
 | `Assets/Editor` | 配置、生成、验证、构建；`LobbyFlowBuilder` 生成 Lobby 流程资源与 DressingRoom 接线；`ToiletAnchorSetup` 与 `SpawnPointSetup` 在 Playground 场景中实测放置马桶 Anchor 与出生点；Editor-only 程序集 |
 | `Assets/Tests` | EditMode 资产/配置、Lobby 资源接线与 Core 规则；PlayMode 实际运动、门、卷纸、镜头、换装、Lobby 离线/建房/地图加载与连接生命周期 |
@@ -31,7 +31,7 @@
 
 | 层 | 职责 | 主要类型 |
 | --- | --- | --- |
-| 数据层（Model） | 规则与状态，不关心显示和输入 | Core 纯 C# 规则 `NeedsRules`、`RoundClock`、`LobbyRules`、`MapSelection`、`OutfitSelection`；配置 `OutfitCatalog`、`MapCatalog`（ScriptableObject）；状态 `PlayerNeeds`、`Posture`、`StallDoor.State`、`Toilet.Occupant`、`LocalProfile`；联网共享状态 `LobbyRoom` 成员/阶段/计时、`FacilitySync`/`NeedsSync`/`AvatarAppearance` 的 NetworkVariable/NetworkList |
+| 数据层（Model） | 规则与状态，不关心显示和输入 | Core 纯 C# 规则 `NeedsRules`、`RoundClock`、`LobbyRules`、`MapSelection`、`OutfitSelection`；配置 `OutfitCatalog`、`MapCatalog`（ScriptableObject）；状态 `PlayerNeeds`、`Posture`、`StallDoor.State`、`Toilet.Occupant`、`LocalProfile`；联网共享状态 `LobbyRoom` 成员/阶段/计时、`Facilities`/`NeedsSync`/`AvatarAppearance` 的 NetworkVariable/NetworkList |
 | 表现层（View） | 只负责显示，不做判定 | `LobbyView`（纯引用）、`NeedsView`、`MatchClock`、`PlayerAppearance`、`CameraController`、`PlanarMirror`、`BackgroundBlur`、`MatchHud`/`LobbyCanvas` Prefab |
 | 控制层（Controller） | 接收输入或网络事件，调用规则，更新状态 | `PlayerInput`、`LobbyController`、`MatchExit`、`Session`、`Match`、`Playground`、`Avatar`，以及 `FacilitySync`/`NeedsSync` 中由房主执行的请求校验（RPC） |
 
@@ -67,13 +67,13 @@
 
 ## 网络模型
 
-网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable；出生颜色与外观编号为 Server-write。LobbyRoom 的成员、准备与阶段由 Host 权威，客户端经 RPC 请求。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 的请求通过玩家 Avatar 到 Host，复用设施原有距离、门锁与容量验证；Host 玩家的 FacilitySync 用 NetworkList 发布门状态、卷纸携带者及丢掷位姿与马桶占用。设施在玩家生成时按地图层级路径固定索引。拾取与丢掷的许可仍由 Host 判定，但**飞行中的卷纸临时归丢掷者所有**：丢掷者本机立即开始刚体模拟（不等往返），约每 0.1 秒把位姿经 RPC 报给 Host，Host 校验后写入 `SharedPaperRolls`（`Mode = Flying`、`Simulator = 丢掷者 id + 1`）；其他端（包括 Host 在内，只要不是丢掷者）用运动学刚体平滑跟随并沿抛物线外推。卷纸静止 0.3 秒后丢掷者报告落地，状态变为 `Landed` 并交还 Host；丢掷者中途离开时 Host 把卷纸留在最后报告的位置。Tidiness 与胜利规则尚未实现。
+网络原型采用 Owner-authoritative NetworkTransform，位置与身体 Y 轴朝向同步；Posture 为 Owner-write NetworkVariable；出生颜色与外观编号为 Server-write。LobbyRoom 的成员、准备与阶段由 Host 权威，客户端经 RPC 请求。镜头、鼠标及 Blend 不同步。StallDoor、PaperRoll 的请求通过玩家 Avatar 到 Host，复用设施原有距离、门锁与容量验证；服务器拥有的 Facilities 用 NetworkList 发布门状态、卷纸携带者及丢掷位姿与马桶占用。Facilities 在玩家生成前按地图层级路径固定设施索引。拾取与丢掷的许可仍由 Host 判定，但**飞行中的卷纸临时归丢掷者所有**：丢掷者本机立即开始刚体模拟（不等往返），约每 0.1 秒把位姿经 RPC 报给 Host，Host 校验后写入 `SharedPaperRolls`（`Mode = Flying`、`Simulator = 丢掷者 id + 1`）；其他端（包括 Host 在内，只要不是丢掷者）用运动学刚体平滑跟随并沿抛物线外推。卷纸静止 0.3 秒后丢掷者报告落地，状态变为 `Landed` 并交还 Host；丢掷者中途离开时 Host 把卷纸留在最后报告的位置。Tidiness 与胜利规则尚未实现。
 
 M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 协调，地图中没有场景内 NetworkObject；以后需要场景内网络对象时再评估启用。没有 Host 迁移；对局中与房主断开的客户端回到准备房并看到原因。
 
-### 网络拓扑与专用服务器方案（2026-11-05 记录，未实施）
+### 网络拓扑与专用服务器方案（2026-11-07 实施中）
 
-当前采用 **房主权威（listen server）+ Relay**，课程截止（2026-12-21）前不改变。规则类状态（计时、急迫值/恶心值、判负、门与马桶占用）继续由房主判定；玩家正在操作的物理物体可以临时归操作者所有（见 PLAYGROUND「卷纸」）。
+当前支持 **房主模式（listen server）+ Relay**；2026-11-07 用户已授权增加同代码的 UDP 专用服务器路径。规则类状态（计时、急迫值/恶心值、判负、门与马桶占用）继续由房主判定；玩家正在操作的物理物体可以临时归操作者所有（见 PLAYGROUND「卷纸」）。
 
 备选拓扑：专用服务器（云上无画面服务器，玩家对等，成本与运维较高）、分布式权威（NGO 2.x，每个对象由拥有者计算并由 Unity 服务协调，自带会话所有者迁移，但现有「请求发给房主」的写法要重写）、纯拥有者权威（只适合各管各的状态）、确定性同步（Unity 物理不满足确定性，不考虑）。
 
@@ -93,8 +93,8 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 
 1. **网络**：需要公网 IP 或机房端口映射，开放一段 UDP 端口（每个房间一个）。没有公网入口时，服务器同样可以作为 Relay 客户端，延迟多一跳。只开放游戏端口与 SSH，SSH 仅密钥登录，IPMI 不暴露在公网，游戏进程以普通用户运行。
 2. **构建**：Hub 为 6000.3.26f1 安装 Linux Dedicated Server Build Support，增加服务器构建命令；客户端与服务器必须来自同一提交。
-3. **无房主结构**：门、卷纸、马桶占用目前在房主玩家的 `FacilitySync` 上，需迁到服务器拥有的对象（如 `LobbyRoom` 或独立地图状态对象）；计时、需求与判负已由服务器端逻辑计算，可沿用。这一步对房主迁移和分布式权威同样有用。
-4. **语义**：「房主选图 / 房主开始」在无房主时要改为新规则（例如第一个进入的玩家），属于 GLOSSARY 变化，需人类批准。
+3. **无房主结构**：门、卷纸、马桶占用与黑色小球已迁到服务器拥有的地图 `Facilities` 对象；玩家自己的 `FacilitySync` 继续接收请求并执行服务器校验；计时、需求与判负已由服务器端逻辑计算，可沿用。这一步对房主迁移和分布式权威同样有用。
+4. **语义**：领队规则已获 2026-11-07 人类批准并记录于 Glossary；`LobbyRoom` 按成员进入顺序确定 `LeaderId`，服务器不占成员名额。房主模式下领队仍为房主。
 5. **房间分配**：先常驻固定几个房间（IP:端口），之后再考虑按需启动进程的分配程序。
 
 ## 命名
@@ -104,3 +104,5 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 2026-11-02 移除：ChangingRoom 场景与 `ChangingRoomPlatform` / `ChangingRoomHud` / `ThirdPersonCamera`（由 DressingRoom 镜子换装替代）；独立 `LobbyUI` 场景与 `LobbyUIController` / `LobbyMockData` / `LobbySceneNavigator`（由 DressingRoom 内的 Lobby 界面与 LobbyRoom 替代）；IMGUI `Panel` 菜单（由 `MatchExit` 左上角退出按钮替代，连接入口统一在大厅）；已完成的一次性迁移/生成脚本（ChangingRoom、LobbyUI 与 DressingRoom UI/门/练习相关 Builder、`PlayerContractMigration`）。`ChangingRoomPlayer.prefab` 更名为 `DressingRoomPlayer.prefab`（GUID 保留）。组件细节、镜头参数与官方 API 依据见 [PLAYGROUND](PLAYGROUND.md)，Player 接口见 [PLAYER](PLAYER.md)。
 
 阅读一次 C 键切换：从 `Assets/Input/PlayerInput.cs` 的 Update 进入 `Posture.Toggle`，Changed 通知让 Movement 更新身体/碰撞体，CameraController 更新两台 Cinemachine 镜头的优先级；NGO Avatar 在联机时发布拥有者的姿态状态。镜头距离、目标高度、俯角和横向偏移在场景 Local camera 的 Inspector 调整，默认正后方居中。IDE 打开与跳转步骤见 [开发指南](DEVELOPMENT.md)。
+
+2026-11-07 技术名称：新增 `Facilities` 作为每张地图的服务器状态对象，保留 `FacilitySync` 作为玩家请求入口；移除 `FindHost` 与房主玩家存储依赖，`IsHostPlayer` / `FromHost` / `ReadyGuests` 改为 `IsLeader` / `FromLeader` / `ReadyMembers`。回合结束先清理玩家，再销毁 Facilities；每局重新生成。

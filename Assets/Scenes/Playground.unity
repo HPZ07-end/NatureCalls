@@ -28066,6 +28066,7 @@ MonoBehaviour:
   Transport: {fileID: 2007512965}
   World: {fileID: 773993559}
   LobbyRoomPrefab: {fileID: 0}
+  FacilitiesPrefab: {fileID: 2755714958155605888, guid: 6c21c514f78474755bffcb11b8144bf0, type: 3}
   EnvironmentName: production
   MaxPlayers: 4
   Port: 7777
@@ -28118,7 +28119,8 @@ MonoBehaviour:
     NetworkTransport: {fileID: 2007512965}
     PlayerPrefab: {fileID: 8662370015226847803, guid: d9367e2265d03410284bbef9eaee85f5, type: 3}
     Prefabs:
-      NetworkPrefabsLists: []
+      NetworkPrefabsLists:
+      - {fileID: 11400000, guid: 197e5e8069c284e7fac928dc279bb168, type: 2}
     TickRate: 30
     ClientConnectionBufferTimeout: 10
     ConnectionApproval: 1

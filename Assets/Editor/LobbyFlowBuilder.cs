@@ -209,6 +209,7 @@ namespace NatureCalls.Editor
                 session.Manager = manager;
                 session.Transport = transport;
                 session.LobbyRoomPrefab = lobbyRoom;
+                session.FacilitiesPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Network/Facilities.prefab");
                 PrefabUtility.SaveAsPrefabAsset(network, NetworkPrefabPath);
             }
             finally { Object.DestroyImmediate(network); }

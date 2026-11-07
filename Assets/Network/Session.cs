@@ -26,6 +26,7 @@ namespace NatureCalls.Network
         // Set only on a map scene's own Network object (direct development play). Lobby rooms leave it empty.
         public Map.Playground World;
         public GameObject LobbyRoomPrefab;
+        public GameObject FacilitiesPrefab;
         public string EnvironmentName = "production";
         [Range(2, 4)] public int MaxPlayers = 4;
         public ushort Port = 7777;
@@ -96,8 +97,13 @@ namespace NatureCalls.Network
         }
         private void ServerStarted()
         {
-            if (!LobbyMode) return;
+            if (!LobbyMode) { SpawnFacilities(); return; }
             Instantiate(LobbyRoomPrefab).GetComponent<NetworkObject>().Spawn();
+        }
+        public void SpawnFacilities()
+        {
+            if (Manager.IsServer && Facilities.Current == null)
+                Instantiate(FacilitiesPrefab).GetComponent<NetworkObject>().Spawn(true);
         }
         private void Connected(ulong id)
         {
