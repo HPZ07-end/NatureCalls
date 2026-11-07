@@ -77,3 +77,10 @@ Actions 的 `repository` 在 Linux/macOS/Windows 运行仓库检查与 Python �
 `python3 scripts/unity.py facilities` 通过 Unity API 生成/注册服务器拥有的 `Facilities.prefab`，并接线 Network Prefab 与 Playground。设施共享状态断言改读 `Facilities.Current`；玩家交互仍经 `FacilitySync`。新增 PlayMode 用例检查纯服务器不占房间成员名额、按进入顺序选领队、非领队服务器不能开始，以及继任者的准备状态不计入其他成员人数。此单进程用例不替代服务器与两个真实客户端的联机验收。
 
 可用 `--test-filter` 向 Unity 传入明确测试方法名（多个名字以分号分隔）；实际参数记入 summary.json。不要用能匹配父套件的正则排除单个测试。仅允许本地网络的运行应明确选择本地方法，单列 Relay 未执行；未筛选运行出现 Ignored 时仍由严格检查器判为失败。
+
+
+## 服务器与两客户端
+
+`python3 scripts/server.py Builds/macOS/<build-id>/NatureCalls.app` 启动三个自身拥有的进程：同代码无画面服务器、首位玩家和第二位玩家。使用 localhost UDP 随机端口，不调用 Unity Cloud。检查无服务器成员/本地玩家/镜头、30 FPS、首位领队、非领队开始请求被拒、准备后领队开始和选图、门/卷纸/马桶/黑色小球共享、领队退出后接任、计时结束返回房间、最后成员退出后服务器继续等待。JSON 与进程日志保存到独立 Artifacts 目录，任何端缺报告、退出码非零或断言失败均失败；仅结束脚本自己启动的进程。此验证不等于 Linux 二进制执行、公网 UDP 或真人手感验收。
+
+`python3 scripts/unity.py build-server` 构建 Linux x86_64 专用服务器，检查完成回执、进程退出和 Player/数据目录；不执行 Linux 二进制。部署前还需本机 EditMode、本地 PlayMode、既有 `multiplayer.py` 和 `server.py` 全部通过。Relay 云测试必须另行授权并执行，不可把筛选后的本地测试写成 Relay 通过。

@@ -90,7 +90,8 @@ def run(action, timeout, test_filter=None):
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
         directory = ROOT / "Artifacts" / f"{stamp}-{action}"
         directory.mkdir(parents=True)
-        build = (ROOT / "Builds/Windows" / stamp / "NatureCalls.exe" if action == "build-windows"
+        build = (ROOT / "Builds/LinuxServer" / stamp / "NatureCalls" if action == "build-server"
+                 else ROOT / "Builds/Windows" / stamp / "NatureCalls.exe" if action == "build-windows"
                  else ROOT / "Builds/macOS" / stamp / "NatureCalls.app")
         command = [str(editor), "-batchmode", "-projectPath", str(ROOT), "-logFile", str(directory / "editor.log")]
         if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities"):
@@ -109,6 +110,9 @@ def run(action, timeout, test_filter=None):
             command += ["-quit", "-buildTarget", "osxuniversal", "-executeMethod", "NatureCalls.Editor.Automation.BuildMac"]
         elif action == "build-windows":
             command += ["-quit", "-buildTarget", "Win64", "-executeMethod", "NatureCalls.Editor.Automation.BuildWindows"]
+        elif action == "build-server":
+            command += ["-quit", "-nographics", "-buildTarget", "Linux64", "-standaloneBuildSubtarget", "Server",
+                        "-executeMethod", "NatureCalls.Editor.Automation.BuildServer"]
         if test_filter:
             if not action.startswith("test-"):
                 raise ValueError("--test-filter requires a test action.")
@@ -134,9 +138,9 @@ def run(action, timeout, test_filter=None):
                 if not (build / "Contents/Info.plist").is_file() or not (build / "Contents/MacOS").is_dir():
                     raise RuntimeError("Build report succeeded but app bundle is incomplete.")
                 summary["build"] = str(build)
-            elif action == "build-windows":
+            elif action in ("build-windows", "build-server"):
                 if not build.is_file() or not build.with_name("NatureCalls_Data").is_dir():
-                    raise RuntimeError("Build report succeeded but Windows Player is incomplete.")
+                    raise RuntimeError("Build report succeeded but Player is incomplete.")
                 summary["build"] = str(build)
             summary["status"] = "passed"
         except Exception as error:
@@ -149,7 +153,7 @@ def run(action, timeout, test_filter=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities", "test-editmode", "test-playmode", "build-macos", "build-windows"])
+    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities", "test-editmode", "test-playmode", "build-macos", "build-windows", "build-server"])
     parser.add_argument("--timeout", type=int, default=1800, help="Editor timeout in seconds (default 1800)")
     parser.add_argument("--test-filter", help="Explicit Unity test name/regex filter; recorded in summary.json")
     arguments = parser.parse_args()

@@ -134,3 +134,21 @@
 - 仓库检查通过，Python 单测 21/21；Windows/跨设备/Relay 未执行。
 
 Semantic-Diff: changed。落实已批准的 NatureCalls/Gameplay/UI/Lobby 与 NatureCalls/Content/Map/MapSelection 领队规则；没有增加其他语义。设施列表从玩家 FacilitySync 移到服务器 Facilities，玩家 RPC 保留；旧 FindHost 依赖移除。
+
+
+## 2026-11-07 纯服务器入口与构建
+
+第一步提交 125d0be，PR #18；第二步代码继续在 feat/dedicated-server。再次 fetch 后 origin/dev 仍为 8aaf363，Glossary 无新增差异。
+
+- `validate` 通过：Artifacts/20261107T143907Z-684416-validate。
+- 新 ServerProbe 最初编译失败（NetworkList 不提供 LINQ Any）：Artifacts/20261107T144059Z-c68bf2-test-editmode，已改索引遍历。该次异常退出留下 UnityLockfile，下一次命令被锁拒绝；确认没有 Unity Editor/Player、lsof 无持有者后，按本次用户异常退出恢复授权删除本目录锁，未结束其他进程。
+- 地址用例首次 19/20（Mono 对带端口括号 IPv6 的 TryParse 忽略端口）：Artifacts/20261107T144158Z-a3a872-test-editmode；修正解析顺序后 EditMode 20/20：Artifacts/20261107T144232Z-234dfb-test-editmode。
+- macOS 构建通过：Artifacts/20261107T144301Z-68693c-build-macos；Builds/macOS/20261107T144301Z-68693c/NatureCalls.app。
+- 三进程服务器探针各端适用断言通过：Artifacts/20261107T144354Z-3002f5-server；服务器报告六项均 true。首位玩家退出后不再承担接任/返回/空房断言，这些由后续玩家与服务器核验。
+- 本地 PlayMode 明确方法名单 17/17：Artifacts/20261107T144441Z-15c7f4-test-playmode；Relay 云用例未执行。
+- 原 Host/Client 双进程探针全部通过：Artifacts/20261107T144548Z-a5f553-multiplayer。
+- Linux x86_64 Dedicated Server 构建通过：Artifacts/20261107T144555Z-388ad8-build-server；Builds/LinuxServer/20261107T144555Z-388ad8/NatureCalls。Unity 自动添加官方 Linux SDK/交叉编译工具链 1.1.1，保留包锁；现有运行时版本未更改。
+- 仓库检查与 Python 21/21 通过。
+- SSH 只用指定密钥；预检日志 Artifacts/deploy/preflight.log，主机记录写在该目录，未修改本机 SSH 配置。x86_64、UDP 8000 空闲、约 3.1 GB 可用内存；没有已有 NatureCalls 单元。尚未部署。
+
+Semantic-Diff: none（相对于第一步 125d0be）。本步实现纯服务器运行与运维工具，不增改游戏规则。

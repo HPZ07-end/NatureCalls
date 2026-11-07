@@ -113,6 +113,15 @@ namespace NatureCalls.Network
             for (int index = 0; index < Members.Count; index++)
                 if (Members[index].ClientId == clientId) { Members.RemoveAt(index); break; }
             loaded.Remove(clientId);
+            if (Members.Count == 0)
+            {
+                if (Phase.Value == LobbyPhase.InGame) EndRound("");
+                else Phase.Value = LobbyPhase.Waiting;
+                loaded.Clear();
+                serverLoaded = false;
+                spawnedPlayers = false;
+                return;
+            }
             if (Phase.Value == LobbyPhase.SelectingMap && Members.Count < LobbyRules.MinPlayers) Phase.Value = LobbyPhase.Waiting;
             else if (Phase.Value == LobbyPhase.InGame) TrySpawnPlayers();
         }

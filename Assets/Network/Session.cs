@@ -19,6 +19,17 @@ namespace NatureCalls.Network
     {
         /// <summary>The persistent Session; a scene's own Network object yields to one carried over from the Lobby.</summary>
         public static Session Instance { get; private set; }
+        public static bool Dedicated
+        {
+            get
+            {
+#if UNITY_SERVER
+                return true;
+#else
+                return Environment.GetCommandLineArgs().Contains("-server");
+#endif
+            }
+        }
         public static bool CloudLinked => Guid.TryParse(Application.cloudProjectId, out _);
 
         public NetworkManager Manager;
@@ -57,6 +68,53 @@ namespace NatureCalls.Network
             Manager.OnClientStopped += Stopped;
             Manager.OnTransportFailure += TransportFailed;
         }
+        private void Start()
+        {
+            if (!Dedicated || destroyed) return;
+            Application.targetFrameRate = 30;
+            QualitySettings.vSyncCount = 0;
+            var args = Environment.GetCommandLineArgs();
+            int index = Array.IndexOf(args, "-port");
+            Port = 8000;
+            if (index >= 0 && (index + 1 >= args.Length || !ushort.TryParse(args[index + 1], out Port) || Port == 0))
+            {
+                Debug.LogError("SERVER_INVALID_PORT");
+                Application.Quit(1);
+                return;
+            }
+            if (!StartServer()) { Debug.LogError(Status); Application.Quit(1); }
+        }
+
+        public bool StartServer()
+        {
+            if (Busy || Active) return false;
+            LobbyMode = true;
+            slots.Clear();
+            Transport.UseWebSockets = false;
+            UsingWebSockets = false;
+            Transport.SetConnectionData("127.0.0.1", Port, "0.0.0.0");
+            bool started = Manager.StartServer();
+            Status = started ? $"Server listening on UDP {Port}." : "Server transport could not start.";
+            Debug.Log(Status);
+            return started;
+        }
+
+        /// <summary>Literal IP, IP:port, or [IPv6]:port; no DNS or Cloud lookup.</summary>
+        public static bool TryAddress(string value, ushort defaultPort, out string address, out ushort port)
+        {
+            address = "";
+            port = defaultPort;
+            value = value?.Trim() ?? "";
+            if (!value.Contains("]:") && System.Net.IPAddress.TryParse(value, out var ip)) { address = ip.ToString(); return port != 0; }
+            int split = value.LastIndexOf(':');
+            if (split <= 0 || !ushort.TryParse(value.Substring(split + 1), out port) || port == 0) return false;
+            var host = value.Substring(0, split);
+            if (host.StartsWith("[") && host.EndsWith("]")) host = host.Substring(1, host.Length - 2);
+            if (!System.Net.IPAddress.TryParse(host, out ip)) return false;
+            address = ip.ToString();
+            return true;
+        }
+
         private void OnDestroy()
         {
             if (Instance != this) return;
@@ -126,7 +184,7 @@ namespace NatureCalls.Network
             Status = "Disconnected. You can restart practice or join again.";
             if (session != null) _ = LeaveAsync();
             else LobbyMode = false;
-            if (Match.Mode == MatchMode.Networked) Match.ReturnToDressingRoom(wasHost ? "" : "与房主的连接已断开。");
+            if (Match.Mode == MatchMode.Networked) Match.ReturnToDressingRoom(wasHost ? "" : "与服务器的连接已断开。");
         }
         private void TransportFailed() { Status = "Transport failed. Check the address, firewall and host."; PlayerInput.Unlock(); }
         private void Removed() { session = null; Status = "Session closed or player removed."; PlayerInput.Unlock(); }
@@ -259,7 +317,10 @@ namespace NatureCalls.Network
                 slots.Clear();
                 Transport.UseWebSockets = false; // LAN rooms use plain UDP.
                 UsingWebSockets = false;
-                Transport.SetConnectionData(address.Trim(), Port, host ? "0.0.0.0" : null);
+                if (!TryAddress(address, Port, out var ip, out var port))
+                    throw new ArgumentException("Enter an IP address with an optional port (1–65535).");
+                Port = port;
+                Transport.SetConnectionData(ip, Port, host ? "0.0.0.0" : null);
                 Status = host ? "Local test Host (no Relay)." : "Connecting to local test Host...";
                 bool started = host ? Manager.StartHost() : Manager.StartClient();
                 if (!started) Status = "Local transport could not start. Check address and port.";

@@ -193,6 +193,25 @@ namespace NatureCalls.Editor
             WriteReceipt("build");
         }
 
+        public static void BuildServer()
+        {
+            Validate();
+            var output = System.Environment.GetEnvironmentVariable("NATURECALLS_BUILD_PATH");
+            if (string.IsNullOrEmpty(output)) throw new InvalidOperationException("Use scripts/unity.py build-server.");
+            Directory.CreateDirectory(Path.GetDirectoryName(output));
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray(),
+                locationPathName = output,
+                target = BuildTarget.StandaloneLinux64,
+                subtarget = (int)StandaloneBuildSubtarget.Server,
+                options = BuildOptions.Development
+            });
+            Debug.Log($"NatureCalls server build: {report.summary.result}; errors={report.summary.totalErrors}; bytes={report.summary.totalSize}");
+            if (report.summary.result != BuildResult.Succeeded) throw new InvalidOperationException("Linux server build failed.");
+            WriteReceipt("build");
+        }
+
         private static void WriteReceipt(string action)
         {
             var directory = System.Environment.GetEnvironmentVariable("NATURECALLS_RUN_PATH");

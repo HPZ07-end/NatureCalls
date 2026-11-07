@@ -1,0 +1,24 @@
+[Unit]
+Description=NatureCalls UDP room %i
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/naturecalls/current
+ExecStart=/opt/naturecalls/current/NatureCalls -batchmode -nographics -server -port %i -logFile -
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+MemoryMax=1G
+CPUQuota=100%
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

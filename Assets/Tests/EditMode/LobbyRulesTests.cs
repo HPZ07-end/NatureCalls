@@ -6,6 +6,21 @@ namespace NatureCalls.Tests
 {
     public sealed class LobbyRulesTests
     {
+        [TestCase("127.0.0.1:8000", true, "127.0.0.1", 8000)]
+        [TestCase("127.0.0.1", true, "127.0.0.1", 7777)]
+        [TestCase("[::1]:8001", true, "::1", 8001)]
+        [TestCase("49.233.132.244:0", false, "", 0)]
+        [TestCase("49.233.132.244:65536", false, "", 0)]
+        [TestCase("49.233.132.244:bad", false, "", 0)]
+        [TestCase("invalid:8000", false, "", 0)]
+        public void DirectAddressValidatesPort(string value, bool valid, string expected, int expectedPort)
+        {
+            Assert.That(Network.Session.TryAddress(value, 7777, out var address, out var port), Is.EqualTo(valid));
+            if (!valid) return;
+            Assert.That(address, Is.EqualTo(expected));
+            Assert.That(port, Is.EqualTo(expectedPort));
+        }
+
         [Test]
         public void RoomStartsWithTwoToFourPlayersWhenEveryGuestIsReady()
         {

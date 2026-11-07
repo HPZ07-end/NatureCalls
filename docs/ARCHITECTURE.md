@@ -71,7 +71,7 @@
 
 M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 协调，地图中没有场景内 NetworkObject；以后需要场景内网络对象时再评估启用。没有 Host 迁移；对局中与房主断开的客户端回到准备房并看到原因。
 
-### 网络拓扑与专用服务器方案（2026-11-07 实施中）
+### 网络拓扑与专用服务器方案（2026-11-07）
 
 当前支持 **房主模式（listen server）+ Relay**；2026-11-07 用户已授权增加同代码的 UDP 专用服务器路径。规则类状态（计时、急迫值/恶心值、判负、门与马桶占用）继续由房主判定；玩家正在操作的物理物体可以临时归操作者所有（见 PLAYGROUND「卷纸」）。
 
@@ -106,3 +106,5 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 阅读一次 C 键切换：从 `Assets/Input/PlayerInput.cs` 的 Update 进入 `Posture.Toggle`，Changed 通知让 Movement 更新身体/碰撞体，CameraController 更新两台 Cinemachine 镜头的优先级；NGO Avatar 在联机时发布拥有者的姿态状态。镜头距离、目标高度、俯角和横向偏移在场景 Local camera 的 Inspector 调整，默认正后方居中。IDE 打开与跳转步骤见 [开发指南](DEVELOPMENT.md)。
 
 2026-11-07 技术名称：新增 `Facilities` 作为每张地图的服务器状态对象，保留 `FacilitySync` 作为玩家请求入口；移除 `FindHost` 与房主玩家存储依赖，`IsHostPlayer` / `FromHost` / `ReadyGuests` 改为 `IsLeader` / `FromLeader` / `ReadyMembers`。回合结束先清理玩家，再销毁 Facilities；每局重新生成。
+
+纯服务器入口：`Session.Dedicated` 识别 `UNITY_SERVER` 或 `-server`，`Session.StartServer` 使用 UDP，默认 8000，`-port` 覆盖；房间为空时仍保持监听并重置为 Waiting。服务器加载 DressingRoom 时仅创建持久 Session，跳过 UI、离线玩家、摄像机和镜面运行时贴图，限制 30 FPS。`LobbyController` 接受 IP:端口，Relay Join Code 路径保持不变。Linux 构建和 systemd 运维命令见 DEVELOPMENT；实际验证与部署状态见 DEVELOPMENT_STATUS。

@@ -42,6 +42,7 @@ namespace NatureCalls.UI
 
         private void Awake()
         {
+            if (Session.Dedicated) { EnsureSession(); gameObject.SetActive(false); return; }
             view = GetComponent<LobbyView>();
             view.OutfitOptionTemplate.gameObject.SetActive(false);
             view.MapOptionTemplate.gameObject.SetActive(false);
@@ -157,9 +158,10 @@ namespace NatureCalls.UI
         {
             if (InRoom || Busy) return;
             var code = view.CodeInput.text.Trim();
-            if (string.IsNullOrEmpty(code)) { message = "请输入房间号（局域网房间为房主地址）。"; return; }
-            var isAddress = IPAddress.TryParse(code, out _);
-            if (!isAddress && !Session.CloudLinked) { message = "未关联 Unity Cloud：请输入房主的局域网地址。"; return; }
+            if (string.IsNullOrEmpty(code)) { message = "请输入房间号或 IP:端口。"; return; }
+            var isAddress = Session.TryAddress(code, 7777, out _, out _);
+            if (!isAddress && (code.Contains(":") || code.Contains("."))) { message = "地址无效，请输入 IP:端口（1–65535）。"; return; }
+            if (!isAddress && !Session.CloudLinked) { message = "未关联 Unity Cloud：请输入服务器 IP:端口。"; return; }
             var session = EnsureSession();
             session.LobbyMode = true;
             awaitingConnection = true;
@@ -240,7 +242,7 @@ namespace NatureCalls.UI
 
         private void RefreshRoom(LobbyRoom room, Session session)
         {
-            view.RoomCode.text = "房间号：" + (session.IsRelay ? session.JoinCode : LanRoomCode());
+            view.RoomCode.text = "房间号：" + (session.IsRelay ? session.JoinCode : session.Manager.IsHost ? LanRoomCode() : session.Transport.ConnectionData.Address + ":" + session.Port);
             var catalog = LocalCatalog;
             for (int slot = 0; slot < view.Slots.Length; slot++)
             {
