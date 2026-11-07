@@ -29,15 +29,15 @@
 - `Player/Movement`：CharacterController、角色朝向、俯仰、姿态下的身体与碰撞体调整。
 - `Input/PlayerInput`：Input System 将本地键鼠转化为移动、跳跃、观察、姿态与交互调用。
 - `Camera/CameraController`：唯一实际 Camera + CinemachineBrain，两个 CinemachineCamera 的优先级和 Blend；仅绑定本地角色。
-- `Player/PlayerNeeds`：急迫值与恶心值。规则在 Core `NeedsRules`：急迫值上限 100、从 0 涨满 60 秒、开局初值随机 0–40、如厕中不涨、一次如厕结束后清零；隔间外如厕 +10 恶心值；任一项到阈值（100）全队失败。离线由 Playground 驱动，联机由房主驱动并经 Avatar 的 `SharedUrgency`/`SharedDisgust` 同步；地图 HUD 的 `NeedsView` 显示本地玩家的两项数值。黑色小球由 `Playground.Drop` 生成，联机时位置经房主 Avatar 的 `SharedDroppings` 同步。
-- `Facility/Toilet`：姿态 Anchor、内部可见目标与占用（同一时间一人，站起释放；联机时由房主判定并经房主 Avatar 的 `SharedToilets` 同步）；`SeatPose` 为以后的如厕准度机制留出位置。没有冲水状态。使用哪个马桶由 `StallDoor.Containing`（隔间门后方且在隔间范围内）决定。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
+- `Player/PlayerNeeds`：急迫值与恶心值。规则在 Core `NeedsRules`：急迫值上限 100、从 0 涨满 60 秒、开局初值随机 0–40、如厕中不涨、一次如厕结束后清零；隔间外如厕 +10 恶心值；任一项到阈值（100）全队失败。离线由 Playground 驱动，联机由房主驱动并经 `NeedsSync` 的 `SharedUrgency`/`SharedDisgust` 同步；地图 HUD 的 `NeedsView` 显示本地玩家的两项数值。黑色小球由 `Playground.Drop` 从对象池取出，联机时位置经房主玩家 `FacilitySync` 的 `SharedDroppings` 同步。
+- `Facility/Toilet`：姿态 Anchor、内部可见目标与占用（同一时间一人，站起释放；联机时由房主判定并经房主玩家 `FacilitySync` 的 `SharedToilets` 同步）；`SeatPose` 为以后的如厕准度机制留出位置。没有冲水状态。使用哪个马桶由 `StallDoor.Containing`（隔间门后方且在隔间范围内）决定。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
 - `Map/Playground` 出生点：`Spawns[i]` 对应房间槽位 i（房主为 Spawn 1）。由 `python3 scripts/unity.py spawn-points`（菜单 `NatureCalls/Place Playground Spawn Points`）以 Spawn 1 为起点在场景中实测放置：脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 之间无遮挡，间距至少 1.2m。修改房间布局后重新运行。
 - `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
 - `Facility/PlanarMirror`：为每个 WC 镜面实例创建独立运行时 RenderTexture；第一人称主摄像机隐藏本地身体时，镜面摄像机仍可渲染本地 Brown 角色。
 - `Facility/PaperRoll`：检测附近玩家并记录拾取者；拾取后随玩家保留并关闭场景渲染与碰撞，R 丢掷后恢复渲染、碰撞及 Rigidbody 运动。联机时由丢掷者本机模拟飞行，其他端经房主转发收到位姿后用 `FollowShared` 平滑跟随，落地后用 `ApplySharedRest` 放到最终位置（见 ARCHITECTURE「网络模型」）。
 - `Network/Session`：官方 MPS Session + Relay 的创建/加入/离开、匿名认证与错误状态；无需云端的 NGO 直连；Lobby 模式下只分配槽位并生成 LobbyRoom。跨场景保留，场景自带的重复对象自毁。
 - `Network/LobbyRoom`：房间成员、准备、外观与阶段（等待/选图/对局），地图加载完成后统一生成玩家。
-- `Network/Avatar`：Owner 本地控制、NetworkTransform、姿态 NetworkVariable、出生颜色、外观编号与镜头绑定生命周期。
+- `Network/Avatar`：Owner 本地控制、姿态 NetworkVariable 与镜头绑定生命周期；`Network/AvatarAppearance`：出生颜色与外观编号；`Network/NeedsSync`：急迫值与恶心值同步；`Network/FacilitySync`：门、卷纸、马桶占用与黑色小球的共享状态和请求。
 - `Map/Playground`：原型资源引用、4 个出生位置与离线练习（联机对局时不生成离线玩家）。
 - `Map/MapCatalog`、`Map/Match`：可选地图与本局模式、场景切换。
 - `UI/MatchExit`：地图左上角「退出」按钮（`Assets/UI/MatchHud.prefab`），联机时先离开房间再回到准备房。

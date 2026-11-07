@@ -96,7 +96,7 @@ namespace NatureCalls.Tests
             while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
             var playerObject = session.Manager.LocalClient.PlayerObject;
             Assert.That(playerObject, Is.Not.Null);
-            var avatar = playerObject.GetComponent<NatureCalls.Network.Avatar>();
+            var avatar = playerObject.GetComponent<NatureCalls.Network.FacilitySync>();
             var player = playerObject.GetComponent<Movement>();
             var controller = playerObject.GetComponent<CharacterController>();
             var doors = Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None);
@@ -324,6 +324,13 @@ namespace NatureCalls.Tests
             Assert.That(needs.Urgency, Is.LessThan(.5f), "Finishing a toileting clears Urgency.");
             Assert.That(needs.Disgust, Is.EqualTo(NatureCalls.Core.NeedsRules.OutsideStallDisgust));
             Assert.That(world.DroppingCount, Is.EqualTo(1), "A black ball is left where the player toileted.");
+            // Droppings come from an object pool: a removed ball is reused rather than recreated.
+            var first = world.GetComponentsInChildren<Transform>(true).First(item => item.name == "Dropping").gameObject;
+            world.RemoveDropping(0);
+            Assert.That(first.activeSelf, Is.False, "A removed dropping returns to the pool.");
+            world.Drop(player.transform.position);
+            Assert.That(first.activeSelf, Is.True, "The pooled dropping is reused.");
+            Assert.That(world.GetComponentsInChildren<Transform>(true).Count(item => item.name == "Dropping"), Is.EqualTo(1));
 
             // In a stall: Urgency clears, no Disgust and no dropping.
             var toilet = FindToilet();
@@ -360,7 +367,7 @@ namespace NatureCalls.Tests
             Assert.That(session.StartDirect(true), Is.True);
             float deadline = Time.time + 5;
             while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
-            var avatar = session.Manager.LocalClient.PlayerObject.GetComponent<NatureCalls.Network.Avatar>();
+            var avatar = session.Manager.LocalClient.PlayerObject.GetComponent<NatureCalls.Network.FacilitySync>();
             var player = avatar.GetComponent<Movement>();
             var toilet = FindToilet();
             player.GetComponent<NatureCalls.Input.PlayerInput>().enabled = true;

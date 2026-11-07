@@ -111,3 +111,10 @@
 - 目的：在屏蔽 UDP 的网络里仍能使用 Relay。WSS 仍是 Unity Cloud 的 Relay 服务，只是连接协议不同，不是脱离 Unity Cloud 的联机方式。
 - 改动：`Session.ConnectRelayAsync` 先用默认协议，失败后自动改用 WSS 重试一次，成功后记住（PlayerPrefs `NatureCalls.RelayWebSockets`）；启动参数 `-relay-wss` 强制使用 WSS；协议通过 MPS 的 `WithNetworkOptions` 设置，并同时打开 `UnityTransport.UseWebSockets`；局域网直连固定为 UDP。
 - 结果：EditMode 13/13；默认 PlayMode 16 通过、1 项 Ignored（`Artifacts/20261105T035657Z-0b053b-test-playmode/`）。设置 `NATURECALLS_RELAY_TESTS=1` 后 17/17 通过，真实 Relay 以 WSS 建房并取得 Join Code（`Artifacts/20261105T035758Z-eec05b-test-playmode/`）。同样设置下的前一次运行里，`StandingVisualTouchesTheFloor` 失败过一次（站立模型低于地面 0.083 m，`Artifacts/20261105T035540Z-7d001b-test-playmode/`），重跑没有复现，原因未查明。两台机器经 WSS 联机、以及 UDP 被屏蔽时自动切换都未验证。
+
+## 2026-11-07 按评分标准整理代码结构
+
+- `Network/Avatar` 拆为四个组件，行为不变：`Avatar`（所有权、控制、镜头、姿态同步）、`AvatarAppearance`（身份颜色与外观编号）、`NeedsSync`（急迫值/恶心值同步与如厕结束上报）、`FacilitySync`（门、卷纸、马桶占用、黑色小球的共享状态与请求）。`match-flow` 为 `Player.prefab` 添加新组件，并从 `DressingRoomPlayer` 变体中移除。拆分过程中 NGO 曾把 DressingRoomPlayer 自动登记进 `DefaultNetworkPrefabs.asset`，导致 EditMode 资源检查失败；已恢复该文件，重新运行 `match-flow` 后不再出现。
+- 黑色小球改用 `UnityEngine.Pool.ObjectPool`，`Playground.RemoveDropping` 回收，再次出现时复用。
+- ARCHITECTURE 新增「分层（MVC）」与「设计模式」两节；IMPLEMENTATION 增加分层与"判定以 IsServer 为准"的规则。专用服务器改造由 Codex 在 `feat/dedicated-server` 上继续，设施同步迁移只需改 `FacilitySync`。
+- 结果：EditMode 13/13（`Artifacts/20261107T125105Z-4318f3-test-editmode/`），PlayMode 16 通过 + 1 Ignored（`Artifacts/20261107T125317Z-17f522-test-playmode/`），本机双进程探针两端通过（`Builds/macOS/20261107T125122Z-6c477d/`）。

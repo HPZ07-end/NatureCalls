@@ -5,7 +5,7 @@ using NatureCalls.Core;
 using NatureCalls.Player;
 using NatureCalls.Facility;
 using NatureCalls.Map;
-using Avatar = NatureCalls.Network.Avatar;
+using NatureCalls.Network;
 
 namespace NatureCalls.Input
 {
@@ -15,7 +15,8 @@ namespace NatureCalls.Input
         private InputAction move, look, jump, toggle, interact, throwRoll, release;
         private Movement movement;
         private Posture posture;
-        private Avatar avatar;
+        private FacilitySync facilities;
+        private NeedsSync needsSync;
         private PlayerNeeds needs;
         // A press of C toilets for a fixed time. Pending until the squat begins (online the host grants the seat).
         private float toiletingRequested = -1;
@@ -27,7 +28,8 @@ namespace NatureCalls.Input
         {
             movement = GetComponent<Movement>();
             posture = GetComponent<Posture>();
-            avatar = GetComponent<Avatar>();
+            facilities = GetComponent<FacilitySync>();
+            needsSync = GetComponent<NeedsSync>();
             needs = GetComponent<PlayerNeeds>();
             posture.Changed += PostureChanged;
             move = new InputAction("Move", InputActionType.Value);
@@ -93,7 +95,7 @@ namespace NatureCalls.Input
             toiletingRequested = Time.time;
             bool started;
             if (stall == null || stall.Toilet == null) { posture.Set(PostureState.Squatting); started = true; }
-            else started = avatar != null && avatar.IsSpawned ? avatar.RequestSeat(stall.Toilet) : stall.Toilet.Seat(movement);
+            else started = facilities != null && facilities.IsSpawned ? facilities.RequestSeat(stall.Toilet) : stall.Toilet.Seat(movement);
             if (!started) toiletingRequested = -1;
             Debug.Log($"TOILET_C|player={name}|stall={(stall != null ? stall.name : "none")}|occupied={(stall != null && stall.Toilet != null && stall.Toilet.IsOccupied)}|started={started}");
             return started;
@@ -106,7 +108,7 @@ namespace NatureCalls.Input
             bool insideStall = Toilet.SeatedOn(movement) != null;
             var position = movement.transform.position;
             StandUp();
-            if (avatar != null && avatar.IsSpawned) { avatar.ReportToileting(insideStall, position); return; }
+            if (needsSync != null && needsSync.IsSpawned) { needsSync.ReportToileting(insideStall, position); return; }
             if (needs != null) needs.CompleteToileting(insideStall);
             if (!insideStall && needs != null && needs.Ticking) FindFirstObjectByType<Playground>()?.Drop(position);
         }
@@ -116,7 +118,7 @@ namespace NatureCalls.Input
             var toilet = Toilet.SeatedOn(movement);
             posture.Set(PostureState.Standing);
             if (toilet == null) return;
-            if (avatar != null && avatar.IsSpawned) avatar.ReleaseSeat(toilet);
+            if (facilities != null && facilities.IsSpawned) facilities.ReleaseSeat(toilet);
             else toilet.Release(movement);
         }
 
@@ -144,8 +146,8 @@ namespace NatureCalls.Input
                 nearest = roll;
                 nearestDistance = distance;
             }
-            return nearest != null && (avatar != null && avatar.IsSpawned
-                ? avatar.RequestPickup(nearest) : nearest.Pickup(movement));
+            return nearest != null && (facilities != null && facilities.IsSpawned
+                ? facilities.RequestPickup(nearest) : nearest.Pickup(movement));
         }
 
         private bool TryInteractNearestStallDoor()
@@ -160,15 +162,15 @@ namespace NatureCalls.Input
                 nearest = door;
                 nearestDistance = distance;
             }
-            return nearest != null && (avatar != null && avatar.IsSpawned
-                ? avatar.RequestDoor(nearest) : nearest.Interact(movement));
+            return nearest != null && (facilities != null && facilities.IsSpawned
+                ? facilities.RequestDoor(nearest) : nearest.Interact(movement));
         }
 
         private bool TryThrowCarriedPaperRoll()
         {
             var carried = PaperRoll.FindCarriedBy(movement);
-            return carried != null && (avatar != null && avatar.IsSpawned
-                ? avatar.RequestThrow(carried, movement.transform.forward) : carried.Throw(movement, movement.transform.forward));
+            return carried != null && (facilities != null && facilities.IsSpawned
+                ? facilities.RequestThrow(carried, movement.transform.forward) : carried.Throw(movement, movement.transform.forward));
         }
     }
 }
