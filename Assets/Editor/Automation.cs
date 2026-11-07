@@ -137,6 +137,22 @@ namespace NatureCalls.Editor
             WriteReceipt("validate");
         }
 
+        public static void ValidatePlayer()
+        {
+            var target = Application.platform == RuntimePlatform.OSXEditor ? BuildTarget.StandaloneOSX
+                : Application.platform == RuntimePlatform.WindowsEditor ? BuildTarget.StandaloneWindows64
+                : BuildTarget.StandaloneLinux64;
+            if (EditorUserBuildSettings.activeBuildTarget != target ||
+                EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
+                throw new InvalidOperationException("Editor must use the native desktop Player target.");
+#if UNITY_SERVER
+            throw new InvalidOperationException("Editor still compiled with UNITY_SERVER.");
+#else
+            Debug.Log($"NatureCalls Editor restored: {target}, Player; UNITY_SERVER disabled.");
+            Validate();
+#endif
+        }
+
         public static void BuildMac()
         {
 #if UNITY_STANDALONE_OSX

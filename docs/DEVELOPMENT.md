@@ -92,7 +92,7 @@ Unity Editor 用于查看 Scene、Prefab、Inspector 引用及 Play Mode；VS Co
 
 ## Linux 专用服务器
 
-安装与 ProjectVersion 一致的 Linux Build Support 和 Linux Dedicated Server Build Support 后，关闭同工程 GUI，运行 `python3 scripts/unity.py build-server --timeout 3600`。输出为 `Builds/LinuxServer/<build-id>/NatureCalls`（Linux x86_64 Dedicated Server Development Player）；日志及 BuildReport 回执在对应 Artifacts 目录。客户端与服务器应从同一提交构建。当前保留 Development 探针，仅显式 `-server-probe` 会启动自动操作。
+安装与 ProjectVersion 一致的 Linux Build Support 和 Linux Dedicated Server Build Support 后，关闭同工程 GUI，运行 `python3 scripts/unity.py build-server --timeout 3600`。输出为 `Builds/LinuxServer/<build-id>/NatureCalls`（Linux x86_64 Dedicated Server Development Player）；日志及 BuildReport 回执在对应 Artifacts 目录。命令退出前会恢复本机桌面 Player 目标并验证 `UNITY_SERVER` 已关闭，恢复日志在同目录 `restore/`；恢复失败时整条命令失败，详见 [测试说明](TESTING.md#构建目标隔离2026-11-08)。客户端与服务器应从同一提交构建。当前保留 Development 探针，仅显式 `-server-probe` 会启动自动操作。
 
 服务器运行参数：`./NatureCalls -batchmode -nographics -server -port 8000 -logFile -`。Dedicated Server 构建默认启用服务器模式；普通桌面构建也可用 `-server` 在本机测试同一路径。端口默认 8000，非法/零端口拒绝启动；绑定所有网卡 UDP，30 FPS，不生成本地练习玩家、屏幕镜头或镜面运行时 RenderTexture。空房回到 Waiting，可再次加入；没有 Cloud 登录或 Relay 依赖。客户端在大厅输入 `49.233.132.244:8000`，裸 IP 保留默认 UDP 7777；IPv6 可写 `[地址]:端口`。Relay Join Code 路径保留，专用服务器不使用 WebSocket。
 
