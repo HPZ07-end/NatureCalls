@@ -68,9 +68,44 @@ def project_lock():
 def check_results(path):
     root = ET.parse(path).getroot()
     cases = list(root.iter("test-case"))
-    if not cases or root.get("result") != "Passed" or any(case.get("result") != "Passed" for case in cases):
-        raise RuntimeError("Tests failed, skipped, or no tests ran; inspect results.xml.")
-    return {"total": len(cases), "passed": len(cases)}
+    def ignored(node):
+        return node.get("result") == "Skipped" and node.get("label") == "Ignored"
+    passed = sum(case.get("result") == "Passed" for case in cases)
+    # Unity propagates Ignored to suites and reports Passed or Skipped:Ignored at the root.
+    nodes = [root, *root.iter("test-suite"), *cases]
+    if not passed or any(node.get("result") != "Passed" and not ignored(node)
+                         and not (node is root and node.get("result") == "Skipped:Ignored")
+                         for node in nodes):
+        raise RuntimeError("Tests failed, were inconclusive/unexpectedly skipped, or no tests passed; inspect results.xml.")
+    return {"total": len(cases), "passed": passed, "ignored": sum(ignored(case) for case in cases)}
+
+
+def player_target(platform=None):
+    return {"darwin": "osxuniversal", "win32": "Win64", "linux": "Linux64"}[
+        sys.platform if platform is None else platform]
+
+
+def restore_player(editor, directory, environment, timeout, summary):
+    """Use a fresh Editor process: batchmode cannot safely switch targets in executeMethod."""
+    directory.mkdir()
+    command = [str(editor), "-batchmode", "-quit", "-projectPath", str(ROOT),
+               "-buildTarget", player_target(), "-standaloneBuildSubtarget", "Player",
+               "-executeMethod", "NatureCalls.Editor.Automation.ValidatePlayer",
+               "-logFile", str(directory / "editor.log")]
+    if use_nographics():
+        command += ["-nographics"]
+    summary["restore"] = {"command": command, "status": "failed"}
+    if (ROOT / "Temp/UnityLockfile").exists():
+        raise RuntimeError("Server build left UnityLockfile; cannot safely restore Player. Inspect the build logs.")
+    print(f"Restoring desktop Player: {directory}", flush=True)
+    with (directory / "process.log").open("w") as output:
+        result = subprocess.run(command, env=dict(environment, NATURECALLS_RUN_PATH=str(directory)),
+                                cwd=ROOT, stdout=output, stderr=subprocess.STDOUT, timeout=timeout)
+    summary["restore"]["exit_code"] = result.returncode
+    receipt = directory / "validate.ok"
+    if result.returncode or not receipt.exists() or receipt.read_text().strip() != project_version():
+        raise RuntimeError("Desktop Player restoration failed; inspect restore/editor.log.")
+    summary["restore"]["status"] = "passed"
 
 
 def use_nographics(platform=None, environment=None):
@@ -90,9 +125,13 @@ def run(action, timeout, test_filter=None):
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
         directory = ROOT / "Artifacts" / f"{stamp}-{action}"
         directory.mkdir(parents=True)
-        build = (ROOT / "Builds/Windows" / stamp / "NatureCalls.exe" if action == "build-windows"
+        build = (ROOT / "Builds/LinuxServer" / stamp / "NatureCalls" if action == "build-server"
+                 else ROOT / "Builds/Windows" / stamp / "NatureCalls.exe" if action == "build-windows"
                  else ROOT / "Builds/macOS" / stamp / "NatureCalls.app")
         command = [str(editor), "-batchmode", "-projectPath", str(ROOT), "-logFile", str(directory / "editor.log")]
+        if action != "build-server":
+            target = {"build-macos": "osxuniversal", "build-windows": "Win64"}.get(action, player_target())
+            command += ["-buildTarget", target, "-standaloneBuildSubtarget", "Player"]
         if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities"):
             if use_nographics():
                 command += ["-nographics"]
@@ -106,9 +145,12 @@ def run(action, timeout, test_filter=None):
             command += ["-runTests", "-testPlatform", "EditMode" if action == "test-editmode" else "PlayMode",
                         "-testResults", str(directory / "results.xml")]
         elif action == "build-macos":
-            command += ["-quit", "-buildTarget", "osxuniversal", "-executeMethod", "NatureCalls.Editor.Automation.BuildMac"]
+            command += ["-quit", "-executeMethod", "NatureCalls.Editor.Automation.BuildMac"]
         elif action == "build-windows":
-            command += ["-quit", "-buildTarget", "Win64", "-executeMethod", "NatureCalls.Editor.Automation.BuildWindows"]
+            command += ["-quit", "-executeMethod", "NatureCalls.Editor.Automation.BuildWindows"]
+        elif action == "build-server":
+            command += ["-quit", "-nographics", "-buildTarget", "Linux64", "-standaloneBuildSubtarget", "Server",
+                        "-executeMethod", "NatureCalls.Editor.Automation.BuildServer"]
         if test_filter:
             if not action.startswith("test-"):
                 raise ValueError("--test-filter requires a test action.")
@@ -118,9 +160,14 @@ def run(action, timeout, test_filter=None):
                    "command": command, "status": "failed"}
         print(f"Logs and results: {directory}", flush=True)
         try:
-            with (directory / "process.log").open("w") as output:
-                result = subprocess.run(command, env=environment, cwd=ROOT, stdout=output,
-                                        stderr=subprocess.STDOUT, timeout=timeout)
+            try:
+                with (directory / "process.log").open("w") as output:
+                    result = subprocess.run(command, env=environment, cwd=ROOT, stdout=output,
+                                            stderr=subprocess.STDOUT, timeout=timeout)
+                summary["exit_code"] = result.returncode
+            finally:
+                if action == "build-server":
+                    restore_player(editor, directory / "restore", environment, timeout, summary)
             summary["exit_code"] = result.returncode
             if result.returncode:
                 raise RuntimeError(f"Unity exited {result.returncode}; inspect editor.log and process.log.")
@@ -134,9 +181,9 @@ def run(action, timeout, test_filter=None):
                 if not (build / "Contents/Info.plist").is_file() or not (build / "Contents/MacOS").is_dir():
                     raise RuntimeError("Build report succeeded but app bundle is incomplete.")
                 summary["build"] = str(build)
-            elif action == "build-windows":
+            elif action in ("build-windows", "build-server"):
                 if not build.is_file() or not build.with_name("NatureCalls_Data").is_dir():
-                    raise RuntimeError("Build report succeeded but Windows Player is incomplete.")
+                    raise RuntimeError("Build report succeeded but Player is incomplete.")
                 summary["build"] = str(build)
             summary["status"] = "passed"
         except Exception as error:
@@ -149,7 +196,7 @@ def run(action, timeout, test_filter=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities", "test-editmode", "test-playmode", "build-macos", "build-windows"])
+    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities", "test-editmode", "test-playmode", "build-macos", "build-windows", "build-server"])
     parser.add_argument("--timeout", type=int, default=1800, help="Editor timeout in seconds (default 1800)")
     parser.add_argument("--test-filter", help="Explicit Unity test name/regex filter; recorded in summary.json")
     arguments = parser.parse_args()

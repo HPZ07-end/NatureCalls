@@ -134,3 +134,57 @@
 - 仓库检查通过，Python 单测 21/21；Windows/跨设备/Relay 未执行。
 
 Semantic-Diff: changed。落实已批准的 NatureCalls/Gameplay/UI/Lobby 与 NatureCalls/Content/Map/MapSelection 领队规则；没有增加其他语义。设施列表从玩家 FacilitySync 移到服务器 Facilities，玩家 RPC 保留；旧 FindHost 依赖移除。
+
+
+## 2026-11-07 纯服务器入口与构建
+
+第一步提交 125d0be，PR #18；第二步代码继续在 feat/dedicated-server。再次 fetch 后 origin/dev 仍为 8aaf363，Glossary 无新增差异。
+
+- `validate` 通过：Artifacts/20261107T143907Z-684416-validate。
+- 新 ServerProbe 最初编译失败（NetworkList 不提供 LINQ Any）：Artifacts/20261107T144059Z-c68bf2-test-editmode，已改索引遍历。该次异常退出留下 UnityLockfile，下一次命令被锁拒绝；确认没有 Unity Editor/Player、lsof 无持有者后，按本次用户异常退出恢复授权删除本目录锁，未结束其他进程。
+- 地址用例首次 19/20（Mono 对带端口括号 IPv6 的 TryParse 忽略端口）：Artifacts/20261107T144158Z-a3a872-test-editmode；修正解析顺序后 EditMode 20/20：Artifacts/20261107T144232Z-234dfb-test-editmode。
+- macOS 构建通过：Artifacts/20261107T144301Z-68693c-build-macos；Builds/macOS/20261107T144301Z-68693c/NatureCalls.app。
+- 三进程服务器探针各端适用断言通过：Artifacts/20261107T144354Z-3002f5-server；服务器报告六项均 true。首位玩家退出后不再承担接任/返回/空房断言，这些由后续玩家与服务器核验。
+- 本地 PlayMode 明确方法名单 17/17：Artifacts/20261107T144441Z-15c7f4-test-playmode；Relay 云用例未执行。
+- 原 Host/Client 双进程探针全部通过：Artifacts/20261107T144548Z-a5f553-multiplayer。
+- Linux x86_64 Dedicated Server 构建通过：Artifacts/20261107T144555Z-388ad8-build-server；Builds/LinuxServer/20261107T144555Z-388ad8/NatureCalls。Unity 自动添加官方 Linux SDK/交叉编译工具链 1.1.1，保留包锁；现有运行时版本未更改。
+- 仓库检查与 Python 21/21 通过。
+- SSH 只用指定密钥；预检日志 Artifacts/deploy/preflight.log，主机记录写在该目录，未修改本机 SSH 配置。x86_64、UDP 8000 空闲、约 3.1 GB 可用内存；没有已有 NatureCalls 单元。尚未部署。
+
+Semantic-Diff: none（相对于第一步 125d0be）。本步实现纯服务器运行与运维工具，不增改游戏规则。
+
+
+## 2026-11-08 JST 课程服务器部署（日志 UTC 2026-11-07）
+
+实现提交 5b03702；PR #19 依赖 #18，暂以 feat/server-facilities 为 base，需人类先合并 #18 后改为 dev；两个 PR 均未合并。本条随后提交仅修改 systemd 配置和记录，不改变已验证的 Unity 代码与构建。
+
+- SSH 单连接上传持续偏慢，停止了本次创建且已核实 PID/命令的上传进程，未结束既有 SSH。改为 8 块并发 SSH，各块均校验成功；整包 SHA-256 为 `ebd72efe5474e11a10d5444f1a8cce71a596789ab14b84d0126601a4af7026e2`，本机与远端一致。Artifacts/deploy/upload.py、part-*.log、upload-complete.log 保存实际命令与结果。
+- 安装到 `/opt/naturecalls/releases/5b03702`，current 链接指向该版本；只安装本任务的 naturecalls@.service，启用 8000 一个房间。Artifacts/deploy/install.sh / install.log。tar 忽略 macOS provenance 扩展头并以 0 退出，systemd 初次启动成功。
+- 初次启动日志发现 Unity 原生 PlayerPrefs 自动创建了自己的用户目录。先停止本次创建的服务，给单元增加 `StateDirectory=naturecalls-%i`、对应 XDG_CONFIG_HOME 和 ProtectHome。仅 rmdir 清理失败（目录非空），随后把本次新生成的 NatureCalls 数据完整迁到 `/var/lib/naturecalls-8000/unity3d/DefaultCompany/NatureCalls` 并移除空的 DefaultCompany 目录，没有删除其内容或改动其它用户配置；再启动服务。失败与恢复分别记录于 Artifacts/deploy/isolate.log、isolate-recovery.log。
+- 最终核验：active/enabled，PID 1844231，NRestarts=0、ExecMainStatus=0、MemoryCurrent=122671104 bytes；`ss` 显示该 PID 监听 `0.0.0.0:8000/UDP`；新 PID 的日志有 `Server listening on UDP 8000.`、Null GfxDevice，没有再次创建用户配置目录。原 DefaultCompany 目录不存在的检查通过。Artifacts/deploy/verify-isolated.log；systemd-analyze verify 退出 0，仅报告系统既有其他单元的兼容性警告，未改动那些单元。
+- SSH、系统用户和防火墙配置未修改；没有安装额外软件。仅运行 1 个房间，8001/8002 未启动。应用持久目录由 systemd 管理，CPUQuota=100%、MemoryMax=1G。
+- 日志查询：`journalctl -u naturecalls@8000 -n 100 --no-pager`。客户端入口 `49.233.132.244:8000`；公网实际客户端联机未执行（本次联网授权仅包含 origin Git/PR 创建和部署 SSH），不能把监听成功写成公网验收通过。Windows、Relay、真人手感及负载测试未执行。
+
+Semantic-Diff: none。没有增加任何未批准游戏规则。
+
+
+## 2026-11-08 JST PR #19 构建目标隔离回归（日志 UTC 2026-11-07）
+
+任务起点 4197249875bba4fb3ff222b3085326042b518cb9，分支 feat/dedicated-server。fetch 后 origin/dev 为 8aaf363675668699de7c772085568f5f9a2d268b、origin/main 为 e43122a22c61623e57930c34932912bbcdca4a9a；完整重读 Glossary，保持分支已批准的 Lobby/MapSelection 语义。为遵守本次目录边界，同步阅读记录写在本工作区 Artifacts/target-isolation-sync.txt，不直接访问共享 Git 元数据目录。
+
+复核证据 Artifacts/20261107T150526Z-1f348b-test-playmode/results.xml 显示 Linux 构建后 17 项 SetUp 失败；此前 17/17 位于构建之前，不能覆盖此回归。修复只改 Editor/Python 自动化：build-server 的 finally 在同一项目锁内另起 Editor 恢复本机桌面 Player，验证目标/子目标和 UNITY_SERVER 已关闭；所有非服务器动作也显式选择 Player。选择独立启动是为了在 executeMethod 前完成目标切换与重编译。macOS/Windows 分别使用 osxuniversal/Win64。Ignored 单列，不算测试失败或测试通过；零通过、其他跳过、实际失败仍拒绝。
+
+以下按顺序真实运行，Unity 6000.3.26f1，macOS ARM64；运行时代码未改：
+
+- `python3 scripts/unity.py build-server`：退出 0，Linux Development 构建通过；Artifacts/20261107T154016Z-1f43eb-build-server。其 restore/validate.ok 与 restore/editor.log 确认 StandaloneOSX / Player / UNITY_SERVER disabled，恢复进程退出 0。Linux 产物 Builds/LinuxServer/20261107T154016Z-1f43eb/NatureCalls，未执行 Linux 二进制。
+- 紧接 `python3 scripts/unity.py test-playmode`，无过滤：退出 0，17 Passed + 1 Relay Ignored；Artifacts/20261107T154138Z-b76c53-test-playmode。
+- `python3 scripts/unity.py test-editmode`：退出 0，20/20；Artifacts/20261107T154247Z-2fed2e-test-editmode。
+- `python3 scripts/unity.py build-macos`：退出 0，ARM64 Development 构建通过；Artifacts/20261107T154304Z-cdc4a3-build-macos；产物 Builds/macOS/20261107T154304Z-cdc4a3/NatureCalls.app。
+- `python3 scripts/server.py Builds/macOS/20261107T154304Z-cdc4a3/NatureCalls.app`：退出 0，server/leader/follower 均 passed，各端适用断言通过；Artifacts/20261107T154338Z-3f5aa2-server。退出后的接任/返回/空房断言由 follower/server 核验，不要求已退出的 leader 报告这些字段为 true。
+- `python3 scripts/multiplayer.py Builds/macOS/20261107T154304Z-cdc4a3/NatureCalls.app`：退出 0，host/client 全部断言通过；Artifacts/20261107T154413Z-faf4de-multiplayer。
+- Python 单测 28/28（含构建失败仍恢复、恢复缺回执拒绝、残留锁保留、三平台目标与 Ignored/失败区分）：Artifacts/target-isolation-python-tests.log；仓库检查通过：Artifacts/target-isolation-check.log。脚本单测不冒充 Unity 实测。
+- Unity 自动补写的 Android 空图标默认值差异已存入 Artifacts/target-isolation-generated-settings.patch 后还原，未纳入提交。未删 UnityLockfile，未结束非本次启动的进程。
+- 完成前再次 fetch，origin/dev、origin/main 和远端任务分支未变化；Glossary 无新增公共差异。
+- 未执行：Windows Unity/Player、Linux 二进制运行、跨设备/公网 UDP、Relay 云用例、人工手感。未 SSH、未重新部署，运行时代码未修改；未合并 PR。
+
+Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称；无领域概念增加、重命名或删除。更新 TESTING、DEVELOPMENT、DEVELOPMENT_STATUS 与本记录。

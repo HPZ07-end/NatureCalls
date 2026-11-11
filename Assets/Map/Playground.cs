@@ -19,10 +19,19 @@ namespace NatureCalls.Map
         // A networked match spawns its players through the Lobby room instead.
         private readonly List<GameObject> droppings = new();
 
-        private void Awake() => droppingPool = CreateDroppingPool();
+        private void Awake()
+        {
+            droppingPool = CreateDroppingPool();
+            if (Network.Session.Dedicated)
+            {
+                foreach (var camera in FindObjectsByType<UnityEngine.Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None)) camera.enabled = false;
+                if (Camera != null) Camera.gameObject.SetActive(false);
+            }
+        }
 
         private void Start()
         {
+            if (Network.Session.Dedicated) return;
             if (StartOffline && Match.Mode != MatchMode.Networked) Practice();
             Match.StartOfflineRound();
             if (Match.Mode == MatchMode.Offline && OfflinePlayer != null)
@@ -81,6 +90,7 @@ namespace NatureCalls.Map
             defaultCapacity: 8);
         public void Practice()
         {
+            if (Network.Session.Dedicated) return;
             StopPractice();
             var instance = Instantiate(PlayerPrefab, Spawns[0].position, Spawns[0].rotation);
             instance.name = "Local practice player";

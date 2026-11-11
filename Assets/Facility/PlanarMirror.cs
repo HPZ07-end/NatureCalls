@@ -15,6 +15,12 @@ namespace NatureCalls.Facility
 
         private void Awake()
         {
+            if (Network.Session.Dedicated)
+            {
+                foreach (var camera in GetComponentsInChildren<UnityEngine.Camera>(true)) camera.enabled = false;
+                enabled = false;
+                return;
+            }
             if (ReflectionCamera == null)
                 ReflectionCamera = GetComponentInChildren<UnityEngine.Camera>(true);
             if (ReflectionCamera == null || ReflectionCamera.targetTexture == null) return;

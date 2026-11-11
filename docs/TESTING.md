@@ -20,7 +20,7 @@ python3 -m unittest discover -s scripts/tests -v
 
 `setup` 只用于显式初始化/修复配置，不是每人首次启动的必需步骤。`detect` 验证实际 Editor 路径与补丁版本；`validate` 导入、编译并调用 Editor 验证方法。可用 `--timeout 3600` 延长默认 1800 秒限制。
 
-每次 Editor 命令生成独立 `Artifacts/<UTC时间-标识-命令>/`，保存 `editor.log`、`process.log`、`summary.json`；测试生成 `results.xml`。必须检查进程退出、完成回执和非空 XML，发现的测试全部 Passed 才能通过。不能将缺失结果、零测试、跳过或许可失败当通过。PlayMode/构建使用图形设备，需要可用桌面环境；不要给测试额外加 `-quit` 造成提前退出。
+每次 Editor 命令生成独立 `Artifacts/<UTC时间-标识-命令>/`，保存 `editor.log`、`process.log`、`summary.json`；测试生成 `results.xml`。必须检查进程退出、完成回执和非空 XML，至少有一项 Passed，且其余用例仅允许明确标记 `Skipped` + `Ignored`；输出与 summary.json 分别列出 total/passed/ignored。Ignored 不算失败，也不算通过或已验收；缺失结果、零通过、Failed、Inconclusive、未标记 Ignored 的跳过、套件失败或许可失败仍判失败。PlayMode/构建使用图形设备，需要可用桌面环境；不要给测试额外加 `-quit` 造成提前退出。
 
 脚本发现 `Temp/UnityLockfile` 或 `Artifacts/unity.lock` 时拒绝运行；不自动删锁或强行退出 Editor。崩溃后由人确认进程退出与未保存内容后手工恢复。
 
@@ -76,4 +76,20 @@ Actions 的 `repository` 在 Linux/macOS/Windows 运行仓库检查与 Python �
 
 `python3 scripts/unity.py facilities` 通过 Unity API 生成/注册服务器拥有的 `Facilities.prefab`，并接线 Network Prefab 与 Playground。设施共享状态断言改读 `Facilities.Current`；玩家交互仍经 `FacilitySync`。新增 PlayMode 用例检查纯服务器不占房间成员名额、按进入顺序选领队、非领队服务器不能开始，以及继任者的准备状态不计入其他成员人数。此单进程用例不替代服务器与两个真实客户端的联机验收。
 
-可用 `--test-filter` 向 Unity 传入明确测试方法名（多个名字以分号分隔）；实际参数记入 summary.json。不要用能匹配父套件的正则排除单个测试。仅允许本地网络的运行应明确选择本地方法，单列 Relay 未执行；未筛选运行出现 Ignored 时仍由严格检查器判为失败。
+可用 `--test-filter` 向 Unity 传入明确测试方法名（多个名字以分号分隔）；实际参数记入 summary.json。不要用能匹配父套件的正则排除单个测试。默认不设置 `NATURECALLS_RELAY_TESTS` 时，未筛选运行会明确记录 Relay 用例为 Ignored，不连接 Relay；本地完整回归应不带过滤，预期 18 项中 17 Passed + 1 Ignored。只有单独授权的云验收才设置该变量。
+
+
+## 服务器与两客户端
+
+`python3 scripts/server.py Builds/macOS/<build-id>/NatureCalls.app` 启动三个自身拥有的进程：同代码无画面服务器、首位玩家和第二位玩家。使用 localhost UDP 随机端口，不调用 Unity Cloud。检查无服务器成员/本地玩家/镜头、30 FPS、首位领队、非领队开始请求被拒、准备后领队开始和选图、门/卷纸/马桶/黑色小球共享、领队退出后接任、计时结束返回房间、最后成员退出后服务器继续等待。JSON 与进程日志保存到独立 Artifacts 目录，任何端缺报告、退出码非零或断言失败均失败；仅结束脚本自己启动的进程。此验证不等于 Linux 二进制执行、公网 UDP 或真人手感验收。
+
+`python3 scripts/unity.py build-server` 构建 Linux x86_64 专用服务器，检查完成回执、进程退出和 Player/数据目录；不执行 Linux 二进制。部署前还需本机 EditMode、本地 PlayMode、既有 `multiplayer.py` 和 `server.py` 全部通过。Relay 云测试必须另行授权并执行，不可把筛选后的本地测试写成 Relay 通过。
+
+
+## 构建目标隔离（2026-11-08）
+
+所有非服务器 Editor 动作（包括 test、validate、setup 和桌面构建）启动时显式传入 `-standaloneBuildSubtarget Player`；普通动作按主机选择 macOS 的 `osxuniversal`、Windows 的 `Win64`（Linux 为 `Linux64`），桌面构建按其目标选择。无需组员手工切回 Build Profiles。
+
+`build-server` 仍用 Linux64/Server 编译。在其进程结束后，无论构建成功或失败，Python 的 finally 都在同一项目锁内用独立 Editor 进程恢复本机桌面 Player，并调用 `Automation.ValidatePlayer` 检查 activeBuildTarget、Player 子目标与 `UNITY_SERVER` 已关闭。恢复日志位于当次 Artifacts 的 `restore/`，完成回执为 `restore/validate.ok`，summary.json 记录恢复命令、退出码和状态；只有构建及恢复都成功才报告通过。使用独立进程是为了让启动时完成目标切换和重编译，避免在 batchmode executeMethod 中切换目标。恢复失败会报告失败；若崩溃残留 UnityLockfile，拒绝恢复且不删锁，按前述锁规则人工处理。强制终止 Python/断电不保证 finally 执行，下次非服务器命令仍会显式选择 Player。
+
+回归顺序：`build-server` → 无过滤 `test-playmode` → `test-editmode` → `build-macos`（Windows 为 `build-windows`）→ `server.py <当次构建>` → `multiplayer.py <同一构建>`。每一步读取自己的完成回执、XML/JSON 与退出码，不以构建前的测试结果代表构建后的验证。

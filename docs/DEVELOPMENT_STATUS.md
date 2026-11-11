@@ -1,6 +1,6 @@
 # 实际开发状态
 
-更新日期：2026-11-07。本文件只描述**当前**状态；逐次变更说明与验收细节见 [开发记录](records/status-log.md) 和 [M1 验收记录](records/m1-2026-10-20.md)。
+更新日期：2026-11-08（JST，测试日志使用 UTC）。本文件只描述**当前**状态；逐次变更说明与验收细节见 [开发记录](records/status-log.md) 和 [M1 验收记录](records/m1-2026-10-20.md)。
 
 | 类别 | 实际状态 |
 | --- | --- |
@@ -20,4 +20,7 @@
 - 玩家测试发现的跳跃越界问题（2026-11-03 记录，未修复）：跳上小便池可以跳出房间；跳上卷纸架可以跳进隔间或跳出房间；跳上马桶可以跳出隔间并卡在隔间顶部的杆子上。原因是墙体、隔板高度与 Space 跳跃高度不匹配，且房间没有顶部阻挡。
 Windows Unity、真实 LAN/Relay、签名/公证尚未验收；CI 的三个 OS 仅覆盖 Python/仓库检查。
 
-专用服务器改造第一步：地图 `Facilities` 由服务器生成并拥有，玩家 `FacilitySync` 仅负责请求校验；Lobby 使用已批准的领队规则与进入顺序接任，纯服务器不计入成员。已通过首次导入/编译和 EditMode 13/13；本地 PlayMode 17 项通过，默认运行含 1 项 Relay 跳过，严格运行器将其记为失败。以明确本地用例名单运行通过 17/17，macOS Development 构建及现有双进程探针均通过。纯服务器启动参数、Linux 构建与课程部署尚未实施。
+专用服务器改造第一步：地图 `Facilities` 由服务器生成并拥有，玩家 `FacilitySync` 仅负责请求校验；Lobby 使用已批准的领队规则与进入顺序接任，纯服务器不计入成员。已通过首次导入/编译和 EditMode 13/13；此前默认 PlayMode 17 项通过、1 项 Relay Ignored，被旧运行器判为失败；明确本地用例名单运行通过 17/17（均在 Linux 构建前，不能作为构建后回归证据）。macOS Development 构建及现有双进程探针均通过。纯服务器 `-server -port`、IP:端口加入、30 FPS/无画面跳过与 Linux 构建命令已实现。新三进程本机探针通过（Artifacts/20261107T144354Z-3002f5-server）；地址新增测试后 EditMode 20/20。此前原双进程探针及 Linux x86_64 Dedicated Server 构建已通过，但随后未过滤 PlayMode 出现 17 项 SetUp 失败（Artifacts/20261107T150526Z-1f348b-test-playmode）：Editor 持久停留在 Server 目标。课程服务器已部署 1 个房间：`naturecalls@8000` active/enabled，PID 1844231，`0.0.0.0:8000/UDP`，无失败重启，空房内存约 117 MiB（本次观察值）。二进制对应 5b03702，目录 `/opt/naturecalls/releases/5b03702`；应用状态隔离到 `/var/lib/naturecalls-8000`，ProtectHome 已启用。完整日志见 Artifacts/deploy/verify-isolated.log。公网 UDP 客户端连入、Windows/Relay 尚未验收；当次部署没有运行跨公网游戏连接；本次回归不登录或部署课程服务器。
+
+
+2026-11-08 JST PR #19 回归修复：服务器构建结束后在同一锁内恢复并验证本机桌面 Player，所有非服务器动作显式指定 Player；Ignored 单列而非失败。macOS ARM64 / Unity 6000.3.26f1 已按顺序真实通过 Linux build-server（含恢复验证）→ 无过滤 PlayMode 17 Passed + 1 Relay Ignored → EditMode 20/20 → build-macos → server.py 三进程 → multiplayer.py 双进程；详细 Artifacts 与命令见 [开发记录](records/status-log.md#2026-11-08-jst-pr-19-构建目标隔离回归日志-utc-2026-11-07)。Python 28/28，仓库检查通过。仅修改 Editor/Python 与文档，没有改运行时代码或重新部署；Windows Unity、Linux 二进制运行、Relay/公网/真人验收仍未执行。

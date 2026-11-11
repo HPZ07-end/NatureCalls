@@ -137,6 +137,22 @@ namespace NatureCalls.Editor
             WriteReceipt("validate");
         }
 
+        public static void ValidatePlayer()
+        {
+            var target = Application.platform == RuntimePlatform.OSXEditor ? BuildTarget.StandaloneOSX
+                : Application.platform == RuntimePlatform.WindowsEditor ? BuildTarget.StandaloneWindows64
+                : BuildTarget.StandaloneLinux64;
+            if (EditorUserBuildSettings.activeBuildTarget != target ||
+                EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
+                throw new InvalidOperationException("Editor must use the native desktop Player target.");
+#if UNITY_SERVER
+            throw new InvalidOperationException("Editor still compiled with UNITY_SERVER.");
+#else
+            Debug.Log($"NatureCalls Editor restored: {target}, Player; UNITY_SERVER disabled.");
+            Validate();
+#endif
+        }
+
         public static void BuildMac()
         {
 #if UNITY_STANDALONE_OSX
@@ -190,6 +206,25 @@ namespace NatureCalls.Editor
             Debug.Log($"NatureCalls build: {report.summary.result}; errors={report.summary.totalErrors}; bytes={report.summary.totalSize}");
             if (report.summary.result != BuildResult.Succeeded)
                 throw new InvalidOperationException("Windows build failed: " + report.summary.result);
+            WriteReceipt("build");
+        }
+
+        public static void BuildServer()
+        {
+            Validate();
+            var output = System.Environment.GetEnvironmentVariable("NATURECALLS_BUILD_PATH");
+            if (string.IsNullOrEmpty(output)) throw new InvalidOperationException("Use scripts/unity.py build-server.");
+            Directory.CreateDirectory(Path.GetDirectoryName(output));
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray(),
+                locationPathName = output,
+                target = BuildTarget.StandaloneLinux64,
+                subtarget = (int)StandaloneBuildSubtarget.Server,
+                options = BuildOptions.Development
+            });
+            Debug.Log($"NatureCalls server build: {report.summary.result}; errors={report.summary.totalErrors}; bytes={report.summary.totalSize}");
+            if (report.summary.result != BuildResult.Succeeded) throw new InvalidOperationException("Linux server build failed.");
             WriteReceipt("build");
         }
 
