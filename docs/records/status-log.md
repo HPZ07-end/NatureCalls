@@ -188,3 +188,10 @@ Semantic-Diff: none。没有增加任何未批准游戏规则。
 - 未执行：Windows Unity/Player、Linux 二进制运行、跨设备/公网 UDP、Relay 云用例、人工手感。未 SSH、未重新部署，运行时代码未修改；未合并 PR。
 
 Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称；无领域概念增加、重命名或删除。更新 TESTING、DEVELOPMENT、DEVELOPMENT_STATUS 与本记录。
+
+## 2026-11-11 一键构建与部署专用服务器
+
+- 新增 `scripts/deploy_server.py`：检查已跟踪文件无未提交改动 → `unity.py build-server` → 上传并解压到 `/opt/naturecalls/releases/<提交>-<build-id>` → 原子切换 `current` → 重启当前运行的房间 → 逐个检查 active、端口监听与 `Server listening` 日志，失败则切回上一版本；保留新版本加最近 3 个旧版本。新增 `scripts/tests/test_deploy_server.py`，Python 单测 31/31。
+- 首次真实部署：提交 `5206a07`，构建 `Builds/LinuxServer/20261111T023339Z-1b16ad/`（构建后恢复桌面 Player 通过），部署为 `5206a07-20261111T023339Z-1b16ad`，房间 8000 `ROOM_OK`；服务器 `current` 已指向新版本，旧版本 `5b03702` 保留可回滚；记录 `Artifacts/20261111T024951Z-deploy-server/`。
+- 用户已从公网客户端连上 `49.233.132.244:8000`（2026-11-11 告知，新部署之前的版本）。
+- `.gitignore` 忽略工程根目录的 `*.mov`、`*.mp4` 录屏。
