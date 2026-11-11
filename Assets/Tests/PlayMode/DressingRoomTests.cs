@@ -80,6 +80,36 @@ namespace NatureCalls.Tests
         }
 
         [UnityTest]
+        public IEnumerator ServerIsNotAMemberAndLeaderFollowsEntryOrder()
+        {
+            lobby.PreferLan = true;
+            lobby.CreateRoom();
+            yield return null;
+            var session = Session.Instance;
+            var leaving = session.LeaveAsync();
+            yield return new WaitUntil(() => leaving.IsCompleted && !session.Manager.ShutdownInProgress);
+            session.LobbyMode = true;
+            Assert.That(session.Manager.StartServer(), Is.True);
+            yield return null;
+            var room = LobbyRoom.Current;
+            Assert.That(room, Is.Not.Null);
+            Assert.That(room.Members.Count, Is.Zero, "The server never occupies a player slot.");
+            Assert.That(room.IsLeader, Is.False);
+            room.Members.Add(new LobbyMember { ClientId = 7, Slot = 2 });
+            room.Members.Add(new LobbyMember { ClientId = 4, Slot = 0, Ready = true });
+            Assert.That(room.LeaderId, Is.EqualTo(7), "Entry order, not slot or client id, determines the leader.");
+            Assert.That(room.CanStart, Is.True);
+            room.RequestStart();
+            yield return null;
+            Assert.That(room.Phase.Value, Is.EqualTo(LobbyPhase.Waiting), "The server is not allowed to act as a player leader.");
+            room.Members.RemoveAt(0);
+            Assert.That(room.LeaderId, Is.EqualTo(4));
+            Assert.That(room.ReadyMembers(), Is.Zero, "The new leader's old ready flag does not count as another player.");
+            Assert.That(room.CanStart, Is.False);
+            room.Members.Clear();
+        }
+
+        [UnityTest]
         public IEnumerator MirrorOutfitChangesAppearanceAndIsRemembered()
         {
             var player = world.OfflinePlayer;

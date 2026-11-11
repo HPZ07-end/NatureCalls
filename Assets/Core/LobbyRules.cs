@@ -1,7 +1,7 @@
 namespace NatureCalls.Core
 {
     /// <summary>
-    /// Room start rules from the Glossary Lobby entry: 2–4 players, every non-host player ready.
+    /// Room start rules from the Glossary Lobby entry: 2–4 players, every non-leader player ready.
     /// </summary>
     public static class LobbyRules
     {
@@ -10,10 +10,10 @@ namespace NatureCalls.Core
 
         public static bool HasCapacity(int playerCount) => playerCount < MaxPlayers;
 
-        public static bool CanStart(int playerCount, int readyGuests)
+        public static bool CanStart(int playerCount, int readyMembers)
         {
-            var guests = playerCount - 1;
-            return playerCount >= MinPlayers && playerCount <= MaxPlayers && readyGuests >= guests;
+            var others = playerCount - 1;
+            return playerCount >= MinPlayers && playerCount <= MaxPlayers && readyMembers >= others;
         }
     }
 }

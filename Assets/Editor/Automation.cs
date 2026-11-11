@@ -48,6 +48,46 @@ namespace NatureCalls.Editor
             Validate();
         }
 
+        public static void Facilities()
+        {
+            const string path = "Assets/Prefabs/Network/Facilities.prefab";
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            var root = existing != null ? PrefabUtility.LoadPrefabContents(path) : new GameObject("Facilities");
+            try
+            {
+                if (root.GetComponent<Network.Facilities>() == null) root.AddComponent<Network.Facilities>();
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                if (existing != null) PrefabUtility.UnloadPrefabContents(root);
+                else UnityEngine.Object.DestroyImmediate(root);
+            }
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            var list = AssetDatabase.LoadAssetAtPath<Unity.Netcode.NetworkPrefabsList>("Assets/DefaultNetworkPrefabs.asset");
+            if (!list.Contains(prefab)) list.Add(new Unity.Netcode.NetworkPrefab { Prefab = prefab });
+            EditorUtility.SetDirty(list);
+            var network = PrefabUtility.LoadPrefabContents(LobbyFlowBuilder.NetworkPrefabPath);
+            try
+            {
+                network.GetComponent<Network.Session>().FacilitiesPrefab = prefab;
+                PrefabUtility.SaveAsPrefabAsset(network, LobbyFlowBuilder.NetworkPrefabPath);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(network); }
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/Playground.unity", OpenSceneMode.Single);
+            foreach (var session in UnityEngine.Object.FindObjectsByType<Network.Session>(FindObjectsSortMode.None))
+            {
+                session.FacilitiesPrefab = prefab;
+                var config = session.Manager.NetworkConfig;
+                if (!config.Prefabs.NetworkPrefabsLists.Contains(list)) config.Prefabs.NetworkPrefabsLists.Add(list);
+                EditorUtility.SetDirty(session);
+                EditorUtility.SetDirty(session.Manager);
+            }
+            EditorSceneManager.SaveScene(scene);
+            AssetDatabase.SaveAssets();
+            Validate();
+        }
+
         public static void Playground()
         {
             NatureCalls.Editor.Playground.Create();

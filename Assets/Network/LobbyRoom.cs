@@ -41,9 +41,11 @@ namespace NatureCalls.Network
         public const string RoundOverMessage = "时间到，本局结束，回到房间。";
         private readonly HashSet<ulong> loaded = new();
         private bool spawnedPlayers;
+        private bool serverLoaded;
 
         public MapCatalog Maps => maps;
-        public bool IsHostPlayer => IsServer;
+        public bool IsLeader => IsClient && Members.Count > 0 && LocalClientId == LeaderId;
+        public ulong LeaderId => Members.Count > 0 ? Members[0].ClientId : ulong.MaxValue;
         public ulong LocalClientId => NetworkManager.LocalClientId;
 
         private void Awake() { Members = new NetworkList<LobbyMember>(); }
@@ -59,7 +61,7 @@ namespace NatureCalls.Network
                 NetworkManager.OnClientDisconnectCallback += RemoveMember;
                 foreach (var id in NetworkManager.ConnectedClientsIds) AddMember(id);
             }
-            SetOutfitRpc(LocalProfile.OutfitIndex);
+            if (IsClient) SetOutfitRpc(LocalProfile.OutfitIndex);
         }
 
         public override void OnNetworkDespawn()
@@ -81,18 +83,18 @@ namespace NatureCalls.Network
             return false;
         }
 
-        public int ReadyGuests()
+        public int ReadyMembers()
         {
             int ready = 0;
             foreach (var member in Members)
-                if (member.ClientId != NetworkManager.ServerClientId && member.Ready) ready++;
+                if (member.ClientId != LeaderId && member.Ready) ready++;
             return ready;
         }
 
         /// <summary>Seconds left in the running round, or -1 before the players have spawned.</summary>
         public double RoundRemaining => RoundEndTime.Value < 0 ? -1 : RoundClock.Remaining(RoundEndTime.Value, NetworkManager.ServerTime.Time);
 
-        public bool CanStart => Phase.Value == LobbyPhase.Waiting && LobbyRules.CanStart(Members.Count, ReadyGuests());
+        public bool CanStart => Phase.Value == LobbyPhase.Waiting && LobbyRules.CanStart(Members.Count, ReadyMembers());
 
         public void SetReady(bool ready) => SetReadyRpc(ready);
         public void SetOutfit(int outfit) => SetOutfitRpc(outfit);
@@ -102,7 +104,7 @@ namespace NatureCalls.Network
 
         private void AddMember(ulong clientId)
         {
-            if (TryGetMember(clientId, out _)) return;
+            if ((!IsHost && clientId == NetworkManager.ServerClientId) || TryGetMember(clientId, out _)) return;
             Members.Add(new LobbyMember { ClientId = clientId, Slot = Session.Instance.Slot(clientId), Outfit = 0 });
         }
 
@@ -121,7 +123,7 @@ namespace NatureCalls.Network
                 if (Members[index].ClientId == clientId) { Members[index] = change(Members[index]); return; }
         }
 
-        private bool FromHost(RpcParams rpc) => rpc.Receive.SenderClientId == NetworkManager.ServerClientId;
+        private bool FromLeader(RpcParams rpc) => Members.Count > 0 && rpc.Receive.SenderClientId == LeaderId;
 
         [Rpc(SendTo.Server)]
         private void SetOutfitRpc(int outfit, RpcParams rpc = default)
@@ -139,22 +141,23 @@ namespace NatureCalls.Network
         [Rpc(SendTo.Server)]
         private void RequestStartRpc(RpcParams rpc = default)
         {
-            if (FromHost(rpc) && CanStart) Phase.Value = LobbyPhase.SelectingMap;
+            if (FromLeader(rpc) && CanStart) Phase.Value = LobbyPhase.SelectingMap;
         }
 
         [Rpc(SendTo.Server)]
         private void CancelMapSelectionRpc(RpcParams rpc = default)
         {
-            if (FromHost(rpc) && Phase.Value == LobbyPhase.SelectingMap) Phase.Value = LobbyPhase.Waiting;
+            if (FromLeader(rpc) && Phase.Value == LobbyPhase.SelectingMap) Phase.Value = LobbyPhase.Waiting;
         }
 
         [Rpc(SendTo.Server)]
         private void ChooseMapRpc(int choice, RpcParams rpc = default)
         {
-            if (!FromHost(rpc) || Phase.Value != LobbyPhase.SelectingMap || !MapSelection.IsValid(choice, maps.Count)) return;
+            if (!FromLeader(rpc) || Phase.Value != LobbyPhase.SelectingMap || !MapSelection.IsValid(choice, maps.Count)) return;
             var mapIndex = MapSelection.Resolve(choice, maps.Count, count => UnityEngine.Random.Range(0, count));
             Phase.Value = LobbyPhase.InGame;
             loaded.Clear();
+            serverLoaded = false;
             spawnedPlayers = false;
             LoadMapRpc(mapIndex);
         }
@@ -168,12 +171,16 @@ namespace NatureCalls.Network
         private void SceneLoaded(Scene scene, LoadSceneMode mode)
         {
             if (Match.Mode == MatchMode.Networked && Match.MapIndex >= 0 && scene.path == maps[Match.MapIndex].ScenePath)
-                MapLoadedRpc();
+            {
+                if (IsServer) { serverLoaded = true; TrySpawnPlayers(); }
+                if (IsClient) MapLoadedRpc();
+            }
         }
 
         [Rpc(SendTo.Server)]
         private void MapLoadedRpc(RpcParams rpc = default)
         {
+            if (!TryGetMember(rpc.Receive.SenderClientId, out _)) return;
             loaded.Add(rpc.Receive.SenderClientId);
             TrySpawnPlayers();
         }
@@ -181,11 +188,12 @@ namespace NatureCalls.Network
         // Spawn only after every member has loaded the map, so no client receives a player into the old scene.
         private void TrySpawnPlayers()
         {
-            if (spawnedPlayers || Members.Count == 0) return;
+            if (!IsServer || !serverLoaded || Phase.Value != LobbyPhase.InGame || spawnedPlayers || Members.Count == 0) return;
             foreach (var member in Members)
                 if (!loaded.Contains(member.ClientId)) return;
             var world = FindFirstObjectByType<Playground>();
             if (world == null) { Debug.LogError("LOBBY_MAP_WITHOUT_PLAYGROUND"); return; }
+            Session.Instance.SpawnFacilities();
             spawnedPlayers = true;
             foreach (var member in Members)
             {
@@ -226,6 +234,7 @@ namespace NatureCalls.Network
             }
             foreach (var client in NetworkManager.ConnectedClientsList)
                 if (client.PlayerObject != null && client.PlayerObject.IsSpawned) client.PlayerObject.Despawn(true);
+            if (Facilities.Current != null && Facilities.Current.IsSpawned) Facilities.Current.NetworkObject.Despawn(true);
             ReturnToRoomRpc(message);
         }
 

@@ -103,8 +103,8 @@ namespace NatureCalls.Tests
             var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
             Assert.That(doors.Length, Is.EqualTo(3));
             Assert.That(rolls.Length, Is.EqualTo(3));
-            Assert.That(avatar.SharedDoors.Count, Is.EqualTo(doors.Length));
-            Assert.That(avatar.SharedPaperRolls.Count, Is.EqualTo(rolls.Length));
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedDoors.Count, Is.EqualTo(doors.Length));
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedPaperRolls.Count, Is.EqualTo(rolls.Length));
 
             controller.enabled = false;
             player.transform.position = doors[0].DoorColliderPivot.position + doors[0].transform.forward * .4f;
@@ -113,8 +113,8 @@ namespace NatureCalls.Tests
             deadline = Time.time + 2;
             while (doors[0].State == StallDoorState.Closed && Time.time < deadline) yield return null;
             Assert.That(doors[0].State, Is.Not.EqualTo(StallDoorState.Closed));
-            Assert.That(Enumerable.Range(0, avatar.SharedDoors.Count)
-                .Any(index => avatar.SharedDoors[index] == (byte)doors[0].State), Is.True);
+            Assert.That(Enumerable.Range(0, NatureCalls.Network.Facilities.Current.SharedDoors.Count)
+                .Any(index => NatureCalls.Network.Facilities.Current.SharedDoors[index] == (byte)doors[0].State), Is.True);
 
             controller.enabled = false;
             player.transform.position = rolls[0].transform.position + Vector3.back * .4f;
@@ -123,8 +123,8 @@ namespace NatureCalls.Tests
             deadline = Time.time + 2;
             while (!rolls[0].IsPickedUp && Time.time < deadline) yield return null;
             Assert.That(rolls[0].PickedUpBy, Is.EqualTo(player));
-            Assert.That(Enumerable.Range(0, avatar.SharedPaperRolls.Count)
-                .Any(index => avatar.SharedPaperRolls[index].Mode == 1 && avatar.SharedPaperRolls[index].Carrier == avatar.OwnerClientId), Is.True);
+            Assert.That(Enumerable.Range(0, NatureCalls.Network.Facilities.Current.SharedPaperRolls.Count)
+                .Any(index => NatureCalls.Network.Facilities.Current.SharedPaperRolls[index].Mode == 1 && NatureCalls.Network.Facilities.Current.SharedPaperRolls[index].Carrier == avatar.OwnerClientId), Is.True);
             Assert.That(rolls[0].GetComponentsInChildren<Renderer>(true).All(renderer => !renderer.enabled), Is.True);
 
             Assert.That(avatar.RequestThrow(rolls[0], player.transform.forward), Is.True);
@@ -132,13 +132,13 @@ namespace NatureCalls.Tests
             while (rolls[0].IsPickedUp && Time.time < deadline) yield return null;
             Assert.That(rolls[0].IsPickedUp, Is.False);
             // The thrower's machine simulates the flight and reports it; the roll is handed back once it rests.
-            var thrown = Enumerable.Range(0, avatar.SharedPaperRolls.Count).First(i => avatar.SharedPaperRolls[i].Mode == NatureCalls.Network.PaperRollSnapshot.Flying);
-            Assert.That(avatar.SharedPaperRolls[thrown].Simulator, Is.EqualTo(avatar.OwnerClientId + 1), "The thrower simulates its own throw.");
+            var thrown = Enumerable.Range(0, NatureCalls.Network.Facilities.Current.SharedPaperRolls.Count).First(i => NatureCalls.Network.Facilities.Current.SharedPaperRolls[i].Mode == NatureCalls.Network.PaperRollSnapshot.Flying);
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedPaperRolls[thrown].Simulator, Is.EqualTo(avatar.OwnerClientId + 1), "The thrower simulates its own throw.");
             Assert.That(rolls.Any(roll => !roll.IsPickedUp && !roll.GetComponent<Rigidbody>().isKinematic), Is.True, "The thrown roll is simulated here, not followed.");
             deadline = Time.time + 6;
-            while (avatar.SharedPaperRolls[thrown].Mode == NatureCalls.Network.PaperRollSnapshot.Flying && Time.time < deadline) yield return null;
-            Assert.That(avatar.SharedPaperRolls[thrown].Mode, Is.EqualTo(NatureCalls.Network.PaperRollSnapshot.Landed), "Once at rest the roll is handed back.");
-            Assert.That(avatar.SharedPaperRolls[thrown].Simulator, Is.Zero);
+            while (NatureCalls.Network.Facilities.Current.SharedPaperRolls[thrown].Mode == NatureCalls.Network.PaperRollSnapshot.Flying && Time.time < deadline) yield return null;
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedPaperRolls[thrown].Mode, Is.EqualTo(NatureCalls.Network.PaperRollSnapshot.Landed), "Once at rest the roll is handed back.");
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedPaperRolls[thrown].Simulator, Is.Zero);
         }
 
         // Needs Unity Cloud and internet access, so it runs only when NATURECALLS_RELAY_TESTS=1.
@@ -377,10 +377,10 @@ namespace NatureCalls.Tests
             deadline = Time.time + 2;
             while (player.Seat == null && Time.time < deadline) yield return null;
             Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "The host grants the free seat.");
-            Assert.That(avatar.SharedToilets.Contains(avatar.OwnerClientId + 1), Is.True, "The occupant is shared.");
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedToilets.Contains(avatar.OwnerClientId + 1), Is.True, "The occupant is shared.");
             deadline = Time.time + NatureCalls.Core.NeedsRules.ToiletingSeconds + 2;
-            while (avatar.SharedToilets.Contains(avatar.OwnerClientId + 1) && Time.time < deadline) yield return null;
-            Assert.That(avatar.SharedToilets.Contains(avatar.OwnerClientId + 1), Is.False, "Standing up frees the shared seat.");
+            while (NatureCalls.Network.Facilities.Current.SharedToilets.Contains(avatar.OwnerClientId + 1) && Time.time < deadline) yield return null;
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedToilets.Contains(avatar.OwnerClientId + 1), Is.False, "Standing up frees the shared seat.");
             Assert.That(toilet.IsOccupied, Is.False);
         }
         [UnityTest]

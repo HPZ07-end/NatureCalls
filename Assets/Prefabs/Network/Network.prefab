@@ -123,6 +123,7 @@ MonoBehaviour:
   Transport: {fileID: 6117943447945083929}
   World: {fileID: 0}
   LobbyRoomPrefab: {fileID: 6679057001933482039, guid: 40347976a9c7f4f3599cfd5673edf5ce, type: 3}
+  FacilitiesPrefab: {fileID: 2755714958155605888, guid: 6c21c514f78474755bffcb11b8144bf0, type: 3}
   EnvironmentName: production
   MaxPlayers: 4
   Port: 7777
