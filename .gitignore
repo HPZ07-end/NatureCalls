@@ -117,3 +117,7 @@ __pycache__/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/tasks.json
+
+# Local screen recordings and demo videos at the project root
+/*.mov
+/*.mp4
