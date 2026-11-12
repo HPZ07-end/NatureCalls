@@ -34,6 +34,7 @@ Assets/Prefabs/Characters/DressingRoomPlayer.prefab
 - 模型根节点固定为 `Body`。
 - `Movement.Body` 必须引用 `Body`。
 - `PlayerAppearance.Body` 必须引用同一个 `Body`。
+- `Movement.Enter(Transform)` 保留玩家对位的位置；Anchor 识别设施，站起恢复进入前的位置。`Aiming` 供镜头读取，`Immobile` 暂停小便期间的位移和转向；瞄准/HUD 只读接口见 [PLAYGROUND](PLAYGROUND.md#表现层读取接口)。
 - 场景交互通过 `Movement.SetControl(bool)` 控制玩家输入，不依赖具体本地或网络控制器。
 - 外观以 `OutfitCatalog` 中的编号表示；`PlayerAppearance.ApplyOutfit(int)` 是唯一的外观表现入口。
 - `PlayerOutfitController` 只管理预览、确认和取消；确认后写入 `LocalProfile.OutfitIndex`，供 Lobby 房间与之后的地图使用。
