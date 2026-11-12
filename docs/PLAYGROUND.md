@@ -17,7 +17,13 @@
 
 ## 打开和重建
 
-先在 Unity Hub 中打开仓库根目录对应的 NatureCalls 工程。完整流程从 **Editor 的 Project 面板**双击 `Assets/Scenes/DressingRoom.unity` 开始（构建后的游戏也从这里启动，见下方「Lobby 流程」）；只想测试厕所地图时可直接双击 `Assets/Scenes/Playground.unity` 后 Play。不是在 Finder 中双击场景文件来启动工程。在 Playground 中点击 Game 视图取得键盘焦点后，WASD 移动、Space 跳跃、鼠标观察、C 如厕、靠近卷纸后 E 拾取、R 向前丢掷携带中的卷纸、靠近隔间门后 E 交互。跳跃只允许在站立且着地时触发。隔间门打开时 E 关闭；关闭时隔间外 E 打开、隔间内 E 上锁；锁住后隔间外操作被拒绝、隔间内 E 解锁并打开。卷纸交互优先于门。所有如厕都按 C：站在某个隔间里时坐到该隔间的马桶上（按玩家所在隔间判定，不会选到相邻隔间），马桶被别人占用时不坐下；不在隔间里时原地如厕。C 是一次性按键：如厕 5 秒，期间再按 C 无效，5 秒后自动站起（从马桶站起时回到坐下前的位置）；隔间外如厕站起后原地留下黑色小球，并给这名玩家加 10 恶心值。坐在马桶上时仍可按 E 关门、上锁和开门。每名玩家同时最多携带一个卷纸；丢掷后卷纸恢复物理运动并可再次拾取，当前不提供使用或消耗规则。当前 Player 使用导入的 `Peasant Nolant Brown` 嵌套 Prefab及 URP/Lit 兼容材质，离线练习无需连接 Unity Cloud。已有 Smoke/Sandbox 场景保留。
+在 Unity Hub 打开当前工程，从 `Assets/Scenes/DressingRoom.unity` 开始完整流程，或直接 Play `Playground` 离线练习。点击 Game 视图取得焦点；WASD 移动、Space 跳跃、鼠标观察、Esc 释放鼠标。
+
+隔间内第一次 C 进入俯视对位，WASD 与鼠标调整位置/朝向；第二次 C 在当前位置蹲下，5 秒内 WASD 修正漂移落点，结束自动站起回到蹲下前的位置。小便池前 C 站立小便 3 秒，鼠标修正落点。其他位置 C 原地如厕 5 秒。对准、结算与数值依据 [GLOSSARY](../GLOSSARY.md)，实现参数集中在 `Core/NeedsRules`。
+
+E 顺序：未擦拭且持卷纸时擦拭 → 持拖把对污物长按清洁 → 拾取最近的卷纸或地上拖把 → 工具箱取放 → 门。准备房保留镜子与大厅门入口。未擦拭时拾取卷纸不扣恶心值，下一次 E 才擦拭；操作门或走出隔间才计未擦拭惩罚。卷纸与拖把共用一件携带容量，R 丢掷。全场一个工具箱、一把拖把；卷纸用尽后消失。清洁中松开 E、失去焦点、走开或不再朝向污物会中断。门原有开/关/锁顺序保留。
+
+`python3 scripts/unity.py toileting`（菜单 `NatureCalls/Configure Toileting`）通过 Editor API 给现有 `Urinal -2/-1/0` 安装组件、生成 `Assets/Prefabs/Toolbox.prefab` 并在公共区域放置一次。重跑保留已有工具箱和地图资源，不重建地图。
 
 `python3 scripts/unity.py playground`（Windows：`py -3 scripts/unity.py playground`）通过 Editor API **重建原型 Playground、Player/Toilet Prefab 和原型材质**，只在明确需要恢复生成场景时运行；不要用它覆盖人工修改的原型。普通队友使用已提交场景即可，不需要补接组件。脚本保存原 GUID、不改旧场景；Playground 不在构建列表时追加，不改变 DressingRoom 作为启动场景。
 
@@ -29,12 +35,12 @@
 - `Player/Movement`：CharacterController、角色朝向、俯仰、姿态下的身体与碰撞体调整。
 - `Input/PlayerInput`：Input System 将本地键鼠转化为移动、跳跃、观察、姿态与交互调用。
 - `Camera/CameraController`：唯一实际 Camera + CinemachineBrain，两个 CinemachineCamera 的优先级和 Blend；仅绑定本地角色。
-- `Player/PlayerNeeds`：急迫值与恶心值。规则在 Core `NeedsRules`：急迫值上限 100、从 0 涨满 60 秒、开局初值随机 0–40、如厕中不涨、一次如厕结束后清零；隔间外如厕 +10 恶心值；任一项到阈值（100）全队失败。离线由 Playground 驱动，联机由房主驱动并经 `NeedsSync` 的 `SharedUrgency`/`SharedDisgust` 同步；地图 HUD 的 `NeedsView` 显示本地玩家的两项数值。黑色小球由 `Playground.Drop` 从对象池取出，联机时位置经服务器拥有的 `Facilities` 的 `SharedDroppings` 同步。
-- `Facility/Toilet`：姿态 Anchor、内部可见目标与占用（同一时间一人，站起释放；联机时由房主判定并经服务器拥有的 `Facilities` 的 `SharedToilets` 同步）；`SeatPose` 为以后的如厕准度机制留出位置。没有冲水状态。使用哪个马桶由 `StallDoor.Containing`（隔间门后方且在隔间范围内）决定。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
+- `Player/PlayerNeeds`：急迫值与恶心值。规则在 Core `NeedsRules`：急迫值上限 100、从 0 涨满 60 秒、开局初值随机 0–40、如厕中不涨、大便结束清零、小便减半；隔间外如厕 +10 恶心值；任一项到阈值（100）全队失败。离线由 Playground 驱动，联机由房主驱动并经 `NeedsSync` 的 `SharedUrgency`/`SharedDisgust` 同步；地图 HUD 的 `NeedsView` 显示本地玩家的两项数值。三种污物由 `Playground` 从同一对象池取出，联机时类型、位置和马桶索引经服务器拥有的 `Facilities` 的 `SharedMesses` 同步。
+- `Facility/Toilet`：姿态 Anchor、内部可见目标与占用（同一时间一人，站起释放；联机时由房主判定并经服务器拥有的 `Facilities` 的 `SharedToilets` 同步）；`TargetCenter`/`TargetRadius` 表示目标区；Anchor 只识别设施，坐下不再吸附。没有冲水状态。使用哪个马桶由 `StallDoor.Containing`（隔间门后方且在隔间范围内）决定。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
 - `Map/Playground` 出生点：`Spawns[i]` 对应房间槽位 i（房主为 Spawn 1）。由 `python3 scripts/unity.py spawn-points`（菜单 `NatureCalls/Place Playground Spawn Points`）以 Spawn 1 为起点在场景中实测放置：脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 之间无遮挡，间距至少 1.2m。修改房间布局后重新运行。
 - `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
 - `Facility/PlanarMirror`：为每个 WC 镜面实例创建独立运行时 RenderTexture；第一人称主摄像机隐藏本地身体时，镜面摄像机仍可渲染本地 Brown 角色。
-- `Facility/PaperRoll`：检测附近玩家并记录拾取者；拾取后随玩家保留并关闭场景渲染与碰撞，R 丢掷后恢复渲染、碰撞及 Rigidbody 运动。联机时由丢掷者本机模拟飞行，其他端经房主转发收到位姿后用 `FollowShared` 平滑跟随，落地后用 `ApplySharedRest` 放到最终位置（见 ARCHITECTURE「网络模型」）。
+- `Facility/Item`：卷纸与拖把共用拾取、容量与丢掷机制；`PaperRoll` 额外维护剩余次数。检测附近玩家并记录拾取者；拾取后随玩家保留并关闭场景渲染与碰撞，R 丢掷后恢复渲染、碰撞及 Rigidbody 运动。联机时由丢掷者本机模拟飞行，其他端经房主转发收到位姿后用 `FollowShared` 平滑跟随，落地后用 `ApplySharedRest` 放到最终位置（见 ARCHITECTURE「网络模型」）。
 - `Network/Session`：官方 MPS Session + Relay 的创建/加入/离开、匿名认证与错误状态；无需云端的 NGO 直连；Lobby 模式下只分配槽位并生成 LobbyRoom。跨场景保留，场景自带的重复对象自毁。
 - `Network/LobbyRoom`：房间成员、准备、外观与阶段（等待/选图/对局），地图加载完成后统一生成玩家。
 - `Network/Avatar`：Owner 本地控制、姿态 NetworkVariable 与镜头绑定生命周期；`Network/AvatarAppearance`：出生颜色与外观编号；`Network/NeedsSync`：急迫值与恶心值同步；`Network/FacilitySync`：门、卷纸、马桶占用与黑色小球的共享状态和请求。
@@ -44,7 +50,7 @@
 - `UI/Lobby`：`LobbyView`（界面引用）、`LobbyController`（换装面板、Lobby、选图行为）、`BackgroundBlur`（背景虚化）。
 - `Editor/Playground`：用 Unity API 创建场景、材质、URP 设置和 Prefab。
 
-保留原逻辑目录，不建立同义的 Networking/Environment 体系。新增一个 `NatureCalls.Runtime` 总程序集是为了让 Editor 和测试能引用实际组件；没有逐模块拆程序集或提前提取 Core。
+保留原逻辑目录，不建立同义的 Networking/Environment 体系。新增一个 `NatureCalls.Runtime` 总程序集是为了让 Editor 和测试能引用实际组件；没有逐模块拆程序集；Core 已包含本次准度与需求规则。
 
 ## Lobby 流程
 
@@ -77,7 +83,7 @@
 
 Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance/Height/Pitch、Shoulder Offset、Transition Duration、Camera Collision Layers/Radius。当前没有墙体全局隐藏。C 在隔间外可在任意位置测试姿态；要验证马桶内部构图，请走进隔间按 C。
 
-坐在马桶上（隔间内按 C 对齐坐下）时，隔间太窄放不下正后方镜头，第三人称改为从上方俯视：Inspector 的 Seated Distance（默认 1.9）与 Seated Pitch（默认 80°）控制距离和俯角；隔间外按 C 进入的如厕姿态仍用正后方镜头。5 秒后自动站起，回到坐下前的位置。
+坐在马桶上（隔间内先 C 对位再 C 蹲下）时，隔间太窄放不下正后方镜头，第三人称改为从上方俯视：Inspector 的 Seated Distance（默认 1.9）与 Seated Pitch（默认 80°）控制距离和俯角；隔间外按 C 进入的如厕姿态仍用正后方镜头。5 秒后自动站起，回到坐下前的位置。
 
 旧场景需要应用上述参数时，可以运行菜单 `NatureCalls/Center Playground Camera`；关闭 Editor 后也可用 `python3 scripts/unity.py camera`（Windows 用 `py -3`）。这只保存 Playground 的四个镜头参数，不重新生成地形、Prefab 或材质。已更新的仓库场景无需再次运行。
 
@@ -128,7 +134,7 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 实际日志及测试结果见 [M1 验收记录](records/m1-2026-10-20.md)，2026-10-30 居中镜头回归见 [开发记录](records/status-log.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。
 
-原型以可调镜头验证为目标；马桶有一人占用，如厕固定 5 秒，但没有排队、冲水或如厕准度，不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，未来设施、Tidiness 与胜负状态走 Host 权威。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。隔间外 C 原地如厕不保证有马桶构图；马桶 Anchor 是可复现的可见性测试位置。
+原型以可调镜头验证为目标；马桶有一人占用和准度结算，但没有排队或冲水，不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，设施与需求结算以 IsServer 为准，兼容 Host 与专用服务器；Tidiness 尚未实现。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。隔间外 C 原地如厕不保证有马桶构图；马桶 Anchor 是可复现的可见性测试位置。
 
 ## 官方依据
 
@@ -139,3 +145,9 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 - [Cinemachine Third Person Follow](https://docs.unity.cn/Packages/com.unity.cinemachine%403.1/manual/CinemachineThirdPersonFollow.html)
 
 实现 API 还直接核对了本次安装包的源代码，避免使用旧版 Cinemachine 2 或 NGO 旧继承式权限示例。
+
+## 表现层读取接口
+
+本地玩家 `Input/PlayerInput` 的只读属性：`Phase`（None/Aligning/Holding/Urinating/Cleaning）、`TargetCenter`、`TargetRadius`（世界坐标/米）、`CurrentLanding`（世界坐标）、`Elapsed`/`Duration`（秒）、`CurrentAccuracy`（0–1 时间比例）、`Unwiped`、`HeldItem`（Item，具体为 PaperRoll/Mop）、`PaperRemainingUses`、`CleaningProgress`（0–1）。`Stage.None` 时瞄准值为上一次记录，不应用于显示目标区。`UI/AimDebug` 是可替换的最简调试展示，仅读取接口；正式 HUD 与瞄准美术未实现。
+
+Owner 本地累计落点在圈内的时间；结束经 `FacilitySync` 上报准度与玩家位置。服务器验证请求者、开始记录、最低时长、设施占用、所在位置以及数值范围后应用需求和污物。此模式不验证客户端每一帧轨迹，不是反作弊方案。清洁服务器记录开始时间，并要求持续心跳、距离、朝向及持有拖把；松开时主动取消，缺失心跳也取消。

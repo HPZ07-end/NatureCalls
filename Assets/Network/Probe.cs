@@ -172,6 +172,7 @@ namespace NatureCalls.Network
             if (door == null || roll == null) { Finish("Missing door or paper roll for facility verification."); yield break; }
             var movement = own.GetComponent<Movement>();
             var controller = own.GetComponent<CharacterController>();
+            if (session.Manager.IsServer) foreach (var state in FindObjectsByType<NeedsSync>(FindObjectsSortMode.None)) state.BeginNeeds();
             own.GetComponent<Posture>().Set(PostureState.Standing);
             foreach (var actor in new[] { "host", "client" })
             {
@@ -221,6 +222,44 @@ namespace NatureCalls.Network
                 if (report.role == "host") File.WriteAllText(landing, JsonUtility.ToJson(roll.transform.position));
                 yield return FacilityStep(actor + "-landed", false, null, () => File.Exists(landing) &&
                     Vector3.Distance(roll.transform.position, JsonUtility.FromJson<Vector3>(File.ReadAllText(landing))) < .15f);
+                if (finished) yield break;
+                var urinal = FindObjectsByType<Urinal>(FindObjectsSortMode.None).OrderBy(u => u.name).First();
+                var input = own.GetComponent<Input.PlayerInput>();
+                int messIndex = actor == "host" ? 0 : 1;
+                if (acting) { movement.transform.position = urinal.FrontPosition; input.enabled = true; }
+                yield return new WaitForSecondsRealtime(.5f);
+                yield return FacilityStep(actor + "-urinal", acting, () => input.TryToilet(), () => urinal.Occupant == carrier.GetComponent<Movement>());
+                if (finished) yield break;
+                if (acting)
+                {
+                    float grantDeadline = Time.realtimeSinceStartup + 2;
+                    while (input.Phase != Input.PlayerInput.Stage.Urinating && Time.realtimeSinceStartup < grantDeadline) yield return null;
+                    if (input.Phase != Input.PlayerInput.Stage.Urinating) { Finish("Urinal grant missing."); yield break; }
+                    input.TickAim(.001f, new Vector2(5, 5));
+                }
+                yield return FacilityStep(actor + "-puddle", false, null, () => Facilities.Current.SharedMesses.Count > messIndex &&
+                    Facilities.Current.SharedMesses[messIndex].Kind == Core.MessKind.Puddle && session.World.Messes[messIndex] != null);
+                if (finished) yield break;
+                input.enabled = false;
+                var box = FindFirstObjectByType<Toolbox>();
+                if (acting) movement.transform.position = box.transform.position;
+                yield return new WaitForSecondsRealtime(.5f);
+                yield return FacilityStep(actor + "-mop-take", acting, () => own.GetComponent<FacilitySync>().RequestToolbox(box), () => box.Mop.PickedUpBy == carrier.GetComponent<Movement>());
+                if (finished) yield break;
+                if (acting)
+                {
+                    movement.transform.SetPositionAndRotation(urinal.FrontPosition - Vector3.forward * .5f, Quaternion.identity);
+                    yield return new WaitForSecondsRealtime(.5f);
+                    float cleanUntil = Time.realtimeSinceStartup + 3.4f;
+                    while (Time.realtimeSinceStartup < cleanUntil)
+                    { own.GetComponent<FacilitySync>().RequestClean(messIndex, true); yield return new WaitForSecondsRealtime(.1f); }
+                    own.GetComponent<FacilitySync>().RequestClean(-1, false);
+                }
+                yield return FacilityStep(actor + "-clean", false, null, () => Facilities.Current.SharedMesses[messIndex].Kind == Core.MessKind.None && session.World.Messes[messIndex] == null);
+                if (finished) yield break;
+                if (acting) movement.transform.position = box.transform.position;
+                yield return new WaitForSecondsRealtime(.5f);
+                yield return FacilityStep(actor + "-mop-return", acting, () => own.GetComponent<FacilitySync>().RequestToolbox(box), () => box.Mop.Stored && box.Mop.PickedUpBy == null);
                 if (finished) yield break;
                 if (acting) controller.enabled = true;
                 if (actor == "host") report.hostFacilities = true;

@@ -104,7 +104,7 @@ namespace NatureCalls.Tests
             Assert.That(doors.Length, Is.EqualTo(3));
             Assert.That(rolls.Length, Is.EqualTo(3));
             Assert.That(NatureCalls.Network.Facilities.Current.SharedDoors.Count, Is.EqualTo(doors.Length));
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedPaperRolls.Count, Is.EqualTo(rolls.Length));
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedItems.Count, Is.EqualTo(rolls.Length + 1));
 
             controller.enabled = false;
             player.transform.position = doors[0].DoorColliderPivot.position + doors[0].transform.forward * .4f;
@@ -123,8 +123,8 @@ namespace NatureCalls.Tests
             deadline = Time.time + 2;
             while (!rolls[0].IsPickedUp && Time.time < deadline) yield return null;
             Assert.That(rolls[0].PickedUpBy, Is.EqualTo(player));
-            Assert.That(Enumerable.Range(0, NatureCalls.Network.Facilities.Current.SharedPaperRolls.Count)
-                .Any(index => NatureCalls.Network.Facilities.Current.SharedPaperRolls[index].Mode == 1 && NatureCalls.Network.Facilities.Current.SharedPaperRolls[index].Carrier == avatar.OwnerClientId), Is.True);
+            Assert.That(Enumerable.Range(0, NatureCalls.Network.Facilities.Current.SharedItems.Count)
+                .Any(index => NatureCalls.Network.Facilities.Current.SharedItems[index].Mode == 1 && NatureCalls.Network.Facilities.Current.SharedItems[index].Carrier == avatar.OwnerClientId), Is.True);
             Assert.That(rolls[0].GetComponentsInChildren<Renderer>(true).All(renderer => !renderer.enabled), Is.True);
 
             Assert.That(avatar.RequestThrow(rolls[0], player.transform.forward), Is.True);
@@ -132,13 +132,13 @@ namespace NatureCalls.Tests
             while (rolls[0].IsPickedUp && Time.time < deadline) yield return null;
             Assert.That(rolls[0].IsPickedUp, Is.False);
             // The thrower's machine simulates the flight and reports it; the roll is handed back once it rests.
-            var thrown = Enumerable.Range(0, NatureCalls.Network.Facilities.Current.SharedPaperRolls.Count).First(i => NatureCalls.Network.Facilities.Current.SharedPaperRolls[i].Mode == NatureCalls.Network.PaperRollSnapshot.Flying);
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedPaperRolls[thrown].Simulator, Is.EqualTo(avatar.OwnerClientId + 1), "The thrower simulates its own throw.");
+            var thrown = Enumerable.Range(0, NatureCalls.Network.Facilities.Current.SharedItems.Count).First(i => NatureCalls.Network.Facilities.Current.SharedItems[i].Mode == NatureCalls.Network.ItemSnapshot.Flying);
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedItems[thrown].Simulator, Is.EqualTo(avatar.OwnerClientId + 1), "The thrower simulates its own throw.");
             Assert.That(rolls.Any(roll => !roll.IsPickedUp && !roll.GetComponent<Rigidbody>().isKinematic), Is.True, "The thrown roll is simulated here, not followed.");
             deadline = Time.time + 6;
-            while (NatureCalls.Network.Facilities.Current.SharedPaperRolls[thrown].Mode == NatureCalls.Network.PaperRollSnapshot.Flying && Time.time < deadline) yield return null;
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedPaperRolls[thrown].Mode, Is.EqualTo(NatureCalls.Network.PaperRollSnapshot.Landed), "Once at rest the roll is handed back.");
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedPaperRolls[thrown].Simulator, Is.Zero);
+            while (NatureCalls.Network.Facilities.Current.SharedItems[thrown].Mode == NatureCalls.Network.ItemSnapshot.Flying && Time.time < deadline) yield return null;
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedItems[thrown].Mode, Is.EqualTo(NatureCalls.Network.ItemSnapshot.Landed), "Once at rest the roll is handed back.");
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedItems[thrown].Simulator, Is.Zero);
         }
 
         // Needs Unity Cloud and internet access, so it runs only when NATURECALLS_RELAY_TESTS=1.
@@ -272,6 +272,8 @@ namespace NatureCalls.Tests
                 yield return Teleport(player, toilet.Anchor.position + outward * .25f);
                 var before = player.transform.position;
                 Assert.That(input.TryToilet(), Is.True);
+                Assert.That(input.Phase, Is.EqualTo(NatureCalls.Input.PlayerInput.Stage.Aligning));
+                Assert.That(input.TryToilet(), Is.True);
                 Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "C sits on the toilet of the stall the player is in.");
                 Assert.That(toilet.Occupant, Is.EqualTo(player));
                 yield return null;
@@ -337,7 +339,10 @@ namespace NatureCalls.Tests
             yield return OpenStallAndStandAt(player, toilet);
             yield return Teleport(player, toilet.Anchor.position - toilet.Anchor.forward * .25f);
             Assert.That(input.TryToilet(), Is.True);
+            Assert.That(input.TryToilet(), Is.True);
             Assert.That(player.Seat, Is.EqualTo(toilet.Anchor));
+            var aim = input.TargetCenter - input.CurrentLanding;
+            input.TickAim(NatureCalls.Core.NeedsRules.ToiletingSeconds, new Vector2(aim.x, aim.z));
             deadline = Time.time + NatureCalls.Core.NeedsRules.ToiletingSeconds + 1;
             while (posture.IsSquatting && Time.time < deadline) yield return null;
             Assert.That(needs.Disgust, Is.EqualTo(NatureCalls.Core.NeedsRules.OutsideStallDisgust));
@@ -373,6 +378,7 @@ namespace NatureCalls.Tests
             player.GetComponent<NatureCalls.Input.PlayerInput>().enabled = true;
             yield return OpenStallAndStandAt(player, toilet);
             yield return Teleport(player, toilet.Anchor.position - toilet.Anchor.forward * .25f);
+            Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryToilet(), Is.True);
             Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryToilet(), Is.True);
             deadline = Time.time + 2;
             while (player.Seat == null && Time.time < deadline) yield return null;
