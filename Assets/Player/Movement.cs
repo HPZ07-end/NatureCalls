@@ -14,6 +14,8 @@ namespace NatureCalls.Player
         public Transform Body;
         [SerializeField] private bool startControlled;
         public bool Controlled { get; private set; }
+        public bool Aiming { get; set; }
+        public bool Immobile { get; set; }
         public float Pitch { get; private set; }
         public Quaternion ViewRotation => Quaternion.Euler(Pitch, transform.eulerAngles.y, 0);
         private CharacterController controller;
@@ -67,7 +69,7 @@ namespace NatureCalls.Player
         public void SetControl(bool value) { Controlled = value; controller.enabled = value; }
         public void Look(Vector2 delta)
         {
-            if (!Controlled || posture.IsSquatting) return;
+            if (!Controlled || posture.IsSquatting || Immobile) return;
             transform.Rotate(Vector3.up, delta.x * Sensitivity, Space.World);
             Pitch = Mathf.Clamp(Pitch - delta.y * Sensitivity, -PitchLimit, PitchLimit);
         }
@@ -75,7 +77,7 @@ namespace NatureCalls.Player
         {
             if (!Controlled || !controller.enabled) return;
             var startPosition = transform.position;
-            var movement = posture.IsSquatting ? Vector3.zero : transform.TransformDirection(new Vector3(direction.x, 0, direction.y));
+            var movement = (posture.IsSquatting || Immobile) ? Vector3.zero : transform.TransformDirection(new Vector3(direction.x, 0, direction.y));
             movement = Vector3.ClampMagnitude(movement, 1) * Speed;
             verticalSpeed = controller.isGrounded && verticalSpeed <= 0 ? -2 : Mathf.Max(verticalSpeed - 20 * deltaTime, -30);
             controller.Move((movement + Vector3.up * verticalSpeed) * deltaTime);
@@ -89,7 +91,7 @@ namespace NatureCalls.Player
         }
         public bool Jump()
         {
-            if (!Controlled || !controller.enabled || posture.IsSquatting || !controller.isGrounded) return false;
+            if (!Controlled || !controller.enabled || posture.IsSquatting || Immobile || !controller.isGrounded) return false;
             verticalSpeed = JumpSpeed;
 #if UNITY_EDITOR
             Debug.Log($"PLAYER_JUMP_OK|player={name}|speed={JumpSpeed:F2}|position=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
@@ -98,13 +100,14 @@ namespace NatureCalls.Player
         }
         public void Enter(Transform anchor)
         {
-            if (!Controlled || posture.IsSquatting) return;
+            if (!Controlled || posture.IsSquatting || Immobile) return;
             returnRotation = transform.rotation;
             returnPosition = transform.position;
             Seat = anchor;
+            bool wasEnabled = controller.enabled;
             controller.enabled = false;
-            transform.SetPositionAndRotation(anchor.position, anchor.rotation);
-            controller.enabled = true;
+            // The aligned pose belongs to the player; Anchor identifies the occupied toilet.
+            controller.enabled = wasEnabled;
             posture.Set(PostureState.Squatting);
 #if UNITY_EDITOR
             Debug.Log($"TOILET_SEATED|player={name}|seat=({anchor.position.x:F2},{anchor.position.z:F2})|from=({returnPosition.x:F2},{returnPosition.z:F2})");

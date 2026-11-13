@@ -75,16 +75,17 @@ namespace NatureCalls.Camera
         private void OnDestroy() { if (posture != null) posture.Changed -= SetPosture; }
         private void SetPosture(PostureState state)
         {
-            bool squat = state == PostureState.Squatting;
+            bool squat = state == PostureState.Squatting || (Target != null && Target.Aiming);
             FirstPerson.Priority = squat ? 10 : 20;
             ThirdPerson.Priority = squat ? 20 : 10;
         }
         private void LateUpdate()
         {
             if (Target == null) return;
+            SetPosture(posture.State);
             UpdateTargets();
             // Hide only from the local first-person output. Mirror cameras still render this layer.
-            bool hidden = !posture.IsSquatting || Vector3.Distance(Output.transform.position, Eye.position) < .65f;
+            bool hidden = (!posture.IsSquatting && !Target.Aiming) || Vector3.Distance(Output.transform.position, Eye.position) < .65f;
             Output.cullingMask = hidden ? outputCullingMask & ~(1 << LocalBodyLayer) : outputCullingMask;
             foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
         }
@@ -94,8 +95,8 @@ namespace NatureCalls.Camera
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
             if (!posture.IsSquatting)
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * EyeHeight, Target.ViewRotation);
-            bool seated = posture.IsSquatting && Target.Seat != null;
-            if (posture.IsSquatting)
+            bool seated = Target.Aiming || (posture.IsSquatting && Target.Seat != null);
+            if (posture.IsSquatting || Target.Aiming)
                 Shoulder.SetPositionAndRotation(Target.transform.position + Vector3.up * ThirdPersonHeight,
                     Quaternion.Euler(seated ? SeatedPitch : ThirdPersonPitch, Target.transform.eulerAngles.y, 0));
             follow.CameraDistance = seated ? SeatedDistance : ThirdPersonDistance;

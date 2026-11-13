@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.Pool;
 using NatureCalls.Core;
+using NatureCalls.Facility;
+using NatureCalls.Network;
 
 namespace NatureCalls.Map
 {
@@ -17,7 +19,6 @@ namespace NatureCalls.Map
         public bool StartOffline = true;
         public Movement OfflinePlayer { get; private set; }
         // A networked match spawns its players through the Lobby room instead.
-        private readonly List<GameObject> droppings = new();
 
         private void Awake()
         {
@@ -44,44 +45,49 @@ namespace NatureCalls.Map
             Match.TickOfflineRound();
         }
 
-        /// <summary>Leaves a dropping (a small black ball) where a player toileted outside a stall.</summary>
-        public void Drop(Vector3 position)
+        public int DroppingCount => messes.Count(mess => mess != null && mess.Kind == MessKind.Dropping);
+        private readonly List<Mess> messes = new();
+        public IReadOnlyList<Mess> Messes => messes;
+        public void Drop(Vector3 position) => AddMess(MessKind.Dropping, position);
+        public int AddMess(MessKind kind, Vector3 position, int toiletIndex = -1)
         {
-            var ball = droppingPool.Get();
-            ball.transform.position = position + Vector3.up * .11f;
-            droppings.Add(ball);
+            if (kind == MessKind.None) return -1;
+            if (kind == MessKind.DirtyToilet && messes.Any(m => m != null && m.Kind == kind && m.ToiletIndex == toiletIndex)) return -1;
+            if (Facilities.Current != null && Facilities.Current.IsSpawned)
+                return Facilities.Current.AddMess(kind, position, toiletIndex);
+            int index = messes.Count;
+            var mess = droppingPool.Get().GetComponent<Mess>();
+            mess.Configure(index, kind, position, toiletIndex);
+            messes.Add(mess);
+            return index;
         }
-
-        public int DroppingCount => droppings.Count;
-
-        /// <summary>
-        /// Shows the host's shared droppings: places any this peer has not placed yet, and returns any the list
-        /// no longer holds (for example once cleaning removes them) to the pool.
-        /// </summary>
-        public void ShowDroppings(IReadOnlyList<Vector3> positions)
+        public bool IsDirty(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.DirtyToilet && m.ToiletIndex == toiletIndex);
+        public void ShowMesses(IReadOnlyList<MessSnapshot> states)
         {
-            while (droppings.Count > positions.Count) RemoveDropping(droppings.Count - 1);
-            for (int index = 0; index < droppings.Count; index++) droppings[index].transform.position = positions[index] + Vector3.up * .11f;
-            for (int index = droppings.Count; index < positions.Count; index++) Drop(positions[index]);
+            while (messes.Count < states.Count) messes.Add(null);
+            for (int i = 0; i < states.Count; i++)
+            {
+                var state = states[i];
+                if (state.Kind == MessKind.None) { RemoveMess(i); continue; }
+                if (messes[i] == null) messes[i] = droppingPool.Get().GetComponent<Mess>();
+                messes[i].Configure(i, state.Kind, state.Position, state.ToiletIndex);
+            }
         }
-
-        public void RemoveDropping(int index)
+        public void RemoveDropping(int index) => RemoveMess(index);
+        public void RemoveMess(int index)
         {
-            droppingPool.Release(droppings[index]);
-            droppings.RemoveAt(index);
+            if (index < 0 || index >= messes.Count || messes[index] == null) return;
+            droppingPool.Release(messes[index].gameObject);
+            messes[index] = null;
         }
-
-        // Object pool: droppings are created once and reused, since cleaning will remove and players re-add them.
         private ObjectPool<GameObject> droppingPool;
         private ObjectPool<GameObject> CreateDroppingPool() => new(
             createFunc: () =>
             {
                 var ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                ball.name = "Dropping";
                 Destroy(ball.GetComponent<Collider>());
+                ball.AddComponent<Mess>();
                 ball.transform.SetParent(transform, true);
-                ball.transform.localScale = Vector3.one * .22f;
-                ball.GetComponent<Renderer>().material.color = Color.black;
                 return ball;
             },
             actionOnGet: ball => ball.SetActive(true),

@@ -48,6 +48,8 @@ namespace NatureCalls.Editor
             Validate();
         }
 
+        public static void Toileting() => ToiletingSetup.Configure();
+
         public static void Facilities()
         {
             const string path = "Assets/Prefabs/Network/Facilities.prefab";

@@ -14,6 +14,7 @@ namespace NatureCalls.Network
     {
         public NetworkVariable<float> SharedUrgency = new(0);
         public NetworkVariable<float> SharedDisgust = new(0);
+        public NetworkVariable<bool> SharedUnwiped = new(false);
         private PlayerNeeds needs;
         private FacilitySync facilities;
         private float nextNeedsUpdate;
@@ -33,24 +34,10 @@ namespace NatureCalls.Network
         public bool NeedsFailed => needs != null && needs.Failed;
         public bool UrgencyFailed => needs != null && NeedsRules.UrgencyFailed(needs.Urgency);
 
-        /// <summary>The owner finished a toileting; the host applies its needs and drops.</summary>
-        public void ReportToileting(bool insideStall, Vector3 position)
-        {
-            if (IsSpawned && IsOwner) ToiletingDoneRpc(insideStall, position);
-        }
-
-        [Rpc(SendTo.Server)]
-        private void ToiletingDoneRpc(bool insideStall, Vector3 position, RpcParams rpc = default)
-        {
-            if (rpc.Receive.SenderClientId != OwnerClientId || needs == null || !needs.Ticking) return;
-            needs.CompleteToileting(insideStall);
-            PublishNeeds();
-            if (!insideStall) facilities.AddDropping(position);
-        }
-
         private void PublishNeeds()
         {
             if (!IsServer || needs == null) return;
+            SharedUnwiped.Value = needs.Unwiped;
             if (Mathf.Abs(SharedUrgency.Value - needs.Urgency) > .05f) SharedUrgency.Value = needs.Urgency;
             if (Mathf.Abs(SharedDisgust.Value - needs.Disgust) > .05f) SharedDisgust.Value = needs.Disgust;
         }
@@ -58,7 +45,7 @@ namespace NatureCalls.Network
         private void Update()
         {
             if (!IsSpawned || needs == null) return;
-            if (!IsServer) needs.ApplyShared(SharedUrgency.Value, SharedDisgust.Value);
+            if (!IsServer) needs.ApplyShared(SharedUrgency.Value, SharedDisgust.Value, SharedUnwiped.Value);
             else if (Time.time >= nextNeedsUpdate) { nextNeedsUpdate = Time.time + .2f; PublishNeeds(); }
         }
     }
