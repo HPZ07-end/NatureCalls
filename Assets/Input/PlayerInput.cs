@@ -26,6 +26,16 @@ namespace NatureCalls.Input
         public int PaperRemainingUses => HeldItem is PaperRoll roll ? roll.RemainingUses : 0;
         public Vector3 TargetCenter => toilet != null ? toilet.TargetCenter : urinal != null ? urinal.TargetCenter : CurrentLanding;
         public float TargetRadius => NeedsRules.TargetRadius;
+        /// <summary>The two axes the target circle lies in: the floor for a toilet, the wall for a urinal.</summary>
+        public (Vector3 x, Vector3 y) TargetAxes
+        {
+            get
+            {
+                if (urinal == null) return (Vector3.right, Vector3.forward);
+                var facing = Vector3.ProjectOnPlane(urinal.TargetCenter - urinal.FrontPosition, Vector3.up).normalized;
+                return (Vector3.Cross(Vector3.up, facing), Vector3.up);
+            }
+        }
         public Vector3 CurrentLanding { get; private set; }
         public float Elapsed => Phase == Stage.Cleaning ? cleanElapsed : accuracy?.Elapsed ?? 0;
         public float Duration => Phase == Stage.Cleaning ? NeedsRules.CleaningSeconds : accuracy?.Duration ?? 0;
@@ -45,7 +55,6 @@ namespace NatureCalls.Input
         private void Awake()
         {
             movement = GetComponent<Movement>();
-            if (GetComponent<UI.AimDebug>() == null) gameObject.AddComponent<UI.AimDebug>();
             posture = GetComponent<Posture>();
             facilities = GetComponent<FacilitySync>();
             needsSync = GetComponent<NeedsSync>();

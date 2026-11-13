@@ -74,6 +74,26 @@ namespace NatureCalls.Tests
                 Assert.That(needs.Disgust, Is.EqualTo(10));
             }
         }
+        [UnityTest] public IEnumerator ToiletingHudShowsPromptTargetAndUnwipedWarning()
+        {
+            var hud = Object.FindFirstObjectByType<UI.ToiletingHud>();
+            Assert.That(hud, Is.Not.Null, "MatchHud carries the toileting HUD.");
+            GameObject Find(string name) => hud.GetComponentsInChildren<Transform>(true).First(item => item.name == name).gameObject;
+            yield return null;
+            Assert.That(Find("ToiletingPanel").activeSelf, Is.False, "Nothing is shown before toileting.");
+            Align();
+            yield return null;
+            Assert.That(Find("ToiletingPanel").activeSelf, Is.True);
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("保持"));
+            Assert.That(Find("AccuracyLabel").activeSelf, Is.True);
+            Assert.That(Find("TargetOverlay").activeSelf, Is.True, "The target circle is drawn while holding.");
+            Assert.That(Find("LandingMarker").activeSelf, Is.True);
+            Score(5, 5);
+            yield return null;
+            Assert.That(Find("ToiletingPanel").activeSelf, Is.False, "The prompt hides when the toileting ends.");
+            Assert.That(Find("TargetOverlay").activeSelf, Is.False);
+            Assert.That(Find("UnwipedWarning").activeSelf, Is.True, "After defecating the player is warned to wipe.");
+        }
         [Test] public void UrinalOccupancyHalvingAndPuddle()
         {
             Assert.That(Object.FindObjectsByType<Urinal>(FindObjectsSortMode.None).Length, Is.EqualTo(3));

@@ -32,7 +32,7 @@
 | 层 | 职责 | 主要类型 |
 | --- | --- | --- |
 | 数据层（Model） | 规则与状态，不关心显示和输入 | Core 纯 C# 规则 `NeedsRules`、`Accuracy`、`RoundClock`、`LobbyRules`、`MapSelection`、`OutfitSelection`；配置 `OutfitCatalog`、`MapCatalog`（ScriptableObject）；状态 `PlayerNeeds`、`Posture`、`StallDoor.State`、`Toilet.Occupant`、`LocalProfile`；联网共享状态 `LobbyRoom` 成员/阶段/计时、`Facilities`/`NeedsSync`/`AvatarAppearance` 的 NetworkVariable/NetworkList |
-| 表现层（View） | 只负责显示，不做判定 | `AimDebug`（只读调试瞄准）、`LobbyView`（纯引用）、`NeedsView`、`MatchClock`、`PlayerAppearance`、`CameraController`、`PlanarMirror`、`BackgroundBlur`、`MatchHud`/`LobbyCanvas` Prefab |
+| 表现层（View） | 只负责显示，不做判定 | `ToiletingHud`（如厕/清洁提示、进度、准度、目标圈与落点、未擦拭警告、手持物品）、`LobbyView`（纯引用）、`NeedsView`、`MatchClock`、`PlayerAppearance`、`CameraController`、`PlanarMirror`、`BackgroundBlur`、`MatchHud`/`LobbyCanvas` Prefab |
 | 控制层（Controller） | 接收输入或网络事件，调用规则，更新状态 | `PlayerInput`、`LobbyController`、`MatchExit`、`Session`、`Match`、`Playground`、`Avatar`，以及 `FacilitySync`/`NeedsSync` 中由服务器执行的请求校验（RPC） |
 
 `Movement` 同时持有位置状态和 CharacterController 运动，属于控制层与数据层的交界；设施组件（`StallDoor`、`Toilet`、`PaperRoll`）把各自的规则判定（数据）与场景表现（门扇旋转、显隐）放在同一个 MonoBehaviour 中，规则函数可单独调用。

@@ -148,6 +148,6 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 ## 表现层读取接口
 
-本地玩家 `Input/PlayerInput` 的只读属性：`Phase`（None/Aligning/Holding/Urinating/Cleaning）、`TargetCenter`、`TargetRadius`（世界坐标/米）、`CurrentLanding`（世界坐标）、`Elapsed`/`Duration`（秒）、`CurrentAccuracy`（0–1 时间比例）、`Unwiped`、`HeldItem`（Item，具体为 PaperRoll/Mop）、`PaperRemainingUses`、`CleaningProgress`（0–1）。`Stage.None` 时瞄准值为上一次记录，不应用于显示目标区。`UI/AimDebug` 是可替换的最简调试展示，仅读取接口；正式 HUD 与瞄准美术未实现。
+本地玩家 `Input/PlayerInput` 的只读属性：`Phase`（None/Aligning/Holding/Urinating/Cleaning）、`TargetCenter`、`TargetRadius`（世界坐标/米）、`CurrentLanding`（世界坐标）、`Elapsed`/`Duration`（秒）、`CurrentAccuracy`（0–1 时间比例）、`Unwiped`、`HeldItem`（Item，具体为 PaperRoll/Mop）、`PaperRemainingUses`、`CleaningProgress`（0–1）。`Stage.None` 时瞄准值为上一次记录，不应用于显示目标区。另有 `TargetAxes`（目标圈所在平面的两个轴：马桶为地面，小便池为墙面）。`UI/ToiletingHud`（在 `MatchHud.prefab` 上，由 `python3 scripts/unity.py match-flow` 生成）只读取这些属性：底部显示阶段提示、进度条与实时准度（按结算阈值显示绿/黄/红），对位与如厕时在画面上投影目标圈与落点（落点在圈内时变绿），大便后未擦拭时显示红色提醒，左下角显示手持物品与卷纸剩余次数。布局、颜色与字体都在 Prefab 中，美术可直接替换；目前为纯色占位，没有图标与动画。
 
 Owner 本地累计落点在圈内的时间；结束经 `FacilitySync` 上报准度与玩家位置。服务器验证请求者、开始记录、最低时长、设施占用、所在位置以及数值范围后应用需求和污物。此模式不验证客户端每一帧轨迹，不是反作弊方案。清洁服务器记录开始时间，并要求持续心跳、距离、朝向及持有拖把；松开时主动取消，缺失心跳也取消。

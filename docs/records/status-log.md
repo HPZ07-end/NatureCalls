@@ -231,3 +231,8 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 - 已知限制：Owner 上报最终准度，服务器校验设施/占用/位置/时长/数值，不重放轨迹，不能当作反作弊验证。脚底测试的一次不稳定失败保留上表，未声称已查明根因。
 
 - `python3 scripts/server.py Builds/macOS/20261112T195125Z-b324d4/NatureCalls.app`：服务器/首位玩家/第二位玩家均通过，Artifacts/20261112T195714Z-080549-server/。实际检查无本地玩家/镜头、设施和拖把共享、两次 C 占用及释放、污物、领队接任、计时返回和空服等待；各角色只验证自身职责（报告中不适用的布尔项不表示失败）。使用 macOS 同代码 `-server` 路径，不是 Linux 产物执行。
+
+## 2026-11-13 如厕与清洁 HUD（Claude）
+
+- 用 uGUI `UI/ToiletingHud` 取代临时 OnGUI 调试显示 `AimDebug`，并去掉 `PlayerInput` 在运行时添加该组件的代码（控制层不应创建表现层组件）。`PlayerInput` 新增只读 `TargetAxes`，让 HUD 在正确的平面上画目标圈。`match-flow` 在 `MatchHud.prefab` 上生成布局：阶段提示、进度条、实时准度、目标圈与落点投影、未擦拭警告、手持物品。
+- 新增 PlayMode `ToiletingHudShowsPromptTargetAndUnwipedWarning`。PlayMode 29 通过 + 1 Ignored（`Artifacts/20261113T013936Z-6277a1-test-playmode/`），EditMode 通过。HUD 的实际画面未经人工查看。
