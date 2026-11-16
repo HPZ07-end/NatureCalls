@@ -54,6 +54,10 @@ E 顺序：未擦拭且持卷纸时擦拭 → 持拖把对污物长按清洁 →
 
 ## Lobby 流程
 
+地图选择提供原 Playground 与「模块厕所（MapLayoutPrototype）」。后者是已存在模块布局的可玩接入，使用同一个 `Map.Playground` 组件和 Player Prefab；没有新增运行时地图框架或依赖。通过大厅进入时由 `Match` 加载，联机由 `LobbyRoom` 等待服务器及所有成员完成加载再生成玩家；只给拥有者绑定地图的本地镜头。
+
+`py -3 scripts/unity.py map-integration`（菜单 `NatureCalls/Connect Layout Map To Lobby`）通过 Unity API 为现有布局补齐镜头、出生点、门/马桶/卷纸/工具箱接线、HUD、地图目录和构建列表；不重新生成布局、覆盖原 Playground 或改变模块 Prefab。普通使用不需要重跑。漏水、阀门、应急设施及损坏/污渍装饰保持视觉展示，本次不赋予新的规则。
+
 1. 打开 `DressingRoom` 并 Play。走到镜子前按 E 打开换装面板，点选外观预览，「确认」保存（写入本机 PlayerPrefs），「取消」恢复。
 2. 走到镜子左侧的门按 E：背景虚化，出现联机大厅。
    - **单人离线测试**：直接进入地图选择，选地图或「随机地图」后加载该地图，本地玩家穿着所选外观。

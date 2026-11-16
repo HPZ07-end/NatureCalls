@@ -23,6 +23,7 @@ namespace NatureCalls.Network
         private Report report;
         private string directory;
         private bool finished;
+        private int MapIndex => int.TryParse(Argument("-probe-map"), out var index) ? index : 0;
         private string Marker(string name) => Path.Combine(directory, name + ".marker");
         private void Mark(string name) => File.WriteAllText(Marker(name), "observed");
         private bool Marked(string name) => File.Exists(Marker(name));
@@ -61,7 +62,7 @@ namespace NatureCalls.Network
             if (!session.Manager.IsServer || session.Manager.IsClient || room.Members.Count != 0 ||
                 FindFirstObjectByType<Playground>().OfflinePlayer != null || UnityEngine.Camera.allCamerasCount != 0 || Application.targetFrameRate != 30)
             { Finish("Server created a local player, camera, member or did not cap frame rate."); yield break; }
-            room.Maps[0].RoundSeconds = 45;
+            room.Maps[MapIndex].RoundSeconds = 45;
             Mark("server-ready");
             yield return Await(() => room.Members.Count == 2, "two members");
             if (finished) yield break;
@@ -117,12 +118,17 @@ namespace NatureCalls.Network
             Mark(report.role + "-selecting");
             yield return Await(() => Marked("leader-selecting") && Marked("follower-selecting"), "selection seen");
             if (finished) yield break;
-            if (leader) lobby.ChooseMap(0);
+            if (leader) lobby.ChooseMap(MapIndex);
             yield return Await(() => Facilities.Current != null && FindObjectsByType<Avatar>(FindObjectsSortMode.None).Count(a => a.IsSpawned) == 2, "client map");
             if (finished) yield break;
             var own = FindObjectsByType<Avatar>(FindObjectsSortMode.None).Single(a => a.IsOwner);
             var world = FindFirstObjectByType<Playground>();
-            report.mapLoaded = world.OfflinePlayer == null && Facilities.Current.IsOwnedByServer && !Facilities.Current.NetworkObject.IsPlayerObject;
+            var screenCameras = UnityEngine.Camera.allCameras
+                .Where(camera => camera.isActiveAndEnabled && camera.targetTexture == null).ToArray();
+            report.mapLoaded = Match.MapIndex == MapIndex && world.OfflinePlayer == null &&
+                world.Camera.Target == own.GetComponent<Movement>() && screenCameras.Length == 1 &&
+                screenCameras[0] == world.Camera.Output &&
+                Facilities.Current.IsOwnedByServer && !Facilities.Current.NetworkObject.IsPlayerObject;
             var movement = own.GetComponent<Movement>();
             var input = own.GetComponent<NatureCalls.Input.PlayerInput>();
             var sync = own.GetComponent<FacilitySync>();
