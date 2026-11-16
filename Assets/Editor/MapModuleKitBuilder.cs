@@ -660,6 +660,41 @@ namespace NatureCalls.Editor
             Debug.Log("NatureCalls corrected the south doorway to the shared layout alignment.");
         }
 
+        [MenuItem("NatureCalls/Fix Layout Prototype Broken Stall Doorway Alignment")]
+        public static void FixLayoutPrototypeBrokenStallDoorwayAlignment()
+        {
+            if (Application.isPlaying)
+                throw new InvalidOperationException("Exit Play Mode before moving map modules.");
+            if (!File.Exists(PrototypeScenePath))
+                throw new FileNotFoundException("Build MapLayoutPrototype before correcting its broken-stall doorway.", PrototypeScenePath);
+
+            var wallSegment = LoadRequiredPrefab(WallSegmentPath);
+            var scene = EditorSceneManager.OpenScene(PrototypeScenePath, OpenSceneMode.Single);
+            var root = GameObject.Find("Map Layout Prototype - visual assembly test");
+            if (root == null)
+                throw new InvalidOperationException("MapLayoutPrototype root is missing.");
+
+            var eastCorridor = FindDescendantByName(root.transform, "Corridor east");
+            if (eastCorridor == null)
+                throw new InvalidOperationException("MapLayoutPrototype is missing Corridor east.");
+
+            // East uses the same connector rotated -90 degrees. Moving its local opening
+            // one 0.5m tile toward negative Z moves the world-space doorway 0.5m east.
+            // Keep Stall_Broken in place: its doorway is already centered at X = 4.75m.
+            SetCorridorOpening(eastCorridor, "Right wall ", wallSegment, 3, 4, 5);
+            var doorwayFrame = FindDescendantByName(eastCorridor, "Stall doorway frame");
+            if (doorwayFrame == null)
+                throw new InvalidOperationException("Corridor east is missing its integrated stall doorway frame.");
+            doorwayFrame.localPosition = new Vector3(1.15f, 0f, -.25f);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(doorwayFrame);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene))
+                throw new IOException("Could not save " + PrototypeScenePath);
+            AssetDatabase.SaveAssets();
+            Debug.Log("NatureCalls moved the broken-stall doorway 0.5m east without moving the stall.");
+        }
+
         private static GameObject EnsureFloorTile(Material floor, Material grout)
         {
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(FloorTilePath);
