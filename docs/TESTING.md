@@ -24,12 +24,12 @@ python3 -m unittest discover -s scripts/tests -v
 
 脚本发现 `Temp/UnityLockfile` 或 `Artifacts/unity.lock` 时拒绝运行；不自动删锁或强行退出 Editor。崩溃后由人确认进程退出与未保存内容后手工恢复。
 
-## 当前覆盖范围
+## 基础覆盖范围
 
-以下按测试方法计数（2026-11-03 实际运行，见 [开发记录](records/status-log.md)）。
+以下保留基础用例说明（计数为 2026-11-03 历史运行）；本次新增用例和最新实际计数见文末及 [开发记录](records/status-log.md)。
 
 - EditMode（13 项）：Force Text、Visible Meta Files、`Assets/Scenes` 下项目场景及所有 Prefab 的序列化引用/缺失脚本检查（第三方演示场景不在范围内）、DressingRoomPlayer 使用共享 Player 契约且不带网络组件、Lobby 资源接线（LobbyRoom 已注册、Network Prefab、启动场景与地图均在构建列表）；`OutfitSelection` 循环切换与取消恢复；`LobbyRules` 2–4 人与准备条件、`MapSelection` 随机地图；局域网房间号跳过 `169.254.x.x` 自分配地址；`RoundClock` 倒计时与显示格式；`NeedsRules` 急迫值 1 分钟涨满、如厕中不涨、隔间外 +10 恶心值与判负阈值。
-- PlayMode（17 项，其中 1 项需要设置环境变量才运行）：DressingRoom 镜子换装改变外观并记住；门打开虚化 Lobby、单人离线测试选地图后加载 Playground 并穿着外观；Host 建房后单人不能开始、Lobby 中不生成角色、选图后加载地图并同步外观，全局计时在 HUD 显示，房主驱动玩家急迫值，任一玩家急迫值满后全队失败、所有人回到准备房并留在原房间、房间显示失败原因；单人离线对局到点后回到准备房；Smoke 加载；Playground 四个出生点都站在房间内空地上（脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 同一房间）；墙体碰撞/高帧率位移/姿态停步；站立模型脚底接触地图地面；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；Host 开门、拾取和丢掷卷纸后发布共享状态；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。Playground 测试从场景读取墙体位置与隔间马桶，只统计渲染到屏幕的摄像机（镜面摄像机渲染到贴图）；马桶测试先从门外开门再进入隔间，验证：隔间外 C 原地如厕、再按 C 无效、5 秒后自动站起，E 不再坐下；每个隔间从门内到座位、左右两侧的位置都判定为本隔间，C 坐到本隔间的马桶并占用；坐着时 E 关门、上锁、开门；5 秒后自动站起并释放马桶。急迫值按 1 分钟涨满的速度上涨、如厕中不涨、结束后清零，隔间外如厕 +10 恶心值并留下一个黑色小球，隔间内不加。另有占用中的马桶拒绝第二名玩家，以及联机 Host 请求坐下后由房主授予并共享占用、5 秒后站起并释放。坐在马桶上时验证俯视镜头位于角色上方、看得到马桶开口且不被角色网格遮挡；站起后回到坐下前的位置并能走出隔间。Host 建房用例通过 `LobbyController.PreferLan` 固定走本机局域网房间，不依赖 Relay 和外网；Relay 建房的自动用例 `RelayHostConnectsOverWebSockets` 只在设置 `NATURECALLS_RELAY_TESTS=1` 时运行，用真实 Unity Cloud 以 WebSocket 建房并取得 Join Code，否则标记为 Ignored；两台机器经 Relay 联机仍需人工验收。2026-11-04 batchmode 全部通过。
+- PlayMode（17 项，其中 1 项需要设置环境变量才运行）：DressingRoom 镜子换装改变外观并记住；门打开虚化 Lobby、单人离线测试选地图后加载 Playground 并穿着外观；Host 建房后单人不能开始、Lobby 中不生成角色、选图后加载地图并同步外观，全局计时在 HUD 显示，房主驱动玩家急迫值，任一玩家急迫值满后全队失败、所有人回到准备房并留在原房间、房间显示失败原因；单人离线对局到点后回到准备房；Smoke 加载；Playground 四个出生点都站在房间内空地上（脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 同一房间）；墙体碰撞/高帧率位移/姿态停步；站立模型脚底接触地图地面；Cinemachine 多帧 Blend、近距离正后方居中与朝向、马桶内部无遮挡、角色完整入镜与返回朝向；Host 所有权/唯一镜头/退出清理；Host 开门、拾取和丢掷卷纸后发布共享状态；空 Join Code 与未关联 Cloud 的失败反馈及离线练习保留。Playground 测试从场景读取墙体位置与隔间马桶，只统计渲染到屏幕的摄像机（镜面摄像机渲染到贴图）；马桶测试先从门外开门再进入隔间，验证：隔间外 C 原地如厕、再按 C 无效、5 秒后自动站起，E 不再坐下；每个隔间从门内到座位、左右两侧的位置都判定为本隔间，第一次 C 对位、第二次 C 在当前位置蹲下并占用；坐着时 E 关门、上锁、开门；5 秒后自动站起并释放马桶。急迫值按 1 分钟涨满的速度上涨、如厕中不涨、结束后清零，隔间外如厕 +10 恶心值并留下一个黑色小球，隔间内完美结算不加。另有占用中的马桶拒绝第二名玩家，以及联机 Host 两次 C 请求坐下后由服务器授予并共享占用、5 秒后站起并释放。坐在马桶上时验证俯视镜头位于角色上方、看得到马桶开口且不被角色网格遮挡；站起后回到坐下前的位置并能走出隔间。Host 建房用例通过 `LobbyController.PreferLan` 固定走本机局域网房间，不依赖 Relay 和外网；Relay 建房的自动用例 `RelayHostConnectsOverWebSockets` 只在设置 `NATURECALLS_RELAY_TESTS=1` 时运行，用真实 Unity Cloud 以 WebSocket 建房并取得 Join Code，否则标记为 Ignored；两台机器经 Relay 联机仍需人工验收。2026-11-04 batchmode 全部通过。
 - 仓库检查：路径大小写、JSON/asmdef、`.meta` 成对与 GUID 唯一性、生成目录忽略、包约束、相对 Markdown 文件链接；不请求外部链接，也不验证页面锚点。
 - 脚本单测：并发锁、虚假测试成功、Semantic Diff 格式及 baseline 边界。
 - 双 Player 验证：Development 构建通过 `scripts/multiplayer.py` 启动两个独立进程，在 localhost UnityTransport 上检查位置/朝向/姿态、所有权、独立镜头、可见远端角色、出生点与退出清理。开发探针只在显式 `-m1-probe` 参数下运行；普通游戏不自动操作角色，Release 不包含探针。
@@ -46,7 +46,7 @@ python3 scripts/multiplayer.py Builds/macOS/<build-id>/NatureCalls.app
 
 Windows 使用 `py -3 scripts/multiplayer.py Builds/Windows/NatureCalls.exe`，必须勾选 Development Build；Release 没有探针，不能用于此命令。脚本为两个自身创建的进程收集 JSON、PNG 和 Player 日志，超时失败会结束这两个进程，不操作 Editor。每端断言和退出码必须同时通过。测试使用短暂分配的本机 UDP 端口，不配置 Cloud。
 
-双进程探针还依次由 Host、Client 发起门开/关/锁/解锁，以及卷纸拾取、丢掷；两端各自检查实际场景的门状态、卷纸携带者、Renderer/Collider 显隐及落点（位置差小于 0.15m）。同一运行目录内的标记文件只协调测试步骤，不写入游戏设施状态；实际交互走 Avatar 请求/RPC。测试会临时设置自己角色的位置，不代表人工键鼠路径或大厅/Relay 验收。
+双进程探针还依次由 Host、Client 发起门开/关/锁/解锁，以及卷纸拾取、丢掷；两端各自检查实际场景的门状态、卷纸携带者、Renderer/Collider 显隐及落点（位置差小于 0.15m）。同一运行目录内的标记文件只协调测试步骤，不写入游戏设施状态；实际交互走 FacilitySync 请求/RPC。测试会临时设置自己角色的位置，不代表人工键鼠路径或大厅/Relay 验收。
 
 MPPM GUI、2–4 人、真实 LAN、Relay、Mac/Windows 互联分别人工记录。按 [PLAYGROUND](PLAYGROUND.md) 启动，逐端验证 WASD/鼠标/C/E/Esc，观察远端移动和蹲下，确认 A 的镜头变化不影响 B；大厅中验证准备/开始按键、人数不足时不能开始、选图与随机地图、对局中双方外观一致；Client 点左上角「退出」后 Host 只剩自己的角色，Host 退出后 Client 回到准备房并看到原因。再测试重新加入、游戏开始后加入被拒、无效地址或 Join Code、房间满员与端口不可达。未执行项不能因脚本通过而勾选。
 
@@ -93,3 +93,9 @@ Actions 的 `repository` 在 Linux/macOS/Windows 运行仓库检查与 Python �
 `build-server` 仍用 Linux64/Server 编译。在其进程结束后，无论构建成功或失败，Python 的 finally 都在同一项目锁内用独立 Editor 进程恢复本机桌面 Player，并调用 `Automation.ValidatePlayer` 检查 activeBuildTarget、Player 子目标与 `UNITY_SERVER` 已关闭。恢复日志位于当次 Artifacts 的 `restore/`，完成回执为 `restore/validate.ok`，summary.json 记录恢复命令、退出码和状态；只有构建及恢复都成功才报告通过。使用独立进程是为了让启动时完成目标切换和重编译，避免在 batchmode executeMethod 中切换目标。恢复失败会报告失败；若崩溃残留 UnityLockfile，拒绝恢复且不删锁，按前述锁规则人工处理。强制终止 Python/断电不保证 finally 执行，下次非服务器命令仍会显式选择 Player。
 
 回归顺序：`build-server` → 无过滤 `test-playmode` → `test-editmode` → `build-macos`（Windows 为 `build-windows`）→ `server.py <当次构建>` → `multiplayer.py <同一构建>`。每一步读取自己的完成回执、XML/JSON 与退出码，不以构建前的测试结果代表构建后的验证。
+
+## 如厕对准与清洁回归（2026-11-13）
+
+`AccuracyTests`（EditMode）验证时间加权、最后一帧截断、阈值边界、漂移与急迫值单调关系、卷纸次数和需求数值。`ToiletingTests`（PlayMode）加载真实 Playground，验证对位→保持→三档结算、小便池占用/减半/积水、拾纸再擦拭与消耗、未擦拭门/走出两分支、工具箱容量与唯一拖把、丢掷后最近物品拾取、清洁松开/离开中断、积水距离、Host 共享拖把/污物与清洁。离线确定性准度测试直接向生产 TickAim 提供修正和时间；真实计时由启用 PlayerInput 的既有回归及服务器计时验证覆盖。无人键盘环境下不要关闭 PlayerInput 后仍等待其 Update 计时。
+
+`multiplayer.py` 额外检查 Host 与 Client 各自使用小便池生成积水、取拖把清理并归还后的双方场景；`server.py` 两次 C 对位/保持并检查污物、专用服务器下拖把取放。两者都是本机 UDP，不是 Relay、跨设备或真人手感。完整命令及实际结果追加到 [status-log](records/status-log.md)。

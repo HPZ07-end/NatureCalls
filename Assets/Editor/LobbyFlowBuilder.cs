@@ -420,6 +420,7 @@ namespace NatureCalls.Editor
                     EnsureStatusPlaceholder(existing.transform);
                     EnsureMatchClock(existing);
                     EnsureNeedsView(existing);
+                    EnsureToiletingHud(existing);
                     PrefabUtility.SaveAsPrefabAsset(existing, MatchHudPath);
                 }
                 finally { PrefabUtility.UnloadPrefabContents(existing); }
@@ -444,6 +445,7 @@ namespace NatureCalls.Editor
                 EnsureStatusPlaceholder(root.transform);
                 EnsureMatchClock(root);
                 EnsureNeedsView(root);
+                EnsureToiletingHud(root);
                 PrefabUtility.SaveAsPrefabAsset(root, MatchHudPath);
             }
             finally { Object.DestroyImmediate(root); }
@@ -526,6 +528,56 @@ namespace NatureCalls.Editor
                 PrefabUtility.SaveAsPrefabAsset(root, DressingRoomPlayerPath);
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        // Toileting / cleaning prompt, progress, accuracy, target overlay, unwiped warning and held item.
+        private static void EnsureToiletingHud(GameObject hud)
+        {
+            if (hud.GetComponent<ToiletingHud>() != null) return;
+            var view = hud.AddComponent<ToiletingHud>();
+
+            var overlay = MakeRect("TargetOverlay", hud.transform);
+            Stretch(overlay.gameObject);
+            overlay.SetAsFirstSibling();
+            var dot = MakeImage("RingDot", overlay, Color.white);
+            dot.raycastTarget = false;
+            dot.rectTransform.sizeDelta = new Vector2(8, 8);
+            var landing = MakeImage("LandingMarker", overlay, Color.white);
+            landing.raycastTarget = false;
+            landing.rectTransform.sizeDelta = new Vector2(18, 18);
+
+            var panel = Box(hud.transform, "ToiletingPanel", new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(0, 150), new Vector2(720, 120));
+            var phase = MakeLabel(panel, "PhaseLabel", "", 30, TextAnchor.MiddleCenter, new Vector2(0, -10), new Vector2(700, 44));
+            var track = MakeImage("ProgressTrack", panel, new Color(.02f, .03f, .05f, .72f));
+            track.rectTransform.anchorMin = track.rectTransform.anchorMax = new Vector2(.5f, 1);
+            track.rectTransform.pivot = new Vector2(.5f, 1);
+            track.rectTransform.anchoredPosition = new Vector2(0, -62);
+            track.rectTransform.sizeDelta = new Vector2(600, 18);
+            var fill = MakeImage("ProgressFill", track.transform, new Color(.35f, .65f, .95f));
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = 0;
+            Stretch(fill.gameObject);
+            var accuracy = MakeLabel(panel, "AccuracyLabel", "", 26, TextAnchor.MiddleCenter, new Vector2(0, -84), new Vector2(400, 32));
+
+            var warning = Box(hud.transform, "UnwipedWarning", new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(0, 290), new Vector2(620, 56));
+            warning.GetComponent<Image>().color = new Color(.75f, .15f, .12f, .92f);
+            MakeLabel(warning, "Label", "还没擦！手上有卷纸时按 E 擦拭", 28, TextAnchor.MiddleCenter, new Vector2(0, -6), new Vector2(600, 44));
+
+            var item = MakeLabel(hud.transform, "HeldItemLabel", "", 26, TextAnchor.MiddleLeft, Vector2.zero, new Vector2(620, 40), bottom: true);
+            item.rectTransform.anchorMin = item.rectTransform.anchorMax = item.rectTransform.pivot = new Vector2(0, 0);
+            item.rectTransform.anchoredPosition = new Vector2(24, 24);
+            item.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .8f);
+
+            SetReference(view, "statusPanel", panel.gameObject);
+            SetReference(view, "phaseLabel", phase);
+            SetReference(view, "progressFill", fill);
+            SetReference(view, "accuracyLabel", accuracy);
+            SetReference(view, "unwipedWarning", warning.gameObject);
+            SetReference(view, "itemLabel", item);
+            SetReference(view, "overlay", overlay);
+            SetReference(view, "ringDot", dot);
+            SetReference(view, "landingMarker", landing);
         }
 
         // Drives PR #12's placeholder Urgency / Disgust bars from the local player's needs.

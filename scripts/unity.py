@@ -132,12 +132,12 @@ def run(action, timeout, test_filter=None):
         if action != "build-server":
             target = {"build-macos": "osxuniversal", "build-windows": "Win64"}.get(action, player_target())
             command += ["-buildTarget", target, "-standaloneBuildSubtarget", "Player"]
-        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities"):
+        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities", "toileting"):
             if use_nographics():
                 command += ["-nographics"]
             command += ["-quit", "-executeMethod", "NatureCalls.Editor.Automation." +
                         {"setup": "Setup", "playground": "Playground", "camera": "Camera",
-                         "lobby-flow": "LobbyFlow", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "match-flow": "MatchFlow", "facilities": "Facilities", "validate": "Validate"}[action]]
+                         "lobby-flow": "LobbyFlow", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "match-flow": "MatchFlow", "facilities": "Facilities", "toileting": "Toileting", "validate": "Validate"}[action]]
         elif action in ("test-editmode", "test-playmode"):
             if action == "test-editmode" and use_nographics():
                 command += ["-nographics"]
@@ -196,7 +196,7 @@ def run(action, timeout, test_filter=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities", "test-editmode", "test-playmode", "build-macos", "build-windows", "build-server"])
+    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "toilet-anchors", "spawn-points", "match-flow", "facilities", "toileting", "test-editmode", "test-playmode", "build-macos", "build-windows", "build-server"])
     parser.add_argument("--timeout", type=int, default=1800, help="Editor timeout in seconds (default 1800)")
     parser.add_argument("--test-filter", help="Explicit Unity test name/regex filter; recorded in summary.json")
     arguments = parser.parse_args()

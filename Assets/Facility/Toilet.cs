@@ -16,17 +16,14 @@ namespace NatureCalls.Facility
 
         public bool CanSeat(Movement player) => Anchor != null && player != null && (Occupant == null || Occupant == player);
 
-        /// <summary>
-        /// Where the player sits. Always the anchor for now; a later mechanic can offset this pose by how
-        /// accurately the player lines up (留白 for toileting accuracy).
-        /// </summary>
-        public Transform SeatPose(Movement player) => Anchor;
+        public Vector3 TargetCenter => Interior != null ? Interior.position : Anchor.position;
+        public float TargetRadius => Core.NeedsRules.TargetRadius;
 
         public bool Seat(Movement player)
         {
             if (!CanSeat(player)) return false;
             Occupant = player;
-            player.Enter(SeatPose(player));
+            player.Enter(Anchor);
             return true;
         }
 

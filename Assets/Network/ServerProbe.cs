@@ -61,7 +61,7 @@ namespace NatureCalls.Network
             if (!session.Manager.IsServer || session.Manager.IsClient || room.Members.Count != 0 ||
                 FindFirstObjectByType<Playground>().OfflinePlayer != null || UnityEngine.Camera.allCamerasCount != 0 || Application.targetFrameRate != 30)
             { Finish("Server created a local player, camera, member or did not cap frame rate."); yield break; }
-            room.Maps[0].RoundSeconds = 28;
+            room.Maps[0].RoundSeconds = 45;
             Mark("server-ready");
             yield return Await(() => room.Members.Count == 2, "two members");
             if (finished) yield break;
@@ -69,9 +69,9 @@ namespace NatureCalls.Network
             yield return Await(() => Facilities.Current != null && FindObjectsByType<Avatar>(FindObjectsSortMode.None).Length == 2, "server map");
             if (finished) yield break;
             report.mapLoaded = Facilities.Current.IsOwnedByServer && !Facilities.Current.NetworkObject.IsPlayerObject;
-            yield return Await(() => Marked("leader-facilities") && Marked("follower-facilities"), "client facility verification", 35);
+            yield return Await(() => Marked("leader-facilities") && Marked("follower-facilities"), "client facility verification", 60);
             if (finished) yield break;
-            report.facilities = Facilities.Current.SharedDroppings.Count == 1;
+            report.facilities = Facilities.Current.SharedMesses.Count == 2;
             yield return Await(() => Marked("succession"), "leader succession");
             if (finished) yield break;
             report.leaderSuccession = room.Members.Count == 1;
@@ -130,7 +130,8 @@ namespace NatureCalls.Network
             var controller = own.GetComponent<CharacterController>();
             controller.enabled = false;
             var door = Facilities.Current.doors[0];
-            var roll = Facilities.Current.paperRolls[0];
+            var roll = Facilities.Current.items.OfType<PaperRoll>().First();
+            int rollIndex = Array.IndexOf(Facilities.Current.items, roll);
             if (leader) movement.transform.position = door.DoorColliderPivot.position - door.transform.forward * .35f;
             yield return new WaitForSecondsRealtime(.6f);
             yield return Step("door", leader, () => sync.RequestDoor(door), () => door.State == StallDoorState.Open);
@@ -143,20 +144,27 @@ namespace NatureCalls.Network
             yield return new WaitForSecondsRealtime(.6f);
             yield return Step("throw", !leader, () => sync.RequestThrow(roll, Vector3.forward), () => !roll.IsPickedUp && roll.GetComponentsInChildren<Renderer>(true).All(r => r.enabled));
             if (finished) yield break;
-            yield return Await(() => Facilities.Current.SharedPaperRolls[0].Mode == PaperRollSnapshot.Landed, "paper landing");
+            yield return Await(() => Facilities.Current.SharedItems[rollIndex].Mode == ItemSnapshot.Landed, "paper landing");
             if (finished) yield break;
             var toilet = door.GetComponentInChildren<Toilet>();
             if (leader) movement.transform.position = door.DoorColliderPivot.position + door.transform.forward * .35f;
             yield return new WaitForSecondsRealtime(.6f);
             // Enable real timed C handling; input has no physical keys in this explicit probe.
             input.enabled = true;
-            yield return Step("seat", leader, () => input.TryToilet(), () => toilet.IsOccupied);
+            yield return Step("seat", leader, () => input.TryToilet() && input.TryToilet(), () => toilet.IsOccupied);
             if (finished) yield break;
             yield return Step("seat-released", false, null, () => !toilet.IsOccupied);
             if (finished) yield break;
             if (!leader) movement.transform.position = world.Spawns[1].position;
             yield return new WaitForSecondsRealtime(.6f);
-            yield return Step("outside", !leader, () => input.TryToilet(), () => Facilities.Current.SharedDroppings.Count == 1 && world.DroppingCount == 1);
+            yield return Step("outside", !leader, () => input.TryToilet(), () => Facilities.Current.SharedMesses.Count == 2 && world.DroppingCount == 2);
+            if (finished) yield break;
+            var box = FindFirstObjectByType<Toolbox>();
+            if (!leader) movement.transform.position = box.transform.position;
+            yield return new WaitForSecondsRealtime(.6f);
+            yield return Step("mop-take", !leader, () => sync.RequestToolbox(box), () => box.Mop.IsPickedUp);
+            if (finished) yield break;
+            yield return Step("mop-return", !leader, () => sync.RequestToolbox(box), () => box.Mop.Stored && !box.Mop.IsPickedUp);
             if (finished) yield break;
             report.facilities = true;
             Mark(report.role + "-facilities");

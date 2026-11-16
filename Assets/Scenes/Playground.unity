@@ -7099,6 +7099,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7432460832681161358, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
       insertIndex: -1
       addedObject: {fileID: 482994941}
+    - targetCorrespondingSourceObject: {fileID: 7432460832681161358, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 482994942}
   m_SourcePrefab: {fileID: 100100000, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
 --- !u!4 &482994939 stripped
 Transform:
@@ -7131,6 +7134,20 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.28159726, y: 0.7670685, z: 0.1930301}
   m_Center: {x: 0.000000007450581, y: 0.8269953, z: 0.085380085}
+--- !u!114 &482994942
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 482994940}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd0505827013408f99eec56ff44ad35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Urinal
+  Center: {x: 0.000000014901161, y: 0.8269953, z: 0.18538}
+  Front: {x: -0.00000005960466, y: 0, z: 0.73538023}
 --- !u!1001 &491243362
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -9174,6 +9191,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7432460832681161358, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
       insertIndex: -1
       addedObject: {fileID: 623878819}
+    - targetCorrespondingSourceObject: {fileID: 7432460832681161358, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 623878820}
   m_SourcePrefab: {fileID: 100100000, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
 --- !u!4 &623878817 stripped
 Transform:
@@ -9206,6 +9226,20 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.28159726, y: 0.7670685, z: 0.1930301}
   m_Center: {x: -0.0000000027275249, y: 0.8269953, z: 0.085380085}
+--- !u!114 &623878820
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 623878818}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd0505827013408f99eec56ff44ad35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Urinal
+  Center: {x: -0.0000000071978725, y: 0.8269953, z: 0.18538}
+  Front: {x: -0.000000028059496, y: 0, z: 0.73538023}
 --- !u!1001 &643020490
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -14794,6 +14828,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7432460832681161358, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1058423513}
+    - targetCorrespondingSourceObject: {fileID: 7432460832681161358, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1058423514}
   m_SourcePrefab: {fileID: 100100000, guid: 39686e9e6d2c7854982560e582f96338, type: 3}
 --- !u!4 &1058423511 stripped
 Transform:
@@ -14826,6 +14863,77 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.28159726, y: 0.7670685, z: 0.1930301}
   m_Center: {x: 0.000000007450581, y: 0.8269953, z: 0.085380085}
+--- !u!114 &1058423514
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1058423512}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd0505827013408f99eec56ff44ad35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Urinal
+  Center: {x: 0.000000014901161, y: 0.8269953, z: 0.18538}
+  Front: {x: 0.000000059604645, y: 0, z: 0.73538023}
+--- !u!1001 &1061393542
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3129284771686805717, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_Name
+      value: Toolbox
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7737829891319153745, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 756755f089da0486eaa07c5e59307c34, type: 3}
 --- !u!20 &1061397957 stripped
 Camera:
   m_CorrespondingSourceObject: {fileID: 2889207070817918163, guid: 312dd4f91c36a7c45bb456ed125df66d, type: 3}
@@ -30345,3 +30453,4 @@ SceneRoots:
   - {fileID: 391453195}
   - {fileID: 698673281}
   - {fileID: 1691852564}
+  - {fileID: 1061393542}

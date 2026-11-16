@@ -86,7 +86,7 @@
 
 ## 2026-11-04 C 键如厕、马桶占用、全局计时与准备房地板
 
-- 按用户决定（GLOSSARY 已记录批准来源）：所有如厕改由 C 触发。隔间内按所在隔间（`StallDoor.Containing`：门后方且在隔间范围内）坐到该隔间的马桶上，取代按距离选马桶，修复在隔间 B 坐下时选中隔间 A/C 马桶的问题；隔间外原地如厕；再按 C 站起。E 不再处理马桶，坐着时也能关门上锁，原「隔间内马桶优先于门」导致的困在隔间问题随之消失。`Toilet.SeatPose` 为以后的如厕准度机制留位。
+- 按用户决定（GLOSSARY 已记录批准来源）：所有如厕改由 C 触发。隔间内按所在隔间（`StallDoor.Containing`：门后方且在隔间范围内）坐到该隔间的马桶上，取代按距离选马桶，修复在隔间 B 坐下时选中隔间 A/C 马桶的问题；隔间外原地如厕；再按 C 站起。E 不再处理马桶，坐着时也能关门上锁，原「隔间内马桶优先于门」导致的困在隔间问题随之消失。`Toilet.SeatPose` 为以后的如厕准度机制留位。（历史接口，2026-11-13 已删除，当前使用目标区与玩家对位。）
 - 马桶一人占用：离线由 `Toilet` 本地判定；联机由房主检查占用和所在隔间后回复 Owner 坐下，占用经房主 Avatar 的 `SharedToilets` 同步，站起、离开地图时释放。
 - 全局计时：联机由 `LobbyRoom.RoundEndTime`（服务器时间）计时，到点后房主 Despawn 角色、阶段回到 Waiting、清除准备，所有端回到准备房并留在原房间；离线由 `Match` 本地计时。时长为 `MapCatalog` 每张地图的 `RoundSeconds`，默认 180 秒；HUD 顶部 `MatchClock` 显示剩余时间。
 - 准备房地板闪烁：默认材质的 `Plane` 与 `Floor` 顶面同在 y=0 造成 z-fighting，已关闭 `Plane` 的渲染（保留碰撞体），由 `python3 scripts/unity.py match-clock` 执行（`Artifacts/20261104T115823Z-15a776-match-clock/`）。
@@ -103,7 +103,7 @@
 ## 2026-11-05 卷纸飞行归丢掷者所有
 
 - 原因：非房主丢卷纸时，卷纸由房主模拟，房主每 0.1 秒广播一次位姿，非房主每收到一次就瞬移卷纸，因此一跳一跳；拾取时还会对运动学刚体设置速度，产生警告。
-- 改动：丢掷者本机立即模拟，约每 0.1 秒经 RPC 报告位姿，房主校验后写入 `SharedPaperRolls`（新增 `Simulator`，`Mode` 增加 `Landed`），其他端用 `PaperRoll.FollowShared` 平滑跟随并沿抛物线外推；静止 0.3 秒后交还房主，丢掷者离开时房主留在最后位置。拾取、丢掷许可仍由房主判定。
+- 改动：丢掷者本机立即模拟，约每 0.1 秒经 RPC 报告位姿，房主校验后写入 `SharedPaperRolls`（历史名称，2026-11-13 改为 `SharedItems`；新增 `Simulator`，`Mode` 增加 `Landed`），其他端用 `PaperRoll.FollowShared` 平滑跟随并沿抛物线外推；静止 0.3 秒后交还房主，丢掷者离开时房主留在最后位置。拾取、丢掷许可仍由房主判定。
 - 结果：EditMode 13/13（`Artifacts/20261105T035210Z-5366d5-test-editmode/`），PlayMode 16/16（`Artifacts/20261105T035220Z-b7d16c-test-playmode/`，Host 丢掷用例改为验证 Flying→Landed 交还）；本机双进程探针两端通过，双方各丢一次，落点差 < 0.15 m，日志无运动学刚体警告（`Artifacts/20261105T035332Z-e9d3fd-multiplayer/`）。真实两台机器未复测。
 
 ## 2026-11-05 Relay 支持 WebSocket（WSS）
@@ -195,3 +195,44 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 - 首次真实部署：提交 `5206a07`，构建 `Builds/LinuxServer/20261111T023339Z-1b16ad/`（构建后恢复桌面 Player 通过），部署为 `5206a07-20261111T023339Z-1b16ad`，房间 8000 `ROOM_OK`；服务器 `current` 已指向新版本，旧版本 `5b03702` 保留可回滚；记录 `Artifacts/20261111T024951Z-deploy-server/`。
 - 用户已从公网客户端连上 `49.233.132.244:8000`（2026-11-11 告知，新部署之前的版本）。
 - `.gitignore` 忽略工程根目录的 `*.mov`、`*.mp4` 录屏。
+
+
+## 2026-11-13 JST 如厕对准、擦拭、小便池、工具箱与清洁（日志 UTC 2026-11-12）
+
+- 分支 `feat/toileting-accuracy`；开始 HEAD `9fea68bb9faba36c615e0981c94e995bd213084c`，公共 `origin/dev` 为 `3788310598f688206869a34b9c560a9bceb7b91c`，已 fetch、全文对照 Glossary 并通过 semantic sync 显式确认。实施依据为分支已有 `bf123cf` 与 `9fea68b`，实现期间未改 GLOSSARY。完整 Semantic Diff 为 changed：Added Mess、Facility/Urinal、Facility/Toolbox；Changed Player/Posture/Squatting、Player/Urgency、Player/Disgust、Facility/Toilet、Facility/PaperRoll、Infrastructure/Input；Removed none（路径统一以 NatureCalls/Gameplay 开头，Input 以 NatureCalls/Infrastructure 开头）。
+- Player 契约提交 `d659ad9`；实现与测试提交 `87cbb95cc2d190d3794bf0370fe476b2eccfed09`。测试和构建使用包含该提交运行时代码的工作树；构建后只新增工具箱位于公共区域的测试断言及交付文档，没有改构建所用运行时代码。macOS / Darwin arm64，Unity 6000.3.26f1。
+- 规则集中于 NeedsRules，Accuracy 做时间积分。PlayerInput 阶段为对位、保持、小便、清洁，暴露世界目标区/落点、计时、准度、未擦拭、手持物与消耗/清洁进度。Movement 不再吸附 Anchor；站起返回进入前位置。Item 共用容量和丢掷；PaperRoll 消耗、Mop 唯一实例；Mess 三类共用对象池。网络仍走玩家 FacilitySync → IsServer 校验 → 服务器 Facilities 列表，NeedsSync 同步需求和未擦拭。未新增未经批准的领域规则，无待人类决定的实现阻塞。
+- Unity API 两次执行 toileting 构建工具：为三个已有小便池安装组件，生成/放置工具箱和 brush 拖把，重新保存 Player/Facilities Prefab 清理过时列表字段。原资产 GUID 保留。Unity 导入自动产生的无关 Android 空图标配置已恢复至任务前状态；未改第三方资源或包版本。
+- 新用例覆盖：阈值边界与按时间计分、漂移幅度、卷纸次数与长按中断；真实 Playground 中三档准度、对位不吸附、站起返回、小便占用/减半/积水、擦拭与拾纸/开门/走出分支、工具箱容量与唯一性/公共位置、拖把丢掷与最近拾取、清洁中断/完成、积水范围与恶心值、Host 共享状态，以及拒绝提前、NaN、远处位置和重复结算。
+
+命令均实际执行；每个 Unity 目录含 editor.log、process.log、summary.json，测试另含 results.xml；构建另有 build.ok，服务器目标恢复另有 restore/validate.ok。以下 Artifacts 均相对仓库根目录，不提交生成物。
+
+| 命令（python3 scripts/unity.py 前缀省略） | 实际结果 | Artifacts 路径 |
+| --- | --- | --- |
+| detect | 通过，6000.3.26f1 | 终端输出；版本亦见各 summary.json |
+| `toileting --timeout 3600` | 通过 | `Artifacts/20261112T194018Z-b4b049-toileting/` |
+| `test-editmode --timeout 3600` | 通过；29 Passed / 0 Ignored | `Artifacts/20261112T194227Z-050925-test-editmode/` |
+| `test-playmode --timeout 3600` | 失败；工具箱唯一性断言失败，出现残留拖把；修正 Item 场景归属后通过 | `Artifacts/20261112T194304Z-ff390f-test-playmode/` |
+| `test-playmode --timeout 3600` | 失败；既有脚底贴地测试出现 8 cm 偏差，单独复现及后续完整回归通过，原因未确定 | `Artifacts/20261112T194513Z-654422-test-playmode/` |
+| `test-playmode --test-filter StandingVisualTouchesTheFloor;HostValidatesUrinalResultBeforeApplyingIt（完整方法名见 summary） --timeout 3600` | 通过；2 Passed / 0 Ignored | `Artifacts/20261112T194709Z-3d98ca-test-playmode/` |
+| `toileting --timeout 3600` | 通过 | `Artifacts/20261112T194756Z-df5ed6-toileting/` |
+| `test-playmode --timeout 3600` | 通过；28 Passed / 1 Ignored | `Artifacts/20261112T194850Z-541eef-test-playmode/` |
+| `test-editmode --timeout 3600` | 通过；30 Passed / 0 Ignored | `Artifacts/20261112T195017Z-799d0f-test-editmode/` |
+| `build-macos --timeout 3600` | 通过 | `Artifacts/20261112T195125Z-b324d4-build-macos/` |
+| `build-server --timeout 3600` | 通过；Linux x86_64 产物及 macOS Player 恢复均通过 | `Artifacts/20261112T195350Z-fae134-build-server/` |
+| `test-playmode --timeout 3600` | 通过；28 Passed / 1 Ignored | `Artifacts/20261112T195551Z-184b41-test-playmode/` |
+
+- `python3 scripts/multiplayer.py Builds/macOS/20261112T195125Z-b324d4/NatureCalls.app`：Host 与 Client 均通过，Artifacts/20261112T195234Z-986ceb-multiplayer/。两端各自生成积水、取出拖把、持续清洁、归还；20 个双方观察标记已逐一核对，还检查原有移动、门、卷纸与退出。此为 localhost UDP，无 Relay。
+- `python3 scripts/check.py --require-generated`：通过，887 files / 440 asset GUIDs；Artifacts/toileting/repository-check.log。
+- `python3 -m unittest discover -s scripts/tests -v`：31/31；Artifacts/toileting/python-tests.log。此结果不是 Unity 测试。
+- `python3 scripts/semantic.py check --base origin/dev --head HEAD --body-file Artifacts/toileting/pr-body.md`：changed 格式检查通过；Artifacts/toileting/semantic-check.log。格式检查不替代人类语义审批或其他成员 Review。
+- macOS 产物：Builds/macOS/20261112T195125Z-b324d4/NatureCalls.app。Linux 产物：Builds/LinuxServer/20261112T195350Z-fae134/NatureCalls。Linux 二进制未执行。
+- 未执行/不在范围内：Windows Unity、真实跨设备/LAN、Relay、MPPM GUI、真人键鼠手感、正式 HUD/美术、Linux 二进制运行、公网连接、部署。Relay 用例明确 Ignored；未访问课程服务器，未合并 PR。
+- 已知限制：Owner 上报最终准度，服务器校验设施/占用/位置/时长/数值，不重放轨迹，不能当作反作弊验证。脚底测试的一次不稳定失败保留上表，未声称已查明根因。
+
+- `python3 scripts/server.py Builds/macOS/20261112T195125Z-b324d4/NatureCalls.app`：服务器/首位玩家/第二位玩家均通过，Artifacts/20261112T195714Z-080549-server/。实际检查无本地玩家/镜头、设施和拖把共享、两次 C 占用及释放、污物、领队接任、计时返回和空服等待；各角色只验证自身职责（报告中不适用的布尔项不表示失败）。使用 macOS 同代码 `-server` 路径，不是 Linux 产物执行。
+
+## 2026-11-13 如厕与清洁 HUD（Claude）
+
+- 用 uGUI `UI/ToiletingHud` 取代临时 OnGUI 调试显示 `AimDebug`，并去掉 `PlayerInput` 在运行时添加该组件的代码（控制层不应创建表现层组件）。`PlayerInput` 新增只读 `TargetAxes`，让 HUD 在正确的平面上画目标圈。`match-flow` 在 `MatchHud.prefab` 上生成布局：阶段提示、进度条、实时准度、目标圈与落点投影、未擦拭警告、手持物品。
+- 新增 PlayMode `ToiletingHudShowsPromptTargetAndUnwipedWarning`。PlayMode 29 通过 + 1 Ignored（`Artifacts/20261113T013936Z-6277a1-test-playmode/`），EditMode 通过。HUD 的实际画面未经人工查看。
