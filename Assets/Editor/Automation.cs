@@ -49,6 +49,7 @@ namespace NatureCalls.Editor
         }
 
         public static void Toileting() => ToiletingSetup.Configure();
+        public static void MapIntegration() => MapLayoutIntegration.Configure();
 
         public static void Facilities()
         {

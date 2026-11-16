@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using NatureCalls.Map;
 using NatureCalls.Network;
@@ -24,6 +25,7 @@ namespace NatureCalls.Tests
         private int savedOutfit;
         private MapCatalog timedCatalog;
         private float savedRoundSeconds;
+        private int timedMapIndex;
 
         [UnitySetUp]
         public IEnumerator Load()
@@ -54,7 +56,7 @@ namespace NatureCalls.Tests
         public IEnumerator Unload()
         {
             LocalProfile.OutfitIndex = savedOutfit;
-            if (timedCatalog != null) { timedCatalog[0].RoundSeconds = savedRoundSeconds; timedCatalog = null; }
+            if (timedCatalog != null) { timedCatalog[timedMapIndex].RoundSeconds = savedRoundSeconds; timedCatalog = null; }
             Match.End();
             var session = Session.Instance;
             if (session != null)
@@ -73,7 +75,7 @@ namespace NatureCalls.Tests
             for (int index = SceneManager.sceneCount - 1; index >= 0; index--)
             {
                 var loaded = SceneManager.GetSceneAt(index);
-                if (loaded != empty && loaded.isLoaded && (loaded.path == ScenePath || loaded.path == "Assets/Scenes/Playground.unity"))
+                if (loaded != empty && loaded.isLoaded && (loaded.path == ScenePath || loaded.path == "Assets/Scenes/Playground.unity" || loaded.path == "Assets/Scenes/MapLayoutPrototype.unity"))
                     yield return SceneManager.UnloadSceneAsync(loaded);
             }
             yield return null;
@@ -135,7 +137,14 @@ namespace NatureCalls.Tests
         }
 
         [UnityTest]
-        public IEnumerator DoorOpensBlurredLobbyAndOfflineTestLoadsTheChosenMapWithTheOutfit()
+        public IEnumerator DoorOpensBlurredLobbyAndOfflineTestLoadsTheChosenMapWithTheOutfit() =>
+            OfflineMap(0, "Assets/Scenes/Playground.unity");
+
+        [UnityTest]
+        public IEnumerator LobbyLoadsLayoutMapWithFirstPersonAndOutfit() =>
+            OfflineMap(1, "Assets/Scenes/MapLayoutPrototype.unity");
+
+        private IEnumerator OfflineMap(int mapIndex, string mapPath)
         {
             var player = world.OfflinePlayer;
             var outfit = (LocalProfile.OutfitIndex + 1) % player.GetComponent<PlayerAppearance>().Catalog.Count;
@@ -151,14 +160,16 @@ namespace NatureCalls.Tests
             Assert.That(lobby.IsMapPanelOpen, Is.True, "Offline test goes straight to map selection.");
             Assert.That(lobby.MapButtons, Has.Count.GreaterThanOrEqualTo(2), "At least one map plus the random option.");
 
-            lobby.ChooseMap(0);
+            lobby.ChooseMap(mapIndex);
             yield return null;
             yield return null;
             Assert.That(Match.Mode, Is.EqualTo(MatchMode.Offline));
             Assert.That(Match.OfflineRemaining, Is.InRange(0, Match.RoundSeconds), "The offline round clock is running.");
-            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo("Assets/Scenes/Playground.unity"));
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(mapPath));
             var map = Object.FindFirstObjectByType<Playground>();
             Assert.That(map.OfflinePlayer, Is.Not.Null);
+            AssertLocalCamera(map, map.OfflinePlayer);
+            Assert.That(map.Camera.FirstPerson.Priority.Value, Is.GreaterThan(map.Camera.ThirdPerson.Priority.Value));
             var appearance = map.OfflinePlayer.GetComponent<PlayerAppearance>();
             Assert.That(appearance.OutfitIndex, Is.EqualTo(outfit), "The DressingRoom outfit is worn on the map.");
 
@@ -172,7 +183,14 @@ namespace NatureCalls.Tests
         }
 
         [UnityTest]
-        public IEnumerator HostRoomWaitsForPlayersThenSpawnsTheOutfitOnTheChosenMap()
+        public IEnumerator HostRoomWaitsForPlayersThenSpawnsTheOutfitOnTheChosenMap() =>
+            HostMap(0, "Assets/Scenes/Playground.unity");
+
+        [UnityTest]
+        public IEnumerator HostLoadsLayoutMapWithNetworkPlayerAndFacilities() =>
+            HostMap(1, "Assets/Scenes/MapLayoutPrototype.unity");
+
+        private IEnumerator HostMap(int mapIndex, string mapPath)
         {
             var outfit = (LocalProfile.OutfitIndex + 3) % world.OfflinePlayer.GetComponent<PlayerAppearance>().Catalog.Count;
             LocalProfile.OutfitIndex = outfit;
@@ -198,8 +216,8 @@ namespace NatureCalls.Tests
             room.Phase.Value = LobbyPhase.SelectingMap;
             yield return null;
             Assert.That(lobby.IsMapPanelOpen, Is.True);
-            ShortenRound(room.Maps, 20);
-            lobby.ChooseMap(0);
+            ShortenRound(room.Maps, 20, mapIndex);
+            lobby.ChooseMap(mapIndex);
             deadline = Time.realtimeSinceStartup + 10;
             Avatar avatar = null;
             while (avatar == null && Time.realtimeSinceStartup < deadline)
@@ -208,9 +226,13 @@ namespace NatureCalls.Tests
                 avatar = Object.FindFirstObjectByType<Avatar>();
             }
             Assert.That(avatar, Is.Not.Null, "The host's player spawns once the map has loaded.");
-            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo("Assets/Scenes/Playground.unity"));
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(mapPath));
             Assert.That(Match.Mode, Is.EqualTo(MatchMode.Networked));
             Assert.That(avatar.IsOwner, Is.True);
+            var map = Object.FindFirstObjectByType<Playground>();
+            Assert.That(map.OfflinePlayer, Is.Null);
+            AssertLocalCamera(map, avatar.GetComponent<Movement>());
+            Assert.That(Facilities.Current, Is.Not.Null);
             Assert.That(avatar.GetComponent<AvatarAppearance>().OutfitIndex.Value, Is.EqualTo(outfit));
             var appearance = avatar.GetComponent<PlayerAppearance>();
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[outfit].Color));
@@ -256,11 +278,22 @@ namespace NatureCalls.Tests
             Assert.That(Match.Mode, Is.EqualTo(MatchMode.None));
         }
 
-        private void ShortenRound(MapCatalog catalog, float seconds)
+        private void ShortenRound(MapCatalog catalog, float seconds, int index = 0)
         {
             timedCatalog = catalog;
-            savedRoundSeconds = catalog[0].RoundSeconds;
-            catalog[0].RoundSeconds = seconds;
+            timedMapIndex = index;
+            savedRoundSeconds = catalog[index].RoundSeconds;
+            catalog[index].RoundSeconds = seconds;
+        }
+
+        private static void AssertLocalCamera(Playground map, Movement player)
+        {
+            // Mirrors render to textures and are separate from the player's screen output.
+            var screenCameras = UnityEngine.Camera.allCameras
+                .Where(camera => camera.isActiveAndEnabled && camera.targetTexture == null).ToArray();
+            Assert.That(screenCameras, Has.Length.EqualTo(1), "Only one camera renders to the player's screen.");
+            Assert.That(screenCameras[0], Is.SameAs(map.Camera.Output));
+            Assert.That(map.Camera.Target, Is.SameAs(player), "The screen camera follows the local player.");
         }
 
         private static UnityEngine.UI.Text ClockLabel()

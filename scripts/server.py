@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("player", type=Path, help="macOS .app or Windows development .exe")
+    parser.add_argument("--map-index", type=int, default=0, help="MapCatalog index (0 Playground, 1 layout map)")
     args = parser.parse_args()
     player = args.player.resolve()
     if player.suffix == ".app":
@@ -35,7 +36,7 @@ def main():
             stream = (directory / (role + "-process.log")).open("w")
             streams.append(stream)
             command = [str(player), "-batchmode", "-screen-width", "1100", "-screen-height", "760",
-                       "-server-probe", "-probe-role", role, "-port", str(port),
+                       "-server-probe", "-probe-role", role, "-port", str(port), "-probe-map", str(args.map_index),
                        "-probe-directory", str(directory), "-logFile", str(directory / (role + "-player.log"))]
             if role == "server":
                 command += ["-server", "-nographics"]

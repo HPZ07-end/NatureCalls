@@ -236,3 +236,8 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 
 - 用 uGUI `UI/ToiletingHud` 取代临时 OnGUI 调试显示 `AimDebug`，并去掉 `PlayerInput` 在运行时添加该组件的代码（控制层不应创建表现层组件）。`PlayerInput` 新增只读 `TargetAxes`，让 HUD 在正确的平面上画目标圈。`match-flow` 在 `MatchHud.prefab` 上生成布局：阶段提示、进度条、实时准度、目标圈与落点投影、未擦拭警告、手持物品。
 - 新增 PlayMode `ToiletingHudShowsPromptTargetAndUnwipedWarning`。PlayMode 29 通过 + 1 Ignored（`Artifacts/20261113T013936Z-6277a1-test-playmode/`），EditMode 通过。HUD 的实际画面未经人工查看。
+# 2026-11-16 模块地图接入大厅与相机断言修正
+
+分支 `feat/map-lobby-integration`，基线 `8d3800759478f461b887912093b989d3e262dabf` 加本次未提交工作树，Windows / Unity 6000.3.26f1。MapLayoutPrototype 复用原框架接入选图、角色、第一人称、出生点、HUD 与设施。首次 PlayMode 的相机总数断言失败后按用户要求暂停；获明确继续授权后改为只统计屏幕输出相机并验证其身份与本地目标，保留镜面相机。
+
+最终 PlayMode 32 Passed + 1 Relay Ignored、EditMode 30/30、Windows Development 构建及新地图服务器＋双客户端本机 UDP 全部通过，Python 31/31、仓库检查通过。详细命令、Artifacts 和 Semantic Diff 见 [本次记录](map-lobby-integration-2026-11-16.md)。未执行公网部署、Relay、跨设备或人工手感验收。

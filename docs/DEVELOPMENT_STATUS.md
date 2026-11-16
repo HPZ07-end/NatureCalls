@@ -1,5 +1,7 @@
 # 实际开发状态
 
+2026-11-16 地图大厅接入（分支 `feat/map-lobby-integration`，尚未合入 dev）：MapLayoutPrototype 已通过 Unity API 接入已有 Playground、角色、镜头、四出生点、HUD、大厅地图目录及门/马桶/卷纸/唯一拖把组件。Unity 编译/资源验证通过；首次相机总数断言失败后按用户要求暂停，随后获授权修正为排除镜面 RenderTexture 相机，并检查屏幕相机身份及本地跟随目标。完整 PlayMode 33 项中 32 Passed、1 Relay Ignored，EditMode 30/30 通过。Windows x86_64 Development 构建和新地图专用服务器＋双客户端本机 UDP 验收通过，包括大厅准备/选图、本地屏幕相机、共享设施、领队接任、结束返回和空房保留。仓库检查通过（1003 files / 502 asset GUIDs），Python 31/31；人工手感、跨设备和公网部署未执行。详情见 [本次记录](records/map-lobby-integration-2026-11-16.md)。
+
 更新日期：2026-11-13（JST，测试日志使用 UTC）。本文件只描述**当前**状态；逐次变更说明与验收细节见 [开发记录](records/status-log.md) 和 [M1 验收记录](records/m1-2026-10-20.md)。
 
 | 类别 | 实际状态 |

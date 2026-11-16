@@ -1,5 +1,9 @@
 # 测试与跨平台验证
 
+地图接入回归（2026-11-16）：`DressingRoomTests` 新增从大厅离线及 Host 选择 MapLayoutPrototype 的用例，检查外观、本地第一人称绑定、设施生成和结束返回原房间；`MapLayoutTests` 检查四个出生点的地板与胶囊空间、三扇门、隔间归属、马桶占用以及卷纸和唯一拖把的拾取/归还。`scripts/server.py <Development Player> --map-index 1` 复用原三进程探针验证新地图；默认 0 继续验证原 Playground。运行结果以开发记录为准。
+
+大厅回归与 ServerProbe 客户端的屏幕相机检查仅统计已启用且 `targetTexture == null` 的相机，要求唯一且为地图的 Output，并跟随该端本地玩家；镜面 RenderTexture 相机不计入玩家视角。纯服务器的零相机检查仍统计全部启用相机。
+
 Unity **6000.3.26f1**。Mac 使用 `python3`，Windows PowerShell 使用 `py -3`；Python 3.10+ 标准库即可。安装/路径说明见 [development](DEVELOPMENT.md)。
 
 ## 本地命令

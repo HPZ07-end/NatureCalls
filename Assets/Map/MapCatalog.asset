@@ -15,3 +15,7 @@ MonoBehaviour:
   maps:
   - DisplayName: "\u6D4B\u8BD5\u5395\u6240\uFF08Playground\uFF09"
     ScenePath: Assets/Scenes/Playground.unity
+    RoundSeconds: 180
+  - DisplayName: "\u6A21\u5757\u5395\u6240\uFF08MapLayoutPrototype\uFF09"
+    ScenePath: Assets/Scenes/MapLayoutPrototype.unity
+    RoundSeconds: 180
