@@ -76,21 +76,41 @@ namespace NatureCalls.Editor
             foreach (var leaf in leaves)
             {
                 var stall = leaf.GetComponentInParent<StallDoor>();
-                if (stall != null) continue;
                 var shell = leaf.parent;
-                stall = shell.gameObject.AddComponent<StallDoor>();
+                if (stall == null) stall = shell.gameObject.AddComponent<StallDoor>();
                 var center = leaf.localPosition;
                 var size = leaf.localScale;
                 var pivotPosition = new Vector3(center.x - size.x * .5f, 0, center.z);
                 var hinge = Child(shell, "Door hinge", pivotPosition);
                 var collision = Child(shell, "Door collider pivot", pivotPosition);
-                foreach (var collider in leaf.GetComponents<Collider>()) Object.DestroyImmediate(collider);
-                leaf.SetParent(hinge, true);
-                var box = collision.gameObject.AddComponent<BoxCollider>();
+                // A source door belongs to a nested prefab instance. Reparenting that source child is not
+                // saved as a reliable scene override, leaving an empty hinge at runtime. Keep it hidden as
+                // the visual source and create an equivalent scene-owned panel below the hinge instead.
+                var panel = hinge.Find("Interactive door panel");
+                if (panel == null)
+                {
+                    var panelObject = Object.Instantiate(leaf.gameObject, hinge);
+                    panelObject.name = "Interactive door panel";
+                    panelObject.SetActive(true);
+                    panel = panelObject.transform;
+                    panel.localPosition = new Vector3(size.x * .5f, center.y, 0);
+                    panel.localRotation = leaf.localRotation;
+                    panel.localScale = size;
+                    foreach (var panelCollider in panelObject.GetComponentsInChildren<Collider>(true))
+                        Object.DestroyImmediate(panelCollider);
+                }
+                panel.localPosition = new Vector3(size.x * .5f, center.y, 0);
+                panel.localRotation = leaf.localRotation;
+                panel.localScale = size;
+                leaf.gameObject.SetActive(false);
+                var box = collision.GetComponent<BoxCollider>() ?? collision.gameObject.AddComponent<BoxCollider>();
                 box.center = new Vector3(size.x * .5f, center.y, 0);
                 box.size = size;
                 stall.DoorLeaf = hinge;
                 stall.DoorColliderPivot = collision;
+                // These doors hinge on their left edge. A negative angle opens them along the left
+                // interior partition, leaving the middle of the 1m doorway clear for the player.
+                stall.OpenAngle = -95f;
                 var bowl = shell.Find("Toilet visual");
                 if (bowl == null) throw new InvalidOperationException("Stall has no toilet: " + shell.name);
                 var bounds = bowl.GetComponentsInChildren<Renderer>().Select(r => r.bounds)
@@ -157,6 +177,8 @@ namespace NatureCalls.Editor
 
         private static Transform Child(Transform parent, string name, Vector3 localPosition)
         {
+            var existing = parent.Find(name);
+            if (existing != null) return existing;
             var child = new GameObject(name).transform;
             child.SetParent(parent, false);
             child.localPosition = localPosition;

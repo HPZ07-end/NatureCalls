@@ -14,7 +14,7 @@ namespace NatureCalls.Facility
     public sealed class StallDoor : MonoBehaviour
     {
         [Min(.1f)] public float InteractionDistance = 1.5f;
-        [Range(70, 120)] public float OpenAngle = 95f;
+        [Range(-120, 120)] public float OpenAngle = 95f;
         public Transform DoorLeaf;
         public Transform DoorColliderPivot;
         [SerializeField] private StallDoorState initialState = StallDoorState.Closed;
@@ -43,8 +43,15 @@ namespace NatureCalls.Facility
             SetState(initialState);
         }
 
-        public bool CanInteract(Movement player) => enabled && player != null &&
-            Vector3.Distance(player.transform.position, DoorColliderPivot.position) <= InteractionDistance;
+        public bool CanInteract(Movement player)
+        {
+            if (!enabled || player == null) return false;
+            // A seated player is deliberately allowed to operate the door from anywhere in this
+            // stall. In the map modules the bowl is farther than InteractionDistance from the
+            // hinge, and the gameplay contract requires a player on the toilet to close, lock,
+            // and reopen their own door. Contains also prevents selecting a neighbouring stall.
+            return Contains(player) || Vector3.Distance(player.transform.position, DoorColliderPivot.position) <= InteractionDistance;
+        }
 
         public bool IsInside(Movement player)
         {
@@ -130,6 +137,10 @@ namespace NatureCalls.Facility
             var offset = value == StallDoorState.Open ? Quaternion.Euler(0, OpenAngle, 0) : Quaternion.identity;
             DoorLeaf.localRotation = leafClosedRotation * offset;
             DoorColliderPivot.localRotation = colliderClosedRotation * offset;
+            // An open leaf is already visually out of the way. Keeping its box collider active can still
+            // block the narrow doorway, even after the panel has swung alongside the partition.
+            var blocker = DoorColliderPivot.GetComponent<Collider>();
+            if (blocker != null) blocker.enabled = value != StallDoorState.Open;
             Physics.SyncTransforms();
         }
     }

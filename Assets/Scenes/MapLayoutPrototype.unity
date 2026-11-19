@@ -189,7 +189,8 @@ Transform:
   m_LocalPosition: {x: -0.475, y: 0, z: -1.225}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1683000508}
   m_Father: {fileID: 1806692554}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &152346776
@@ -415,7 +416,8 @@ Transform:
   m_LocalPosition: {x: -0.475, y: 0, z: -1.225}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 461576663}
   m_Father: {fileID: 1828788546}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &390335325
@@ -543,6 +545,96 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1983154029763976754, guid: aa8f73738bedf4303b4d44007c25bc7d, type: 3}
   m_PrefabInstance: {fileID: 441882466}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &461576662
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 461576663}
+  - component: {fileID: 461576665}
+  - component: {fileID: 461576664}
+  m_Layer: 0
+  m_Name: Interactive door panel
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &461576663
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 461576662}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.475, y: 1.29, z: 0}
+  m_LocalScale: {x: 0.95, y: 2.3, z: 0.05}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 306194479}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &461576664
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 461576662}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: cc466ac76b4b24faa814035911b43149, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &461576665
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 461576662}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &472348044
 GameObject:
   m_ObjectHideFlags: 0
@@ -775,6 +867,96 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1094486394}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &684273854
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 684273855}
+  - component: {fileID: 684273857}
+  - component: {fileID: 684273856}
+  m_Layer: 0
+  m_Name: Interactive door panel
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &684273855
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 684273854}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.475, y: 1.29, z: 0}
+  m_LocalScale: {x: 0.95, y: 2.3, z: 0.05}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 803213091}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &684273856
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 684273854}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: cc466ac76b4b24faa814035911b43149, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &684273857
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 684273854}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1001 &752746567
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -969,7 +1151,8 @@ Transform:
   m_LocalPosition: {x: -0.475, y: 0, z: -1.225}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 684273855}
   m_Father: {fileID: 1697493807}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &891578051
@@ -1210,8 +1393,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.95, y: 1.95, z: 0.05}
-  m_Center: {x: 0.475, y: 0.975, z: 0}
+  m_Size: {x: 0.95, y: 2.3, z: 0.05}
+  m_Center: {x: 0.475, y: 1.29, z: 0}
 --- !u!1 &1036061293
 GameObject:
   m_ObjectHideFlags: 0
@@ -1263,8 +1446,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.95, y: 1.95, z: 0.05}
-  m_Center: {x: 0.475, y: 0.975, z: 0}
+  m_Size: {x: 0.95, y: 2.3, z: 0.05}
+  m_Center: {x: 0.475, y: 1.29, z: 0}
 --- !u!1 &1039736540
 GameObject:
   m_ObjectHideFlags: 0
@@ -1976,8 +2159,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.95, y: 1.95, z: 0.05}
-  m_Center: {x: 0.475, y: 0.975, z: 0}
+  m_Size: {x: 0.95, y: 2.3, z: 0.05}
+  m_Center: {x: 0.475, y: 1.29, z: 0}
 --- !u!1001 &1306314957
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2488,6 +2671,96 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8474621861193243927, guid: 0beea39f6042a48b6b8dd2e766bb5da9, type: 3}
   m_PrefabInstance: {fileID: 1586068896}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1683000507
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1683000508}
+  - component: {fileID: 1683000510}
+  - component: {fileID: 1683000509}
+  m_Layer: 0
+  m_Name: Interactive door panel
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1683000508
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683000507}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.475, y: 1.29, z: 0}
+  m_LocalScale: {x: 0.95, y: 2.3, z: 0.05}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 133499761}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &1683000509
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683000507}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: cc466ac76b4b24faa814035911b43149, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1683000510
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683000507}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1691173954
 GameObject:
   m_ObjectHideFlags: 0
@@ -2567,6 +2840,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2981978938371311746, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5775697486026120780, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
       propertyPath: m_Name
       value: Stall_Normal - doorway test
@@ -2595,6 +2872,21 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8573989163568056291, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1697493814}
+    - targetCorrespondingSourceObject: {fileID: 8573989163568056291, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1697493816}
+    - targetCorrespondingSourceObject: {fileID: 8573989163568056291, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1697493817}
+    - targetCorrespondingSourceObject: {fileID: 8573989163568056291, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1697493818}
+    - targetCorrespondingSourceObject: {fileID: 8573989163568056291, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1697493819}
+    - targetCorrespondingSourceObject: {fileID: 8573989163568056291, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1697493820}
     - targetCorrespondingSourceObject: {fileID: 7910805418113083712, guid: 502bd9bddd64f486e86bc076f73ce75b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1697493813}
@@ -2696,10 +2988,80 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.StallDoor
   InteractionDistance: 1.5
-  OpenAngle: 95
+  OpenAngle: -95
   DoorLeaf: {fileID: 803213091}
   DoorColliderPivot: {fileID: 1022513611}
   initialState: 1
+--- !u!114 &1697493816
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1697493810}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1939081451}
+  Interior: {fileID: 1466080432}
+--- !u!114 &1697493817
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1697493810}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1939081451}
+  Interior: {fileID: 1466080432}
+--- !u!114 &1697493818
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1697493810}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1939081451}
+  Interior: {fileID: 1466080432}
+--- !u!114 &1697493819
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1697493810}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1939081451}
+  Interior: {fileID: 1466080432}
+--- !u!114 &1697493820
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1697493810}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1939081451}
+  Interior: {fileID: 1466080432}
 --- !u!1001 &1721498990
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2872,6 +3234,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Stall_Broken - doorway test
       objectReference: {fileID: 0}
+    - target: {fileID: 4770109548040567018, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5670609455623661191, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
       propertyPath: m_LocalPosition.x
       value: 4.75
@@ -2939,6 +3305,21 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2138126668378437515, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1806692561}
+    - targetCorrespondingSourceObject: {fileID: 2138126668378437515, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1806692563}
+    - targetCorrespondingSourceObject: {fileID: 2138126668378437515, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1806692564}
+    - targetCorrespondingSourceObject: {fileID: 2138126668378437515, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1806692565}
+    - targetCorrespondingSourceObject: {fileID: 2138126668378437515, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1806692566}
+    - targetCorrespondingSourceObject: {fileID: 2138126668378437515, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1806692567}
     - targetCorrespondingSourceObject: {fileID: 475157019136104744, guid: d54dc5e6db64d4b7a9def94bd083c1c2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1806692560}
@@ -3045,10 +3426,80 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.StallDoor
   InteractionDistance: 1.5
-  OpenAngle: 95
+  OpenAngle: -95
   DoorLeaf: {fileID: 133499761}
   DoorColliderPivot: {fileID: 1254886517}
   initialState: 1
+--- !u!114 &1806692563
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806692557}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 152346777}
+  Interior: {fileID: 390335326}
+--- !u!114 &1806692564
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806692557}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 152346777}
+  Interior: {fileID: 390335326}
+--- !u!114 &1806692565
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806692557}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 152346777}
+  Interior: {fileID: 390335326}
+--- !u!114 &1806692566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806692557}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 152346777}
+  Interior: {fileID: 390335326}
+--- !u!114 &1806692567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806692557}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 152346777}
+  Interior: {fileID: 390335326}
 --- !u!1001 &1822223735
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3186,6 +3637,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Stall_Dirty - doorway test
       objectReference: {fileID: 0}
+    - target: {fileID: 3122973843702300023, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4508795281085555223, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
       propertyPath: m_LocalPosition.x
       value: -2.5
@@ -3253,6 +3708,21 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8415534000707367446, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1828788553}
+    - targetCorrespondingSourceObject: {fileID: 8415534000707367446, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1828788555}
+    - targetCorrespondingSourceObject: {fileID: 8415534000707367446, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1828788556}
+    - targetCorrespondingSourceObject: {fileID: 8415534000707367446, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1828788557}
+    - targetCorrespondingSourceObject: {fileID: 8415534000707367446, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1828788558}
+    - targetCorrespondingSourceObject: {fileID: 8415534000707367446, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1828788559}
     - targetCorrespondingSourceObject: {fileID: 8069823522324225205, guid: 5248a0b535a8144628fa56c1258e7add, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1828788552}
@@ -3359,10 +3829,80 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.StallDoor
   InteractionDistance: 1.5
-  OpenAngle: 95
+  OpenAngle: -95
   DoorLeaf: {fileID: 306194479}
   DoorColliderPivot: {fileID: 1036061294}
   initialState: 1
+--- !u!114 &1828788555
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828788549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1048337055}
+  Interior: {fileID: 156606704}
+--- !u!114 &1828788556
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828788549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1048337055}
+  Interior: {fileID: 156606704}
+--- !u!114 &1828788557
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828788549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1048337055}
+  Interior: {fileID: 156606704}
+--- !u!114 &1828788558
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828788549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1048337055}
+  Interior: {fileID: 156606704}
+--- !u!114 &1828788559
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828788549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Toilet
+  Anchor: {fileID: 1048337055}
+  Interior: {fileID: 156606704}
 --- !u!1001 &1843876592
 PrefabInstance:
   m_ObjectHideFlags: 0
