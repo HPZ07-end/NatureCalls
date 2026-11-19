@@ -695,6 +695,34 @@ namespace NatureCalls.Editor
             Debug.Log("NatureCalls moved the broken-stall doorway 0.5m east without moving the stall.");
         }
 
+        [MenuItem("NatureCalls/Repair Map Module Wall Tile Faces")]
+        public static void RepairMapModuleWallTileFaces()
+        {
+            if (Application.isPlaying)
+                throw new InvalidOperationException("Exit Play Mode before repairing map modules.");
+
+            var wall = EnsureMaterial("MapModuleWallTile", new Color(.82f, .84f, .85f), .12f, .02f);
+            RebuildWallPrefab(WallTilePath, wall, 1);
+            RebuildWallPrefab(WallSegmentPath, wall, 6);
+            AssetDatabase.SaveAssets();
+            Debug.Log("NatureCalls repaired MapModules wall tiles: ceramic is seamless and visible from both sides.");
+        }
+
+        [MenuItem("NatureCalls/Upgrade Map Module Door Clearance")]
+        public static void UpgradeMapModuleDoorClearance()
+        {
+            if (Application.isPlaying)
+                throw new InvalidOperationException("Exit Play Mode before changing map module dimensions.");
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(DoorFramePath) == null ||
+                AssetDatabase.LoadAssetAtPath<GameObject>(NormalStallPath) == null)
+                throw new FileNotFoundException("Build the Door_Frame and Stall_Normal modules before upgrading doorway clearance.");
+
+            UpdateDoorFrame();
+            UpdateNormalStallDoor(AssetDatabase.LoadAssetAtPath<GameObject>(NormalStallPath));
+            AssetDatabase.SaveAssets();
+            Debug.Log("NatureCalls upgraded map-module door clearance to 2.36m above the walking floor for the shared player collider.");
+        }
+
         private static GameObject EnsureFloorTile(Material floor, Material grout)
         {
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(FloorTilePath);
@@ -718,8 +746,7 @@ namespace NatureCalls.Editor
             var root = new GameObject("WallTile_0_5");
             try
             {
-                Box(root.transform, "Ceramic", new Vector3(0f, .25f, 0f), new Vector3(.49f, .49f, .18f), wall);
-                Box(root.transform, "Grout", new Vector3(0f, .25f, .095f), new Vector3(.5f, .5f, .01f), grout);
+                AddWallTileVisual(root.transform, "", new Vector3(0f, .25f, 0f), wall);
                 return SavePrefab(root, WallTilePath);
             }
             finally { UnityEngine.Object.DestroyImmediate(root); }
@@ -736,8 +763,7 @@ namespace NatureCalls.Editor
                 for (int row = 0; row < 6; row++)
                 {
                     float y = .25f + row * .5f;
-                    Box(root.transform, "WallTile " + (row + 1), new Vector3(0f, y, 0f), new Vector3(.49f, .49f, .18f), wall);
-                    Box(root.transform, "Grout " + (row + 1), new Vector3(0f, y, .095f), new Vector3(.5f, .5f, .01f), grout);
+                    AddWallTileVisual(root.transform, "WallTile " + (row + 1) + " ", new Vector3(0f, y, 0f), wall);
                 }
                 return SavePrefab(root, WallSegmentPath);
             }
@@ -756,10 +782,10 @@ namespace NatureCalls.Editor
             var root = new GameObject("Door_Frame");
             try
             {
-                // Outer width is 1.5m; the 1m opening is intentionally compatible with the team specification.
-                Box(root.transform, "Left Jamb", new Vector3(-.625f, 1f, 0f), new Vector3(.25f, 2f, .2f), wall);
-                Box(root.transform, "Right Jamb", new Vector3(.625f, 1f, 0f), new Vector3(.25f, 2f, .2f), wall);
-                Box(root.transform, "Header", new Vector3(0f, 2.5f, 0f), new Vector3(1.5f, 1f, .2f), wall);
+                // Floor tiles end at y=.14m. Account for the 2.05m Player collider, skin width and tile seams.
+                Box(root.transform, "Left Jamb", new Vector3(-.625f, 1.32f, 0f), new Vector3(.25f, 2.36f, .2f), wall);
+                Box(root.transform, "Right Jamb", new Vector3(.625f, 1.32f, 0f), new Vector3(.25f, 2.36f, .2f), wall);
+                Box(root.transform, "Header", new Vector3(0f, 2.75f, 0f), new Vector3(1.5f, .5f, .2f), wall);
                 return SavePrefab(root, DoorFramePath);
             }
             finally { UnityEngine.Object.DestroyImmediate(root); }
@@ -770,9 +796,9 @@ namespace NatureCalls.Editor
             var root = PrefabUtility.LoadPrefabContents(DoorFramePath);
             try
             {
-                UpdateFramePart(root.transform, "Left Jamb", new Vector3(-.625f, 1f, 0f), new Vector3(.25f, 2f, .2f));
-                UpdateFramePart(root.transform, "Right Jamb", new Vector3(.625f, 1f, 0f), new Vector3(.25f, 2f, .2f));
-                UpdateFramePart(root.transform, "Header", new Vector3(0f, 2.5f, 0f), new Vector3(1.5f, 1f, .2f));
+                UpdateFramePart(root.transform, "Left Jamb", new Vector3(-.625f, 1.32f, 0f), new Vector3(.25f, 2.36f, .2f));
+                UpdateFramePart(root.transform, "Right Jamb", new Vector3(.625f, 1.32f, 0f), new Vector3(.25f, 2.36f, .2f));
+                UpdateFramePart(root.transform, "Header", new Vector3(0f, 2.75f, 0f), new Vector3(1.5f, .5f, .2f));
                 PrefabUtility.SaveAsPrefabAsset(root, DoorFramePath);
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }
@@ -982,7 +1008,7 @@ namespace NatureCalls.Editor
                 // The two fixed panels leave the specified 1m clear door opening in the 2m-wide stall.
                 Box(root.transform, "Left front panel", new Vector3(-.75f, 1.125f, -1.175f), new Vector3(.5f, 2.25f, .15f), partition);
                 Box(root.transform, "Right front panel", new Vector3(.75f, 1.125f, -1.175f), new Vector3(.5f, 2.25f, .15f), partition);
-                Box(root.transform, "Door visual - replace with interactive door", new Vector3(0f, .975f, -1.225f), new Vector3(.95f, 1.95f, .05f), door);
+                Box(root.transform, "Door visual - replace with interactive door", new Vector3(0f, 1.29f, -1.225f), new Vector3(.95f, 2.3f, .05f), door);
 
                 var toilet = Place(toiletBowl, root.transform, "Toilet visual", new Vector3(0f, .14f, .58f), 180f);
                 ScaleHierarchyToBounds(toilet, new Vector3(.45f, .8f, .75f));
@@ -1021,8 +1047,8 @@ namespace NatureCalls.Editor
                 if (door == null)
                     throw new InvalidOperationException("Stall_Normal is missing its visual door.");
 
-                door.localPosition = new Vector3(0f, .975f, -1.225f);
-                door.localScale = new Vector3(.95f, 1.95f, .05f);
+                door.localPosition = new Vector3(0f, 1.29f, -1.225f);
+                door.localScale = new Vector3(.95f, 2.3f, .05f);
                 var leftPanel = root.transform.Find("Left front panel");
                 var rightPanel = root.transform.Find("Right front panel");
                 if (leftPanel == null || rightPanel == null)
@@ -1720,6 +1746,30 @@ namespace NatureCalls.Editor
             box.transform.localScale = size;
             box.GetComponent<Renderer>().sharedMaterial = material;
             return box;
+        }
+
+        // Wall modules intentionally use seamless ceramic faces; grout made the small-scale kit look like it had black outlines.
+        private static void AddWallTileVisual(Transform parent, string namePrefix, Vector3 center, Material wall)
+        {
+            Box(parent, namePrefix + "Ceramic", center, new Vector3(.5f, .5f, .18f), wall);
+        }
+
+        private static void RebuildWallPrefab(string path, Material wall, int rows)
+        {
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                while (root.transform.childCount > 0)
+                    UnityEngine.Object.DestroyImmediate(root.transform.GetChild(0).gameObject);
+
+                for (int row = 0; row < rows; row++)
+                {
+                    var prefix = rows == 1 ? "" : "WallTile " + (row + 1) + " ";
+                    AddWallTileVisual(root.transform, prefix, new Vector3(0f, .25f + row * .5f, 0f), wall);
+                }
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
         private static GameObject Place(GameObject prefab, Transform parent, string name, Vector3 position, float yRotation)

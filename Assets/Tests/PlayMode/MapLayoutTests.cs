@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using NatureCalls.Facility;
 using NatureCalls.Map;
@@ -63,6 +64,64 @@ namespace NatureCalls.Tests
             Assert.That(boxes[0].Mop.Stored, Is.True);
         }
 
+        [UnityTest]
+        public IEnumerator LayoutPlayerInteractSelectsNearbyDoorAndPaperRoll()
+        {
+            Match.End();
+            yield return SceneManager.LoadSceneAsync("Assets/Scenes/MapLayoutPrototype.unity", LoadSceneMode.Single);
+            yield return null;
+
+            var world = Object.FindFirstObjectByType<Playground>();
+            var player = world.OfflinePlayer;
+            var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+            var door = Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None).First();
+            player.transform.position = door.DoorColliderPivot.position - door.transform.forward * .35f;
+            var panel = door.DoorLeaf.Find("Interactive door panel");
+            Assert.That(panel, Is.Not.Null, "The map door needs a visible panel below its rotating hinge.");
+            var closedForward = panel.forward;
+            var closedDoorCenter = panel.position;
+            Assert.That(input.TryInteract(), Is.True, "E should select the nearby stall door.");
+            Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
+            Assert.That(Vector3.Angle(closedForward, panel.forward), Is.GreaterThan(45f), "Opening a door must visibly rotate its panel.");
+            Assert.That(door.DoorColliderPivot.GetComponent<Collider>().enabled, Is.False,
+                "The opened panel must not retain a blocking collider in the narrow doorway.");
+
+            var controller = player.GetComponent<CharacterController>();
+            var throughDirection = door.transform.forward;
+            // DoorColliderPivot is intentionally at the hinge (the left edge), not at the middle of the doorway.
+            // A passage test must begin at the closed panel's horizontal center.
+            var outside = new Vector3(closedDoorCenter.x, door.transform.position.y, closedDoorCenter.z) - throughDirection * 1f;
+            Assert.That(Physics.Raycast(outside + Vector3.up * 3f, Vector3.down, out var floor, 4f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore), Is.True, "The doorway exterior needs a floor.");
+            outside.y = floor.point.y + .01f;
+            controller.enabled = false;
+            player.transform.position = outside;
+            Physics.SyncTransforms();
+            var bottom = outside + Vector3.up * (controller.radius + .01f);
+            var top = outside + Vector3.up * (controller.height - controller.radius - .01f);
+            var blockers = Physics.CapsuleCastAll(bottom, top, controller.radius, throughDirection, 1.25f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+                .Select(hit => hit.collider.name + "<" + (hit.collider.transform.parent != null ? hit.collider.transform.parent.name : "root") +
+                    "<" + (hit.collider.transform.parent != null && hit.collider.transform.parent.parent != null ? hit.collider.transform.parent.parent.name : "root") +
+                    "@" + hit.distance.ToString("F2"));
+            controller.enabled = true;
+            var hitRecorder = player.gameObject.AddComponent<ControllerHitRecorder>();
+            var flags = controller.Move(throughDirection * 1.25f);
+            Assert.That(Vector3.Dot(player.transform.position - outside, throughDirection), Is.GreaterThan(1f),
+                "A standing player must be able to pass through an opened stall doorway. Blockers: " + string.Join(", ", blockers) +
+                "; Controller flags: " + flags + "; Player top: " + (player.transform.position.y + controller.height).ToString("F2") +
+                "; Controller hits: " + string.Join(", ", hitRecorder.Hits));
+
+            Assert.That(StallDoor.Containing(player), Is.SameAs(door), "The player should now be inside the stall.");
+            Assert.That(input.TryInteract(), Is.True, "E should select and close the player's own door from inside the stall.");
+            Assert.That(door.State, Is.EqualTo(StallDoorState.Closed));
+
+            var roll = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).First();
+            player.transform.position = roll.transform.position + Vector3.right * .3f;
+            Assert.That(input.TryInteract(), Is.True, "E should select the nearby paper roll.");
+            Assert.That(roll.IsPickedUp, Is.True);
+        }
+
         [UnityTearDown]
         public IEnumerator Unload()
         {
@@ -73,6 +132,17 @@ namespace NatureCalls.Tests
                 SceneManager.SetActiveScene(SceneManager.CreateScene("MapLayoutTestEmpty"));
                 yield return SceneManager.UnloadSceneAsync(scene);
             }
+        }
+    }
+
+    internal sealed class ControllerHitRecorder : MonoBehaviour
+    {
+        public readonly List<string> Hits = new();
+        private void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            var parent = hit.collider.transform.parent;
+            Hits.Add(hit.collider.name + "<" + (parent != null ? parent.name : "root") +
+                "@y=" + hit.collider.bounds.min.y.ToString("F2") + "-" + hit.collider.bounds.max.y.ToString("F2"));
         }
     }
 }
