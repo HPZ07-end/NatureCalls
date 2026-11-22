@@ -17,6 +17,8 @@ namespace NatureCalls.Map
         public Transform[] Spawns;
         public CameraController Camera;
         public bool StartOffline = true;
+        [Tooltip("Start the standard offline round when this scene is opened directly.")]
+        [SerializeField] private bool startOfflineRoundOnDirectPlay;
         public Movement OfflinePlayer { get; private set; }
         // A networked match spawns its players through the Lobby room instead.
 
@@ -33,7 +35,11 @@ namespace NatureCalls.Map
         private void Start()
         {
             if (Network.Session.Dedicated) return;
-            if (StartOffline && Match.Mode != MatchMode.Networked) Practice();
+            if (StartOffline && Match.Mode != MatchMode.Networked)
+            {
+                if (startOfflineRoundOnDirectPlay) Match.BeginOfflineInCurrentScene();
+                Practice();
+            }
             Match.StartOfflineRound();
             if (Match.Mode == MatchMode.Offline && OfflinePlayer != null)
                 OfflinePlayer.GetComponent<PlayerNeeds>()?.BeginRound(Random.value);
@@ -104,6 +110,7 @@ namespace NatureCalls.Map
             OfflinePlayer.SetControl(true);
             instance.GetComponent<PlayerInput>().enabled = true;
             var appearance = instance.GetComponent<PlayerAppearance>();
+            appearance.SetGender(LocalProfile.Gender);
             if (appearance.Catalog != null) appearance.ApplyOutfit(appearance.Catalog.Clamp(LocalProfile.OutfitIndex));
             Camera.Bind(OfflinePlayer);
 #if UNITY_EDITOR

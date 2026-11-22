@@ -19,3 +19,6 @@ MonoBehaviour:
   - DisplayName: "\u6A21\u5757\u5395\u6240\uFF08MapLayoutPrototype\uFF09"
     ScenePath: Assets/Scenes/MapLayoutPrototype.unity
     RoundSeconds: 180
+  - DisplayName: Map1
+    ScenePath: Assets/Scenes/Map1.unity
+    RoundSeconds: 180

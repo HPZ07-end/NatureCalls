@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Linq;
 using NUnit.Framework;
+using NatureCalls.Core;
 using NatureCalls.Map;
 using NatureCalls.Network;
 using NatureCalls.Player;
@@ -23,6 +24,7 @@ namespace NatureCalls.Tests
         private LobbyController lobby;
         private LobbyView view;
         private int savedOutfit;
+        private PlayerGender savedGender;
         private MapCatalog timedCatalog;
         private float savedRoundSeconds;
         private int timedMapIndex;
@@ -31,6 +33,8 @@ namespace NatureCalls.Tests
         public IEnumerator Load()
         {
             savedOutfit = LocalProfile.OutfitIndex;
+            savedGender = LocalProfile.Gender;
+            LocalProfile.SetAppearance(PlayerGender.Male, savedOutfit);
             Match.End();
             world = null; mirror = null; door = null; lobby = null;
             yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Additive);
@@ -55,7 +59,7 @@ namespace NatureCalls.Tests
         [UnityTearDown]
         public IEnumerator Unload()
         {
-            LocalProfile.OutfitIndex = savedOutfit;
+            LocalProfile.SetAppearance(savedGender, savedOutfit);
             if (timedCatalog != null) { timedCatalog[timedMapIndex].RoundSeconds = savedRoundSeconds; timedCatalog = null; }
             Match.End();
             var session = Session.Instance;
@@ -75,7 +79,8 @@ namespace NatureCalls.Tests
             for (int index = SceneManager.sceneCount - 1; index >= 0; index--)
             {
                 var loaded = SceneManager.GetSceneAt(index);
-                if (loaded != empty && loaded.isLoaded && (loaded.path == ScenePath || loaded.path == "Assets/Scenes/Playground.unity" || loaded.path == "Assets/Scenes/MapLayoutPrototype.unity"))
+                if (loaded != empty && loaded.isLoaded && (loaded.path == ScenePath || loaded.path == "Assets/Scenes/Playground.unity" ||
+                    loaded.path == "Assets/Scenes/MapLayoutPrototype.unity" || loaded.path == "Assets/Scenes/Map1.unity"))
                     yield return SceneManager.UnloadSceneAsync(loaded);
             }
             yield return null;
@@ -124,16 +129,39 @@ namespace NatureCalls.Tests
             Assert.That(player.Controlled, Is.False, "Choosing an outfit pauses movement.");
             var appearance = player.GetComponent<PlayerAppearance>();
             Assert.That(lobby.OutfitButtons, Has.Count.EqualTo(appearance.Catalog.Count));
+            Assert.That(appearance.HasRiggedBody, Is.True);
+            var male = appearance.ActiveAnimator;
+            Assert.That(male.avatar.isHuman, Is.True);
 
             int choice = (LocalProfile.OutfitIndex + 2) % appearance.Catalog.Count;
+            view.OutfitFemale.onClick.Invoke();
             lobby.PreviewOutfit(choice);
+            Assert.That(appearance.Gender, Is.EqualTo(PlayerGender.Female));
+            var female = appearance.ActiveAnimator;
+            Assert.That(female, Is.Not.SameAs(male));
+            Assert.That(female.avatar.isHuman, Is.True);
+            Assert.That(male.gameObject.activeSelf, Is.False);
+            Assert.That(female.gameObject.activeSelf, Is.True);
+            Assert.That(female.GetComponentsInChildren<Renderer>().All(r =>
+                r.gameObject.layer == NatureCalls.Camera.CameraController.LocalBodyLayer), Is.True);
             Assert.That(appearance.OutfitIndex, Is.EqualTo(choice));
+            Assert.That(LocalProfile.Gender, Is.EqualTo(PlayerGender.Male), "Preview isn't persisted.");
+            view.OutfitCancel.onClick.Invoke();
+            Assert.That(appearance.ActiveAnimator, Is.SameAs(male));
+            Assert.That(appearance.OutfitIndex, Is.EqualTo(LocalProfile.OutfitIndex));
+
+            Assert.That(input.TryInteract(), Is.True);
+            view.OutfitFemale.onClick.Invoke();
+            lobby.PreviewOutfit(choice);
             lobby.ConfirmOutfit();
 
             Assert.That(lobby.IsOutfitPanelOpen, Is.False);
             Assert.That(player.Controlled, Is.True);
             Assert.That(LocalProfile.OutfitIndex, Is.EqualTo(choice));
+            Assert.That(LocalProfile.Gender, Is.EqualTo(PlayerGender.Female));
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[choice].Color));
+            Assert.That(female.GetComponentsInChildren<Renderer>().Where(r => r != appearance.ShirtRenderer)
+                .All(r => !r.HasPropertyBlock()), Is.True, "Skin, pants, hair and shoes keep their own materials.");
         }
 
         [UnityTest]
@@ -144,11 +172,15 @@ namespace NatureCalls.Tests
         public IEnumerator LobbyLoadsLayoutMapWithFirstPersonAndOutfit() =>
             OfflineMap(1, "Assets/Scenes/MapLayoutPrototype.unity");
 
+        [UnityTest]
+        public IEnumerator LobbyLoadsMap1WithFirstPersonAndOutfit() =>
+            OfflineMap(2, "Assets/Scenes/Map1.unity");
+
         private IEnumerator OfflineMap(int mapIndex, string mapPath)
         {
             var player = world.OfflinePlayer;
             var outfit = (LocalProfile.OutfitIndex + 1) % player.GetComponent<PlayerAppearance>().Catalog.Count;
-            LocalProfile.OutfitIndex = outfit;
+            LocalProfile.SetAppearance(PlayerGender.Female, outfit);
             yield return Teleport(player, door.transform.position - Vector3.up);
             Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryInteract(), Is.True);
             Assert.That(lobby.IsLobbyOpen, Is.True);
@@ -160,7 +192,7 @@ namespace NatureCalls.Tests
             Assert.That(lobby.IsMapPanelOpen, Is.True, "Offline test goes straight to map selection.");
             Assert.That(lobby.MapButtons, Has.Count.GreaterThanOrEqualTo(2), "At least one map plus the random option.");
 
-            lobby.ChooseMap(mapIndex);
+            lobby.MapButtons[mapIndex].onClick.Invoke();
             yield return null;
             yield return null;
             Assert.That(Match.Mode, Is.EqualTo(MatchMode.Offline));
@@ -172,6 +204,7 @@ namespace NatureCalls.Tests
             Assert.That(map.Camera.FirstPerson.Priority.Value, Is.GreaterThan(map.Camera.ThirdPerson.Priority.Value));
             var appearance = map.OfflinePlayer.GetComponent<PlayerAppearance>();
             Assert.That(appearance.OutfitIndex, Is.EqualTo(outfit), "The DressingRoom outfit is worn on the map.");
+            Assert.That(appearance.Gender, Is.EqualTo(PlayerGender.Female));
 
             var exit = Object.FindFirstObjectByType<MatchExit>();
             Assert.That(exit, Is.Not.Null, "The map shows the top-left exit button.");
@@ -190,10 +223,14 @@ namespace NatureCalls.Tests
         public IEnumerator HostLoadsLayoutMapWithNetworkPlayerAndFacilities() =>
             HostMap(1, "Assets/Scenes/MapLayoutPrototype.unity");
 
+        [UnityTest]
+        public IEnumerator HostLoadsMap1AndPublishesCrawlingPosture() =>
+            HostMap(2, "Assets/Scenes/Map1.unity");
+
         private IEnumerator HostMap(int mapIndex, string mapPath)
         {
             var outfit = (LocalProfile.OutfitIndex + 3) % world.OfflinePlayer.GetComponent<PlayerAppearance>().Catalog.Count;
-            LocalProfile.OutfitIndex = outfit;
+            LocalProfile.SetAppearance(PlayerGender.Female, outfit);
             lobby.OpenLobby();
             // A LAN room on this machine: the test must not depend on reaching Unity's Relay service.
             lobby.PreferLan = true;
@@ -207,6 +244,7 @@ namespace NatureCalls.Tests
 
             Assert.That(room.Members, Has.Count.EqualTo(1));
             Assert.That(room.Members[0].Outfit, Is.EqualTo(outfit), "The room shows each player's outfit.");
+            Assert.That(room.Members[0].Gender, Is.EqualTo(PlayerGender.Female));
             Assert.That(room.CanStart, Is.False, "A room needs at least two players.");
             Assert.That(view.PrimaryLabel.text, Is.EqualTo("开始游戏"));
             Assert.That(view.PrimaryButton.interactable, Is.False);
@@ -234,9 +272,23 @@ namespace NatureCalls.Tests
             AssertLocalCamera(map, avatar.GetComponent<Movement>());
             Assert.That(Facilities.Current, Is.Not.Null);
             Assert.That(avatar.GetComponent<AvatarAppearance>().OutfitIndex.Value, Is.EqualTo(outfit));
+            Assert.That(avatar.GetComponent<AvatarAppearance>().Gender.Value, Is.EqualTo(PlayerGender.Female));
             var appearance = avatar.GetComponent<PlayerAppearance>();
+            Assert.That(appearance.Gender, Is.EqualTo(PlayerGender.Female));
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[outfit].Color));
             Assert.That(NetworkManager.Singleton, Is.SameAs(Session.Instance.Manager), "The map's own Network object yields to the Lobby's.");
+            if (mapPath == "Assets/Scenes/Map1.unity")
+            {
+                var passage = Object.FindObjectsByType<VentPassage>(FindObjectsSortMode.None).First();
+                var movement = avatar.GetComponent<Movement>();
+                var spawn = movement.transform.position;
+                yield return Teleport(movement, passage.transform.TransformPoint(new Vector3(-.25f, .015f, 0)));
+                movement.Move(Vector2.zero, .02f);
+                Assert.That(avatar.SharedPosture.Value, Is.EqualTo(PostureState.Crawling));
+                yield return Teleport(movement, spawn);
+                movement.Move(Vector2.zero, .02f);
+                Assert.That(avatar.SharedPosture.Value, Is.EqualTo(PostureState.Standing));
+            }
 
             // The global round clock and the needs start once everyone is on the map.
             Assert.That(room.RoundRemaining, Is.InRange(0, 20));
@@ -315,7 +367,7 @@ namespace NatureCalls.Tests
         private static Color RendererColor(PlayerAppearance appearance)
         {
             var block = new MaterialPropertyBlock();
-            appearance.Body.GetComponentInChildren<Renderer>().GetPropertyBlock(block);
+            appearance.ShirtRenderer.GetPropertyBlock(block);
             return block.GetColor("_BaseColor");
         }
     }

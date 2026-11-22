@@ -67,7 +67,7 @@ namespace NatureCalls.Editor
             ConfigureDressingRoom(canvas, dressingPlayer);
             ConfigurePlayground();
             DeleteObsoleteAssets();
-            ConfigureBuildScenes();
+            ConfigureBuildScenes(maps);
             AssetDatabase.SaveAssets();
             Debug.Log("NatureCalls lobby flow built.");
         }
@@ -273,6 +273,7 @@ namespace NatureCalls.Editor
                 view.OutfitCurrent = MakeLabel(outfit, "OutfitCurrent", "当前预览：", 26, TextAnchor.MiddleCenter, new Vector2(0, -410), new Vector2(480, 40));
                 view.OutfitConfirm = MakeButton(outfit, "OutfitConfirm", "确认", new Vector2(-110, 40), new Vector2(200, 64), bottom: true);
                 view.OutfitCancel = MakeButton(outfit, "OutfitCancel", "取消", new Vector2(110, 40), new Vector2(200, 64), bottom: true);
+                ConfigureOutfitGender(view);
 
                 // Lobby panel: centered over the blurred room.
                 var lobby = Box(root.transform, "LobbyPanel", new Vector2(.5f, .5f), new Vector2(.5f, .5f), Vector2.zero, new Vector2(900, 820));
@@ -666,9 +667,11 @@ namespace NatureCalls.Editor
                     throw new IOException("Could not delete " + path);
         }
 
-        private static void ConfigureBuildScenes()
+        private static void ConfigureBuildScenes(MapCatalog maps)
         {
             EditorBuildSettings.scenes = new[] { DressingRoomPath, PlaygroundPath, SmokePath }
+                .Concat(Enumerable.Range(0, maps.Count).Select(index => maps[index].ScenePath))
+                .Distinct()
                 .Select(path => new EditorBuildSettingsScene(path, true)).ToArray();
         }
 
@@ -755,6 +758,18 @@ namespace NatureCalls.Editor
 
         private static void Height(GameObject target, float height) =>
             GetOrAdd<LayoutElement>(target).preferredHeight = height;
+
+        internal static void ConfigureOutfitGender(LobbyView view)
+        {
+            var panel = (RectTransform)view.OutfitPanel.transform;
+            panel.sizeDelta = new Vector2(panel.sizeDelta.x, 620);
+            view.OutfitOptions.anchoredPosition = new Vector2(0, -146);
+            view.OutfitCurrent.rectTransform.anchoredPosition = new Vector2(0, -458);
+            if (view.OutfitMale == null)
+                view.OutfitMale = MakeButton(panel, "OutfitMale", "男性", new Vector2(-113, -81), new Vector2(214, 48), bottom: false);
+            if (view.OutfitFemale == null)
+                view.OutfitFemale = MakeButton(panel, "OutfitFemale", "女性", new Vector2(113, -81), new Vector2(214, 48), bottom: false);
+        }
 
         private static Button MakeButton(Transform parent, string name, string label) =>
             MakeButton(parent, name, label, Vector2.zero, new Vector2(400, 64), bottom: false, inLayout: true);
