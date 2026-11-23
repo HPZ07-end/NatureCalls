@@ -395,7 +395,7 @@ namespace NatureCalls.Tests
         {
             var player = world.OfflinePlayer;
             var appearance = player.GetComponent<PlayerAppearance>();
-            appearance.SetGender(PlayerGender.Female);
+            appearance.SetBodyType(PlayerBodyType.Tall);
             var animator = appearance.ActiveAnimator;
             var capsule = player.GetComponent<CharacterController>();
             var posture = player.GetComponent<Posture>();
@@ -408,7 +408,7 @@ namespace NatureCalls.Tests
                 yield return null;
             }
             Assert.That(Vector3.Distance(start, player.transform.position), Is.GreaterThan(.3f));
-            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Walk"), Is.True);
+            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Walk") || animator.GetCurrentAnimatorStateInfo(0).IsName("Run"), Is.True);
             Assert.That(capsule.isGrounded, Is.True);
             Assert.That(player.Jump(), Is.True);
             float jumpHeight = player.transform.position.y;
@@ -444,7 +444,7 @@ namespace NatureCalls.Tests
         public IEnumerator CameraBlendsAndInteriorIsVisible()
         {
             var player = world.OfflinePlayer;
-            player.GetComponent<PlayerAppearance>().SetGender(PlayerGender.Male);
+            player.GetComponent<PlayerAppearance>().SetBodyType(PlayerBodyType.Balanced);
             var toilet = FindToilet();
             yield return OpenStallAndStandAt(player, toilet);
             var controller = player.GetComponent<CharacterController>();

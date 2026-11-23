@@ -9,7 +9,8 @@ namespace NatureCalls.Player
     public static class LocalProfile
     {
         private const string OutfitKey = "NatureCalls.OutfitIndex";
-        private const string GenderKey = "NatureCalls.PlayerGender";
+        private const string BodyTypeKey = "NatureCalls.PlayerBodyType";
+        private const string LegacyGenderKey = "NatureCalls.PlayerGender";
 
         public static int OutfitIndex
         {
@@ -17,13 +18,21 @@ namespace NatureCalls.Player
             set { PlayerPrefs.SetInt(OutfitKey, Mathf.Max(0, value)); PlayerPrefs.Save(); }
         }
 
-        public static PlayerGender Gender => PlayerPrefs.GetInt(GenderKey) == (int)PlayerGender.Female
-            ? PlayerGender.Female : PlayerGender.Male;
-
-        public static void SetAppearance(PlayerGender gender, int outfit)
+        public static PlayerBodyType BodyType
         {
-            if (!OutfitSelection.IsValidGender(gender)) return;
-            PlayerPrefs.SetInt(GenderKey, (int)gender);
+            get
+            {
+                var index = PlayerPrefs.GetInt(BodyTypeKey,
+                    PlayerPrefs.GetInt(LegacyGenderKey) == 1 ? (int)PlayerBodyType.Tall : (int)PlayerBodyType.Balanced);
+                return index is >= 0 and <= byte.MaxValue && OutfitSelection.IsValidBodyType((PlayerBodyType)index)
+                    ? (PlayerBodyType)index : PlayerBodyType.Balanced;
+            }
+        }
+
+        public static void SetAppearance(PlayerBodyType bodyType, int outfit)
+        {
+            if (!OutfitSelection.IsValidBodyType(bodyType)) return;
+            PlayerPrefs.SetInt(BodyTypeKey, (int)bodyType);
             PlayerPrefs.SetInt(OutfitKey, Mathf.Max(0, outfit));
             PlayerPrefs.Save();
         }

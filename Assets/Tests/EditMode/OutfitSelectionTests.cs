@@ -27,23 +27,23 @@ namespace NatureCalls.Tests
         }
 
         [Test]
-        public void GenderIsPreviewedAndConfirmedWithOutfit()
+        public void BodyTypeIsPreviewedAndConfirmedWithOutfit()
         {
             var selection = new OutfitSelection(4, 1);
             selection.Begin();
-            selection.ChooseGender(PlayerGender.Female);
+            selection.ChooseBodyType(PlayerBodyType.Tall);
             selection.Move(2);
-            Assert.That(selection.ConfirmedGender, Is.EqualTo(PlayerGender.Male));
+            Assert.That(selection.ConfirmedBodyType, Is.EqualTo(PlayerBodyType.Balanced));
             selection.Cancel();
-            Assert.That(selection.PreviewGender, Is.EqualTo(PlayerGender.Male));
+            Assert.That(selection.PreviewBodyType, Is.EqualTo(PlayerBodyType.Balanced));
             Assert.That(selection.PreviewIndex, Is.EqualTo(1));
 
             selection.Begin();
-            selection.ChooseGender(PlayerGender.Female);
-            selection.ChooseGender((PlayerGender)99);
+            selection.ChooseBodyType(PlayerBodyType.Tall);
+            selection.ChooseBodyType((PlayerBodyType)99);
             selection.Move(1);
             selection.Confirm();
-            Assert.That(selection.ConfirmedGender, Is.EqualTo(PlayerGender.Female));
+            Assert.That(selection.ConfirmedBodyType, Is.EqualTo(PlayerBodyType.Tall));
             Assert.That(selection.ConfirmedIndex, Is.EqualTo(2));
         }
     }

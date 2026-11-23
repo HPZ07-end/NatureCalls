@@ -8,22 +8,21 @@ namespace NatureCalls.Player
     {
         [SerializeField] private Transform body;
         [SerializeField] private OutfitCatalog catalog;
-        [SerializeField] private Animator male;
-        [SerializeField] private Animator female;
-        [SerializeField] private Renderer maleShirt;
-        [SerializeField] private Renderer femaleShirt;
+        [SerializeField] private Animator[] rigs;
 
         public Transform Body => body;
         public OutfitCatalog Catalog => catalog;
         public int OutfitIndex { get; private set; } = -1;
-        public PlayerGender Gender { get; private set; }
-        public bool HasRiggedBody => male != null && female != null;
-        public Animator ActiveAnimator => Gender == PlayerGender.Female ? female : male;
-        public Renderer ShirtRenderer => Gender == PlayerGender.Female ? femaleShirt : maleShirt;
+        public PlayerBodyType BodyType { get; private set; }
+        public bool HasRiggedBody => rigs != null && rigs.Length == 3;
+        public Animator ActiveAnimator => HasRiggedBody ? rigs[(int)BodyType] : null;
+        public Renderer OutfitRenderer { get; private set; }
 
         private static readonly int SpeedParameter = Animator.StringToHash("Speed");
         private static readonly int GroundedParameter = Animator.StringToHash("Grounded");
         private static readonly int SquattingParameter = Animator.StringToHash("Squatting");
+        private static readonly int CrawlingParameter = Animator.StringToHash("Crawling");
+        private static readonly int ReachParameter = Animator.StringToHash("Reach");
         private MaterialPropertyBlock tintBlock;
         private Movement movement;
         private Posture posture;
@@ -46,22 +45,29 @@ namespace NatureCalls.Player
             capsule = GetComponent<CharacterController>();
             previousPosition = transform.position;
             bodyOrigin = body.localPosition;
-            SetGender(Gender);
+            SetBodyType(BodyType);
         }
 
-        public void SetGender(PlayerGender gender)
+        public void SetBodyType(PlayerBodyType bodyType)
         {
-            if (!OutfitSelection.IsValidGender(gender)) return;
-            Gender = gender;
+            if (!OutfitSelection.IsValidBodyType(bodyType)) return;
+            BodyType = bodyType;
             if (HasRiggedBody)
             {
-                male.gameObject.SetActive(gender == PlayerGender.Male);
-                female.gameObject.SetActive(gender == PlayerGender.Female);
+                foreach (var rig in rigs)
+                    rig.transform.parent.gameObject.SetActive(rig == ActiveAnimator);
+                OutfitRenderer = ActiveAnimator.GetComponentInChildren<SkinnedMeshRenderer>();
             }
             if (hasTint) ApplyColor(tint);
         }
 
         public void SetRemoteAirborne(bool airborne) => remoteAirborne = airborne;
+
+        public void PlayReach()
+        {
+            if (ActiveAnimator != null && posture.State == PostureState.Standing)
+                ActiveAnimator.SetTrigger(ReachParameter);
+        }
 
         private void LateUpdate()
         {
@@ -77,9 +83,10 @@ namespace NatureCalls.Player
             var targetSpeed = squatting || delta.sqrMagnitude > .25f || dt <= 0 ? 0 : delta.magnitude / dt;
             speed = Mathf.Lerp(speed, Mathf.Min(movement.Speed, targetSpeed), 1 - Mathf.Exp(-18 * dt));
             var animator = ActiveAnimator;
-            animator.SetFloat(SpeedParameter, speed);
+            animator.SetFloat(SpeedParameter, speed / movement.Speed);
             animator.SetBool(GroundedParameter, !airborne);
             animator.SetBool(SquattingParameter, squatting);
+            animator.SetBool(CrawlingParameter, posture.IsCrawling);
 
             // Offset only the visible model for the capsule's skin gap. Retain this offset in the air.
             if (!airborne && Physics.Raycast(position + Vector3.up * .035f, Vector3.down, out var floor,
@@ -113,9 +120,10 @@ namespace NatureCalls.Player
             tintBlock ??= new MaterialPropertyBlock();
             tintBlock.SetColor("_BaseColor", color);
             tintBlock.SetColor("_Color", color);
-            if (ShirtRenderer != null)
+            if (OutfitRenderer != null)
             {
-                ShirtRenderer.SetPropertyBlock(tintBlock);
+                // Slot 1 uses a grayscale brush atlas for the recolorable cloth.
+                OutfitRenderer.SetPropertyBlock(tintBlock, 1);
                 return;
             }
             // Legacy primitive player used by the standalone map builder.

@@ -28,6 +28,7 @@ namespace NatureCalls.Facility
         public void Take(Movement player) { Stored = false; ApplySharedPickup(player); }
 
         [Min(.1f)] public float InteractionDistance = 1.5f;
+        [Min(0)] public float PickupHeightOffset;
         [Min(.1f)] public float ThrowSpeed = 4f;
         [Min(0)] public float ThrowUpwardSpeed = 1.5f;
         public Movement PickedUpBy { get; private set; }
@@ -38,8 +39,9 @@ namespace NatureCalls.Facility
         private float followReceived;
         public bool IsPickedUp => PickedUpBy != null;
 
-        public bool CanPickup(Movement player) => !Stored && RemainingUses != 0 && !IsPickedUp && player != null && CountCarriedBy(player) < CarryCapacityPerPlayer &&
-            Vector3.Distance(player.transform.position, transform.position) <= InteractionDistance;
+        public bool CanPickup(Movement player) => !Stored && RemainingUses != 0 && !IsPickedUp && player != null &&
+            Vector3.Distance(player.transform.position + Vector3.up * PickupHeightOffset, transform.position) <= InteractionDistance &&
+            CountCarriedBy(player) < CarryCapacityPerPlayer;
 
         public static int CountCarriedBy(Movement player)
         {

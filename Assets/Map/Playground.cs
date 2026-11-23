@@ -110,7 +110,7 @@ namespace NatureCalls.Map
             OfflinePlayer.SetControl(true);
             instance.GetComponent<PlayerInput>().enabled = true;
             var appearance = instance.GetComponent<PlayerAppearance>();
-            appearance.SetGender(LocalProfile.Gender);
+            appearance.SetBodyType(LocalProfile.BodyType);
             if (appearance.Catalog != null) appearance.ApplyOutfit(appearance.Catalog.Clamp(LocalProfile.OutfitIndex));
             Camera.Bind(OfflinePlayer);
 #if UNITY_EDITOR

@@ -49,7 +49,14 @@ namespace NatureCalls.UI
             if (input == null) { Hide(); return; }
 
             var phase = input.Phase;
-            statusPanel.SetActive(phase != PlayerInput.Stage.None);
+            var accessPrompt = input.NearbyMap2Prompt();
+            statusPanel.SetActive(phase != PlayerInput.Stage.None || accessPrompt.Length > 0);
+            if (phase == PlayerInput.Stage.None && accessPrompt.Length > 0)
+            {
+                phaseLabel.text = accessPrompt;
+                progressFill.transform.parent.gameObject.SetActive(false);
+                accuracyLabel.gameObject.SetActive(false);
+            }
             if (phase != PlayerInput.Stage.None)
             {
                 phaseLabel.text = Prompt(phase);

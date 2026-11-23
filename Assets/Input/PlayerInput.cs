@@ -18,12 +18,24 @@ namespace NatureCalls.Input
         private FacilitySync facilities;
         private NeedsSync needsSync;
         private PlayerNeeds needs;
+        private Map2Interactions map2;
         public enum Stage { None, Aligning, Holding, Urinating, Cleaning }
         public Stage Phase { get; private set; }
         public bool IsToileting => Phase == Stage.Holding || Phase == Stage.Urinating;
         public bool Unwiped => needs != null && needs.Unwiped;
         public Item HeldItem => Item.FindCarriedBy(movement);
         public int PaperRemainingUses => HeldItem is PaperRoll roll ? roll.RemainingUses : 0;
+        public string NearbyMap2Prompt()
+        {
+            if (Phase != Stage.None || map2 == null || movement.IsTraversing) return "";
+            if (Unwiped && HeldItem is PaperRoll) return "E  擦拭";
+            var access = map2.NearbySewerAccess(movement);
+            if (access != null) return access.Prompt;
+            if (map2.CanPickupEmergencyPaper(movement)) return "E  拾取应急卷纸";
+            int station = map2.Nearby(movement);
+            var client = Online ? facilities.OwnerClientId : 0;
+            return map2.Prompt(station, client, movement);
+        }
         public Vector3 TargetCenter => toilet != null ? toilet.TargetCenter : urinal != null ? urinal.TargetCenter : CurrentLanding;
         public float TargetRadius => NeedsRules.TargetRadius;
         /// <summary>The two axes the target circle lies in: the floor for a toilet, the wall for a urinal.</summary>
@@ -59,6 +71,7 @@ namespace NatureCalls.Input
             facilities = GetComponent<FacilitySync>();
             needsSync = GetComponent<NeedsSync>();
             needs = GetComponent<PlayerNeeds>();
+            map2 = FindFirstObjectByType<Map2Interactions>();
 
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
@@ -126,7 +139,7 @@ namespace NatureCalls.Input
         public bool TryToilet()
         {
             movement.RefreshVentPosture();
-            if (IsToileting || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
+            if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             var stall = StallDoor.Containing(movement);
             if (Phase != Stage.Aligning && stall != null && stall.Toilet != null)
             {
@@ -252,11 +265,27 @@ namespace NatureCalls.Input
         /// <summary>E: paper rolls, the mirror, stall doors and the Lobby door. Works while seated, so a seated player can lock the door.</summary>
         public bool TryInteract()
         {
+            if (movement.IsTraversing || !TryUseNearby()) return false;
+            GetComponent<PlayerAppearance>()?.PlayReach();
+            var avatar = GetComponent<Network.Avatar>();
+            if (avatar != null && avatar.IsSpawned && avatar.IsOwner) avatar.PlayReachRpc();
+            return true;
+        }
+
+        private bool TryUseNearby()
+        {
             if (Unwiped && HeldItem is PaperRoll paper)
             {
                 if (Online) return facilities.RequestWipe();
                 if (!paper.Use()) return false;
                 needs.Wipe(); return true;
+            }
+            if (Phase == Stage.None && map2 != null)
+            {
+                var access = map2.NearbySewerAccess(movement);
+                if (access != null)
+                    return Online ? facilities.RequestSewerTraversal(access) : access.Traverse(movement);
+                if (map2.CanPickupEmergencyPaper(movement) && PickupItem(map2.EmergencyPaper)) return true;
             }
             if (HeldItem is Mop)
             {
@@ -264,6 +293,13 @@ namespace NatureCalls.Input
                 foreach (var mess in FindObjectsByType<Mess>(FindObjectsSortMode.None))
                     if (mess.CanClean(movement) && (nearest == null || Vector3.Distance(mess.transform.position, transform.position) < Vector3.Distance(nearest.transform.position, transform.position))) nearest = mess;
                 if (nearest != null && BeginCleaning(nearest)) return true;
+            }
+            if (Phase == Stage.None && map2 != null)
+            {
+                int station = map2.Nearby(movement);
+                var client = Online ? facilities.OwnerClientId : 0;
+                if (map2.CanUse(station, movement, client) && (Online ? facilities.RequestMap2Interaction(station) :
+                    map2.Interact(station, movement, client, out _, out _))) return true;
             }
             if (TryPickupNearestItem()) return true;
             foreach (var toolbox in FindObjectsByType<Toolbox>(FindObjectsSortMode.None))
@@ -288,9 +324,10 @@ namespace NatureCalls.Input
                 nearest = roll;
                 nearestDistance = distance;
             }
-            return nearest != null && (facilities != null && facilities.IsSpawned
-                ? facilities.RequestPickup(nearest) : nearest.Pickup(movement));
+            return nearest != null && PickupItem(nearest);
         }
+
+        private bool PickupItem(Item item) => Online ? facilities.RequestPickup(item) : item.Pickup(movement);
 
         private bool TryInteractNearestStallDoor()
         {

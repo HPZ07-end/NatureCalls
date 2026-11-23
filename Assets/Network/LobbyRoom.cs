@@ -16,13 +16,13 @@ namespace NatureCalls.Network
         public ulong ClientId;
         public int Slot;
         public int Outfit;
-        public PlayerGender Gender;
+        public PlayerBodyType BodyType;
         public bool Ready;
 
         public bool Equals(LobbyMember other) =>
-            ClientId == other.ClientId && Slot == other.Slot && Outfit == other.Outfit && Gender == other.Gender && Ready == other.Ready;
+            ClientId == other.ClientId && Slot == other.Slot && Outfit == other.Outfit && BodyType == other.BodyType && Ready == other.Ready;
         public override bool Equals(object obj) => obj is LobbyMember other && Equals(other);
-        public override int GetHashCode() => HashCode.Combine(ClientId, Slot, Outfit, Gender, Ready);
+        public override int GetHashCode() => HashCode.Combine(ClientId, Slot, Outfit, BodyType, Ready);
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ namespace NatureCalls.Network
                 NetworkManager.OnClientDisconnectCallback += RemoveMember;
                 foreach (var id in NetworkManager.ConnectedClientsIds) AddMember(id);
             }
-            if (IsClient) SetAppearanceRpc(LocalProfile.Gender, LocalProfile.OutfitIndex);
+            if (IsClient) SetAppearanceRpc(LocalProfile.BodyType, LocalProfile.OutfitIndex);
         }
 
         public override void OnNetworkDespawn()
@@ -98,7 +98,7 @@ namespace NatureCalls.Network
         public bool CanStart => Phase.Value == LobbyPhase.Waiting && LobbyRules.CanStart(Members.Count, ReadyMembers());
 
         public void SetReady(bool ready) => SetReadyRpc(ready);
-        public void SetAppearance(PlayerGender gender, int outfit) => SetAppearanceRpc(gender, outfit);
+        public void SetAppearance(PlayerBodyType bodyType, int outfit) => SetAppearanceRpc(bodyType, outfit);
         public void RequestStart() => RequestStartRpc();
         public void CancelMapSelection() => CancelMapSelectionRpc();
         public void ChooseMap(int choice) => ChooseMapRpc(choice);
@@ -136,13 +136,13 @@ namespace NatureCalls.Network
         private bool FromLeader(RpcParams rpc) => Members.Count > 0 && rpc.Receive.SenderClientId == LeaderId;
 
         [Rpc(SendTo.Server)]
-        private void SetAppearanceRpc(PlayerGender gender, int outfit, RpcParams rpc = default)
+        private void SetAppearanceRpc(PlayerBodyType bodyType, int outfit, RpcParams rpc = default)
         {
-            if (!OutfitSelection.IsValidGender(gender)) return;
+            if (!OutfitSelection.IsValidBodyType(bodyType)) return;
             ChangeMember(rpc.Receive.SenderClientId, member =>
             {
                 member.Outfit = Mathf.Max(0, outfit);
-                member.Gender = gender;
+                member.BodyType = bodyType;
                 return member;
             });
         }
@@ -217,7 +217,7 @@ namespace NatureCalls.Network
                 var player = Instantiate(NetworkManager.NetworkConfig.PlayerPrefab, spawn.position, spawn.rotation);
                 var appearance = player.GetComponent<AvatarAppearance>();
                 appearance.OutfitIndex.Value = member.Outfit;
-                appearance.Gender.Value = member.Gender;
+                appearance.BodyType.Value = member.BodyType;
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(member.ClientId, true);
             }
             // The global round clock and everyone's needs start once everyone is on the map.
