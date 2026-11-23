@@ -30,12 +30,23 @@ namespace NatureCalls.Map
 
         public static void Begin(MatchMode mode, MapCatalog catalog, int mapIndex)
         {
+            Prepare(mode, mapIndex, catalog[mapIndex].RoundSeconds);
+            SceneManager.LoadScene(catalog[mapIndex].ScenePath, LoadSceneMode.Single);
+        }
+
+        internal static void BeginOfflineInCurrentScene()
+        {
+            if (Mode == MatchMode.None)
+                Prepare(MatchMode.Offline, -1, RoundClock.DefaultSeconds);
+        }
+
+        private static void Prepare(MatchMode mode, int mapIndex, float roundSeconds)
+        {
             Mode = mode;
             MapIndex = mapIndex;
-            RoundSeconds = catalog[mapIndex].RoundSeconds;
+            RoundSeconds = roundSeconds;
             offlineRoundEnd = -1;
             ReturnMessage = "";
-            SceneManager.LoadScene(catalog[mapIndex].ScenePath, LoadSceneMode.Single);
         }
 
         public static void ReturnToDressingRoom(string message = "")

@@ -69,7 +69,9 @@ namespace NatureCalls.Facility
         {
             if (!enabled || player == null || !IsInside(player)) return false;
             var local = transform.InverseTransformPoint(player.transform.position);
-            return local.x >= footprint.min.x && local.x <= footprint.max.x && local.z >= footprint.min.z && local.z <= footprint.max.z;
+            return local.x >= footprint.min.x && local.x <= footprint.max.x &&
+                local.y >= footprint.min.y - .2f && local.y <= footprint.max.y + .15f &&
+                local.z >= footprint.min.z && local.z <= footprint.max.z;
         }
 
         /// <summary>The stall that contains the player, or null.</summary>

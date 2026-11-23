@@ -116,10 +116,17 @@ namespace NatureCalls.Tests
             Assert.That(input.TryInteract(), Is.True, "E should select and close the player's own door from inside the stall.");
             Assert.That(door.State, Is.EqualTo(StallDoorState.Closed));
 
-            var roll = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).First();
+            var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
+            var roll = rolls.First();
             player.transform.position = roll.transform.position + Vector3.right * .3f;
+            var eligible = rolls.Where(item => item.CanPickup(player)).ToArray();
+            Assert.That(eligible, Is.Not.Empty);
+            var nearest = eligible.Min(item => Vector3.Distance(item.transform.position, player.transform.position));
+            var nearestRolls = eligible.Where(item =>
+                Mathf.Abs(Vector3.Distance(item.transform.position, player.transform.position) - nearest) < .001f).ToArray();
             Assert.That(input.TryInteract(), Is.True, "E should select the nearby paper roll.");
-            Assert.That(roll.IsPickedUp, Is.True);
+            Assert.That(rolls.Where(item => item.PickedUpBy == player).ToArray(), Has.Length.EqualTo(1));
+            Assert.That(nearestRolls, Does.Contain(Item.FindCarriedBy(player)));
         }
 
         [UnityTearDown]

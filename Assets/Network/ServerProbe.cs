@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using NatureCalls.Core;
 using NatureCalls.Facility;
 using NatureCalls.Map;
 using NatureCalls.Player;
@@ -18,7 +19,7 @@ namespace NatureCalls.Network
         private sealed class Report
         {
             public string role, status = "running", error = "";
-            public bool connected, mapLoaded, facilities, leaderSuccession, returned, empty;
+            public bool connected, mapLoaded, appearance, facilities, leaderSuccession, returned, empty;
         }
         private Report report;
         private string directory;
@@ -99,6 +100,11 @@ namespace NatureCalls.Network
             var room = LobbyRoom.Current;
             report.connected = room.IsLeader == leader;
             if (!report.connected) { Finish("Wrong initial leader."); yield break; }
+            room.SetAppearance(leader ? PlayerGender.Female : PlayerGender.Male, leader ? 1 : 2);
+            yield return Await(() => room.TryGetMember(room.LocalClientId, out var local) &&
+                local.Gender == (leader ? PlayerGender.Female : PlayerGender.Male) && local.Outfit == (leader ? 1 : 2),
+                "confirmed appearance in room");
+            if (finished) yield break;
             if (leader) Mark("leader-connected");
             else
             {
@@ -122,6 +128,18 @@ namespace NatureCalls.Network
             yield return Await(() => Facilities.Current != null && FindObjectsByType<Avatar>(FindObjectsSortMode.None).Count(a => a.IsSpawned) == 2, "client map");
             if (finished) yield break;
             var own = FindObjectsByType<Avatar>(FindObjectsSortMode.None).Single(a => a.IsOwner);
+            report.appearance = FindObjectsByType<Avatar>(FindObjectsSortMode.None).All(player =>
+            {
+                var first = player.OwnerClientId == room.LeaderId;
+                var appearance = player.GetComponent<PlayerAppearance>();
+                var shared = player.GetComponent<AvatarAppearance>();
+                var gender = first ? PlayerGender.Female : PlayerGender.Male;
+                var outfit = first ? 1 : 2;
+                return appearance.Gender == gender && appearance.OutfitIndex == outfit &&
+                    shared.Gender.Value == gender && shared.OutfitIndex.Value == outfit &&
+                    appearance.ActiveAnimator != null && appearance.ActiveAnimator.gameObject.activeInHierarchy;
+            });
+            if (!report.appearance) { Finish("A local or remote Player did not show the confirmed gender and outfit."); yield break; }
             var world = FindFirstObjectByType<Playground>();
             var screenCameras = UnityEngine.Camera.allCameras
                 .Where(camera => camera.isActiveAndEnabled && camera.targetTexture == null).ToArray();

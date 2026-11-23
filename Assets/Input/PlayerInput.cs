@@ -125,7 +125,8 @@ namespace NatureCalls.Input
         }
         public bool TryToilet()
         {
-            if (IsToileting || posture.IsSquatting || requested >= 0 || Phase == Stage.Cleaning) return false;
+            movement.RefreshVentPosture();
+            if (IsToileting || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             var stall = StallDoor.Containing(movement);
             if (Phase != Stage.Aligning && stall != null && stall.Toilet != null)
             {
@@ -147,6 +148,7 @@ namespace NatureCalls.Input
         }
         public bool BeginGranted(Toilet targetToilet, Urinal targetUrinal)
         {
+            if (posture.IsCrawling) return false;
             toilet = targetToilet; urinal = targetUrinal; requested = -1;
             if (toilet != null && !toilet.Seat(movement)) return false;
             if (urinal != null && !urinal.Occupy(movement)) return false;

@@ -15,6 +15,7 @@ namespace NatureCalls.Player
         public OutfitCatalog Catalog => appearance.Catalog;
         public int PreviewIndex => selection.PreviewIndex;
         public int ConfirmedIndex => selection.ConfirmedIndex;
+        public PlayerGender PreviewGender => selection.PreviewGender;
         public string PreviewName => Catalog[selection.PreviewIndex].Name;
         public bool IsSelecting => selection.IsSelecting;
 
@@ -22,7 +23,7 @@ namespace NatureCalls.Player
         {
             if (appearance == null)
                 appearance = GetComponent<PlayerAppearance>();
-            selection = new OutfitSelection(Catalog.Count, Catalog.Clamp(LocalProfile.OutfitIndex));
+            selection = new OutfitSelection(Catalog.Count, Catalog.Clamp(LocalProfile.OutfitIndex), LocalProfile.Gender);
             Apply(selection.ConfirmedIndex);
         }
 
@@ -42,10 +43,16 @@ namespace NatureCalls.Player
             Apply(selection.Move(index - selection.PreviewIndex));
         }
 
+        public void PreviewByGender(PlayerGender gender)
+        {
+            selection.ChooseGender(gender);
+            Apply(selection.PreviewIndex);
+        }
+
         public void ConfirmSelection()
         {
             selection.Confirm();
-            LocalProfile.OutfitIndex = selection.ConfirmedIndex;
+            LocalProfile.SetAppearance(selection.ConfirmedGender, selection.ConfirmedIndex);
             Apply(selection.ConfirmedIndex);
         }
 
@@ -57,6 +64,7 @@ namespace NatureCalls.Player
 
         private void Apply(int index)
         {
+            appearance.SetGender(selection.PreviewGender);
             appearance.ApplyOutfit(index);
         }
     }

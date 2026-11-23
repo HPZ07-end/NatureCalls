@@ -14,7 +14,8 @@ Assets/Prefabs/Characters/Player.prefab
 ├─ PlayerNeeds
 ├─ NetworkObject / NetworkTransform / Network.Avatar / AvatarAppearance / NeedsSync / FacilitySync（DressingRoomPlayer 变体中移除）
 └─ Body
-   └─ 全场景共享的人物模型与 Renderer
+   ├─ Characters-Male（Humanoid）
+   └─ Characters-Female（Humanoid）
 
 Assets/Prefabs/Characters/DressingRoomPlayer.prefab
 └─ Player.prefab 的 Prefab Variant（原 ChangingRoomPlayer，GUID 保留）
@@ -36,14 +37,16 @@ Assets/Prefabs/Characters/DressingRoomPlayer.prefab
 - `PlayerAppearance.Body` 必须引用同一个 `Body`。
 - `Movement.Enter(Transform)` 保留玩家对位的位置；Anchor 识别设施，站起恢复进入前的位置。`Aiming` 供镜头读取，`Immobile` 暂停小便期间的位移和转向；瞄准/HUD 只读接口见 [PLAYGROUND](PLAYGROUND.md#表现层读取接口)。
 - 场景交互通过 `Movement.SetControl(bool)` 控制玩家输入，不依赖具体本地或网络控制器。
-- 外观以 `OutfitCatalog` 中的编号表示；`PlayerAppearance.ApplyOutfit(int)` 是唯一的外观表现入口。
-- `PlayerOutfitController` 只管理预览、确认和取消；确认后写入 `LocalProfile.OutfitIndex`，供 Lobby 房间与之后的地图使用。
-- `Network.AvatarAppearance.OutfitIndex`（Server-write）在联机对局中同步外观；为 -1 时（直接打开地图联机测试、没有 Lobby 房间）改用 `ColorIndex` 身份颜色。
+- `PlayerAppearance.SetGender` 切换 Humanoid 模型，`ApplyOutfit` 按 `OutfitCatalog` 的编号给上衣染色。镜头一开始就登记两款模型的 Renderer，以便第一人称隐藏角色，同时保留镜面显示。
+- `PlayerOutfitController` 管理两项预览、确认和取消。确认后通过 `LocalProfile.SetAppearance` 保存性别和衣服编号，供大厅和之后的地图使用。
+- `Network.AvatarAppearance` 同步服务器写入的性别与服装编号。直接打开地图联机时服装编号为 -1，显示 `ColorIndex` 身份颜色，性别仍从该玩家的已确认外观取得。
 - `Network.AvatarAppearance` 不直接遍历 Renderer，只调用 `PlayerAppearance`。
 
-身份颜色和外观是两个概念：`ColorIndex` 是出生槽位颜色，`OutfitIndex` 是玩家选择的外观，不得互相改名或复用。当前两者作用于同一组 Renderer，有外观时显示外观。
+身份颜色和服装是两个概念：`ColorIndex` 是出生槽位颜色，`OutfitIndex` 是玩家选择的衣服编号，两者优先级保持原样并只作用于上衣。
 
-替换美术：在 `OutfitCatalog.asset` 中增删条目或调整名称/颜色即可，换装面板按目录动态生成按钮；以后外观需要换材质或模型时，扩展 `OutfitCatalog.Outfit` 字段并只修改 `PlayerAppearance.ApplyOutfit`。
+Animator 读取玩家的平面位移、落地状态和 `Posture`，播放原地动作。角色根坐标仍由 `Movement` 与 NGO 控制，移除了对正式 Humanoid 模型的纵向缩放蹲姿。远端复用位置与姿态同步，额外共享离地标志以播放跳跃。
+
+换装面板按 `OutfitCatalog.asset` 生成服装颜色按钮。菜单 `NatureCalls/Configure Player Appearance` 维护基础 Player 的两个 Humanoid 实例及现有换装面板按钮，无须重建场景。
 
 ## 场景使用规则
 
@@ -111,6 +114,7 @@ Assets/Editor/LobbyFlowBuilder.cs
 - `SimplePlayerController`：由 `Movement` 替代。
 - `NatureCalls.Environment` 和 `Assets/Environment`：由规范术语 `Facility` 替代。
 - 更衣室场景中手工创建的 Capsule 玩家：由共享 Player 的 Variant 替代。
+- 正式 Player 的 Peasant Nolant 显示节点：由两款 Humanoid 模型替代。旧 Nolant 配置工具只兼容旧 Player，守卫阻止它覆盖新模型。独立地图搭建器的原始 Capsule 路径属于 legacy，正式地图均切到共享 Prefab 后可从该搭建器移除。
 - ChangingRoom 场景、`ChangingRoomPlatform`、`ChangingRoomHud`、`ThirdPersonCamera`：由 DressingRoom 镜子换装与 `CameraController` 替代（2026-11-02）。
 - `ChangingRoomPlayer.prefab`：更名为 `DressingRoomPlayer.prefab`（2026-11-02，GUID 保留）。
 - Player、Facility、UI 的功能级 `.asmdef`：当前 Stage 1 继续使用 `NatureCalls.Runtime`，避免提前拆分程序集。
