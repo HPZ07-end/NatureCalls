@@ -2,6 +2,7 @@ using System.Collections;
 using System.Linq;
 using NUnit.Framework;
 using NatureCalls.Core;
+using NatureCalls.Facility;
 using NatureCalls.Map;
 using NatureCalls.Network;
 using NatureCalls.Player;
@@ -24,7 +25,7 @@ namespace NatureCalls.Tests
         private LobbyController lobby;
         private LobbyView view;
         private int savedOutfit;
-        private PlayerGender savedGender;
+        private PlayerBodyType savedBodyType;
         private MapCatalog timedCatalog;
         private float savedRoundSeconds;
         private int timedMapIndex;
@@ -33,8 +34,8 @@ namespace NatureCalls.Tests
         public IEnumerator Load()
         {
             savedOutfit = LocalProfile.OutfitIndex;
-            savedGender = LocalProfile.Gender;
-            LocalProfile.SetAppearance(PlayerGender.Male, savedOutfit);
+            savedBodyType = LocalProfile.BodyType;
+            LocalProfile.SetAppearance(PlayerBodyType.Balanced, savedOutfit);
             Match.End();
             world = null; mirror = null; door = null; lobby = null;
             yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Additive);
@@ -59,7 +60,7 @@ namespace NatureCalls.Tests
         [UnityTearDown]
         public IEnumerator Unload()
         {
-            LocalProfile.SetAppearance(savedGender, savedOutfit);
+            LocalProfile.SetAppearance(savedBodyType, savedOutfit);
             if (timedCatalog != null) { timedCatalog[timedMapIndex].RoundSeconds = savedRoundSeconds; timedCatalog = null; }
             Match.End();
             var session = Session.Instance;
@@ -80,7 +81,7 @@ namespace NatureCalls.Tests
             {
                 var loaded = SceneManager.GetSceneAt(index);
                 if (loaded != empty && loaded.isLoaded && (loaded.path == ScenePath || loaded.path == "Assets/Scenes/Playground.unity" ||
-                    loaded.path == "Assets/Scenes/MapLayoutPrototype.unity" || loaded.path == "Assets/Scenes/Map1.unity"))
+                    loaded.path == "Assets/Scenes/MapLayoutPrototype.unity" || loaded.path == "Assets/Scenes/Map1.unity" || loaded.path == "Assets/Scenes/Map2.unity"))
                     yield return SceneManager.UnloadSceneAsync(loaded);
             }
             yield return null;
@@ -129,38 +130,42 @@ namespace NatureCalls.Tests
             Assert.That(player.Controlled, Is.False, "Choosing an outfit pauses movement.");
             var appearance = player.GetComponent<PlayerAppearance>();
             Assert.That(lobby.OutfitButtons, Has.Count.EqualTo(appearance.Catalog.Count));
+            view.OutfitSwift.onClick.Invoke();
+            Assert.That(appearance.BodyType, Is.EqualTo(PlayerBodyType.Swift));
+            Assert.That(appearance.ActiveAnimator.avatar.isValid, Is.True);
+            view.OutfitBalanced.onClick.Invoke();
             Assert.That(appearance.HasRiggedBody, Is.True);
-            var male = appearance.ActiveAnimator;
-            Assert.That(male.avatar.isHuman, Is.True);
+            var balanced = appearance.ActiveAnimator;
+            Assert.That(balanced.avatar.isHuman, Is.False);
 
             int choice = (LocalProfile.OutfitIndex + 2) % appearance.Catalog.Count;
-            view.OutfitFemale.onClick.Invoke();
+            view.OutfitTall.onClick.Invoke();
             lobby.PreviewOutfit(choice);
-            Assert.That(appearance.Gender, Is.EqualTo(PlayerGender.Female));
-            var female = appearance.ActiveAnimator;
-            Assert.That(female, Is.Not.SameAs(male));
-            Assert.That(female.avatar.isHuman, Is.True);
-            Assert.That(male.gameObject.activeSelf, Is.False);
-            Assert.That(female.gameObject.activeSelf, Is.True);
-            Assert.That(female.GetComponentsInChildren<Renderer>().All(r =>
+            Assert.That(appearance.BodyType, Is.EqualTo(PlayerBodyType.Tall));
+            var tall = appearance.ActiveAnimator;
+            Assert.That(tall, Is.Not.SameAs(balanced));
+            Assert.That(tall.avatar.isHuman, Is.False);
+            Assert.That(balanced.gameObject.activeInHierarchy, Is.False);
+            Assert.That(tall.gameObject.activeInHierarchy, Is.True);
+            Assert.That(tall.GetComponentsInChildren<Renderer>().All(r =>
                 r.gameObject.layer == NatureCalls.Camera.CameraController.LocalBodyLayer), Is.True);
             Assert.That(appearance.OutfitIndex, Is.EqualTo(choice));
-            Assert.That(LocalProfile.Gender, Is.EqualTo(PlayerGender.Male), "Preview isn't persisted.");
+            Assert.That(LocalProfile.BodyType, Is.EqualTo(PlayerBodyType.Balanced), "Preview isn't persisted.");
             view.OutfitCancel.onClick.Invoke();
-            Assert.That(appearance.ActiveAnimator, Is.SameAs(male));
+            Assert.That(appearance.ActiveAnimator, Is.SameAs(balanced));
             Assert.That(appearance.OutfitIndex, Is.EqualTo(LocalProfile.OutfitIndex));
 
             Assert.That(input.TryInteract(), Is.True);
-            view.OutfitFemale.onClick.Invoke();
+            view.OutfitTall.onClick.Invoke();
             lobby.PreviewOutfit(choice);
             lobby.ConfirmOutfit();
 
             Assert.That(lobby.IsOutfitPanelOpen, Is.False);
             Assert.That(player.Controlled, Is.True);
             Assert.That(LocalProfile.OutfitIndex, Is.EqualTo(choice));
-            Assert.That(LocalProfile.Gender, Is.EqualTo(PlayerGender.Female));
+            Assert.That(LocalProfile.BodyType, Is.EqualTo(PlayerBodyType.Tall));
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[choice].Color));
-            Assert.That(female.GetComponentsInChildren<Renderer>().Where(r => r != appearance.ShirtRenderer)
+            Assert.That(tall.GetComponentsInChildren<Renderer>().Where(r => r != appearance.OutfitRenderer)
                 .All(r => !r.HasPropertyBlock()), Is.True, "Skin, pants, hair and shoes keep their own materials.");
         }
 
@@ -176,11 +181,49 @@ namespace NatureCalls.Tests
         public IEnumerator LobbyLoadsMap1WithFirstPersonAndOutfit() =>
             OfflineMap(2, "Assets/Scenes/Map1.unity");
 
+        [UnityTest]
+        public IEnumerator LobbyLoadsMap2AndAllowsSewerRoundTrip() =>
+            OfflineMap(3, "Assets/Scenes/Map2.unity");
+
+        [UnityTest]
+        public IEnumerator Map2SuppliesAndShaftAreReachableFromSpawn()
+        {
+            lobby.OpenLobby();
+            lobby.StartOffline();
+            yield return null;
+            lobby.MapButtons[3].onClick.Invoke();
+            yield return null;
+            yield return null;
+            var map = Object.FindFirstObjectByType<Playground>();
+            var player = map.OfflinePlayer;
+            var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+            var activities = map.GetComponent<Map2Interactions>();
+            Assert.That(activities.EmergencyPaper.GetComponentsInChildren<Renderer>().Any(r => r.enabled), Is.True);
+            input.enabled = false;
+            yield return WalkTo(player, 6f, 1.32f);
+            Assert.That(input.NearbyMap2Prompt(), Does.Contain("应急卷纸"));
+            Assert.That(input.TryInteract(), Is.True);
+            Assert.That(input.HeldItem, Is.SameAs(activities.EmergencyPaper));
+            Assert.That(input.PaperRemainingUses, Is.EqualTo(3));
+
+            yield return WalkTo(player, 6f, 1.86f);
+            yield return WalkTo(player, 4.4f, 1.86f);
+            yield return WalkTo(player, 4.4f, 5.25f);
+            Assert.That(input.NearbyMap2Prompt(), Does.Contain("打开井盖"));
+            Assert.That(input.TryInteract(), Is.True);
+            Assert.That(player.IsTraversing, Is.True);
+            float arrival = Time.realtimeSinceStartup + 4;
+            while (player.IsTraversing && Time.realtimeSinceStartup < arrival) yield return null;
+            Assert.That(player.IsTraversing, Is.False);
+            Assert.That(player.transform.position.y, Is.EqualTo(-3.2f).Within(.18f));
+            input.enabled = true;
+        }
+
         private IEnumerator OfflineMap(int mapIndex, string mapPath)
         {
             var player = world.OfflinePlayer;
             var outfit = (LocalProfile.OutfitIndex + 1) % player.GetComponent<PlayerAppearance>().Catalog.Count;
-            LocalProfile.SetAppearance(PlayerGender.Female, outfit);
+            LocalProfile.SetAppearance(PlayerBodyType.Tall, outfit);
             yield return Teleport(player, door.transform.position - Vector3.up);
             Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryInteract(), Is.True);
             Assert.That(lobby.IsLobbyOpen, Is.True);
@@ -204,7 +247,68 @@ namespace NatureCalls.Tests
             Assert.That(map.Camera.FirstPerson.Priority.Value, Is.GreaterThan(map.Camera.ThirdPerson.Priority.Value));
             var appearance = map.OfflinePlayer.GetComponent<PlayerAppearance>();
             Assert.That(appearance.OutfitIndex, Is.EqualTo(outfit), "The DressingRoom outfit is worn on the map.");
-            Assert.That(appearance.Gender, Is.EqualTo(PlayerGender.Female));
+            Assert.That(appearance.BodyType, Is.EqualTo(PlayerBodyType.Tall));
+
+            if (mapPath == "Assets/Scenes/Map2.unity")
+            {
+                var accesses = map.GetComponentsInChildren<SewerAccess>();
+                Assert.That(accesses, Has.Length.EqualTo(2));
+                Assert.That(Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None), Has.Length.EqualTo(3));
+                var walker = map.OfflinePlayer;
+                var input = walker.GetComponent<NatureCalls.Input.PlayerInput>();
+                var activities = map.GetComponent<Map2Interactions>();
+                yield return StandAtMap2Station(walker, activities, activities.Coins[0], "拾取金币");
+                Assert.That(input.TryInteract(), Is.True);
+                Assert.That(activities.Wallet(0), Is.EqualTo(1));
+                yield return StandAtMap2Station(walker, activities, activities.VendingMachine, "买卷纸");
+                Assert.That(input.TryInteract(), Is.True);
+                Assert.That(activities.Wallet(0), Is.Zero);
+                Assert.That(input.HeldItem, Is.TypeOf<PaperRoll>());
+
+                var wet = activities.WetZones[0].bounds.center;
+                wet.y = .03f;
+                yield return Teleport(walker, wet);
+                Assert.That(activities.IsWet(walker.transform.position), Is.True);
+                walker.Move(Vector2.right, .08f);
+                var beforeRelease = walker.transform.position;
+                walker.Move(Vector2.zero, .02f);
+                Assert.That(Vector3.Distance(beforeRelease, walker.transform.position), Is.GreaterThan(.003f));
+
+                foreach (var access in accesses.OrderBy(access => access.Ascending))
+                {
+                    var origin = access.Ascending ? access.Landing : access.Top;
+                    var destination = access.Ascending ? access.Top : access.Landing;
+                    yield return Teleport(walker, origin.position + access.ApproachDirection * access.ApproachDistance + Vector3.up * .03f);
+                    Assert.That(input.TryInteract(), Is.True);
+                    Assert.That(walker.IsTraversing, Is.True);
+                    float arrival = Time.realtimeSinceStartup + 4;
+                    while (walker.IsTraversing && Time.realtimeSinceStartup < arrival) yield return null;
+                    Assert.That(walker.IsTraversing, Is.False);
+                    Assert.That(walker.transform.position.y, Is.EqualTo(destination.position.y).Within(.18f));
+                    if (!access.Ascending)
+                    {
+                        input.enabled = false;
+                        yield return WalkTo(walker, 3.05f, 7.5f);
+                        yield return WalkTo(walker, 9.5f, 7.5f);
+                        Assert.That(walker.transform.position.y, Is.EqualTo(-3.8f).Within(.18f));
+                        yield return WalkTo(walker, 9.5f, 2.35f);
+                        Assert.That(walker.transform.position.y, Is.EqualTo(-2.7f).Within(.18f));
+                        yield return WalkTo(walker, 12.24f, 2.35f);
+                        yield return WalkTo(walker, 12.24f, 7.4f);
+                        Assert.That(walker.transform.position.y, Is.EqualTo(-2.7f).Within(.18f));
+                        input.enabled = true;
+                        var stations = new[] { activities.UpstreamWindow, activities.Valve, activities.InspectionPort,
+                            activities.Valve, activities.DownstreamWindow };
+                        var prompts = new[] { "查看上游堵塞", "关闭阀门", "清除堵塞", "打开阀门", "复查回流" };
+                        for (int i = 0; i < stations.Length; i++)
+                        {
+                            yield return StandAtMap2Station(walker, activities, stations[i], prompts[i]);
+                            Assert.That(input.TryInteract(), Is.True, prompts[i]);
+                            Assert.That((int)activities.RepairProgress, Is.EqualTo(i + 1));
+                        }
+                    }
+                }
+            }
 
             var exit = Object.FindFirstObjectByType<MatchExit>();
             Assert.That(exit, Is.Not.Null, "The map shows the top-left exit button.");
@@ -213,6 +317,36 @@ namespace NatureCalls.Tests
             while (SceneManager.GetActiveScene().path != ScenePath && Time.realtimeSinceStartup < deadline) yield return null;
             Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(ScenePath), "Exit returns to the DressingRoom.");
             Assert.That(Match.Mode, Is.EqualTo(MatchMode.None));
+        }
+
+        private static IEnumerator WalkTo(Movement player, float x, float z)
+        {
+            var target = new Vector3(x, 0, z);
+            float deadline = Time.realtimeSinceStartup + 7;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                var current = player.transform.position;
+                current.y = 0;
+                var offset = target - current;
+                if (offset.magnitude <= .1f) yield break;
+                var direction = player.transform.InverseTransformDirection(Vector3.ClampMagnitude(offset * 4, 1));
+                player.Move(new Vector2(direction.x, direction.z), Mathf.Min(Time.deltaTime, .045f));
+                yield return null;
+            }
+            Assert.Fail($"Blocked walking to ({x}, {z}) from {player.transform.position}.");
+        }
+
+        private static IEnumerator StandAtMap2Station(Movement player, Map2Interactions activities, Transform station, string prompt)
+        {
+            for (int index = 0; index < 12; index++)
+            {
+                var direction = Quaternion.Euler(0, index * 30, 0) * Vector3.forward;
+                var origin = station.position + direction * .65f + Vector3.up * .2f;
+                if (!Physics.Raycast(origin, Vector3.down, out var floor, 1.65f, 1, QueryTriggerInteraction.Ignore)) continue;
+                yield return Teleport(player, floor.point + Vector3.up * .02f);
+                if (activities.Prompt(activities.Nearby(player), 0).Contains(prompt)) yield break;
+            }
+            Assert.Fail("No reachable prompt at " + station.name + " for " + prompt);
         }
 
         [UnityTest]
@@ -227,10 +361,14 @@ namespace NatureCalls.Tests
         public IEnumerator HostLoadsMap1AndPublishesCrawlingPosture() =>
             HostMap(2, "Assets/Scenes/Map1.unity");
 
+        [UnityTest]
+        public IEnumerator HostLoadsMap2AndGrantsSewerDescent() =>
+            HostMap(3, "Assets/Scenes/Map2.unity");
+
         private IEnumerator HostMap(int mapIndex, string mapPath)
         {
             var outfit = (LocalProfile.OutfitIndex + 3) % world.OfflinePlayer.GetComponent<PlayerAppearance>().Catalog.Count;
-            LocalProfile.SetAppearance(PlayerGender.Female, outfit);
+            LocalProfile.SetAppearance(PlayerBodyType.Tall, outfit);
             lobby.OpenLobby();
             // A LAN room on this machine: the test must not depend on reaching Unity's Relay service.
             lobby.PreferLan = true;
@@ -244,7 +382,7 @@ namespace NatureCalls.Tests
 
             Assert.That(room.Members, Has.Count.EqualTo(1));
             Assert.That(room.Members[0].Outfit, Is.EqualTo(outfit), "The room shows each player's outfit.");
-            Assert.That(room.Members[0].Gender, Is.EqualTo(PlayerGender.Female));
+            Assert.That(room.Members[0].BodyType, Is.EqualTo(PlayerBodyType.Tall));
             Assert.That(room.CanStart, Is.False, "A room needs at least two players.");
             Assert.That(view.PrimaryLabel.text, Is.EqualTo("开始游戏"));
             Assert.That(view.PrimaryButton.interactable, Is.False);
@@ -272,9 +410,9 @@ namespace NatureCalls.Tests
             AssertLocalCamera(map, avatar.GetComponent<Movement>());
             Assert.That(Facilities.Current, Is.Not.Null);
             Assert.That(avatar.GetComponent<AvatarAppearance>().OutfitIndex.Value, Is.EqualTo(outfit));
-            Assert.That(avatar.GetComponent<AvatarAppearance>().Gender.Value, Is.EqualTo(PlayerGender.Female));
+            Assert.That(avatar.GetComponent<AvatarAppearance>().BodyType.Value, Is.EqualTo(PlayerBodyType.Tall));
             var appearance = avatar.GetComponent<PlayerAppearance>();
-            Assert.That(appearance.Gender, Is.EqualTo(PlayerGender.Female));
+            Assert.That(appearance.BodyType, Is.EqualTo(PlayerBodyType.Tall));
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[outfit].Color));
             Assert.That(NetworkManager.Singleton, Is.SameAs(Session.Instance.Manager), "The map's own Network object yields to the Lobby's.");
             if (mapPath == "Assets/Scenes/Map1.unity")
@@ -288,6 +426,34 @@ namespace NatureCalls.Tests
                 yield return Teleport(movement, spawn);
                 movement.Move(Vector2.zero, .02f);
                 Assert.That(avatar.SharedPosture.Value, Is.EqualTo(PostureState.Standing));
+            }
+            if (mapPath == "Assets/Scenes/Map2.unity")
+            {
+                var access = map.GetComponentsInChildren<SewerAccess>().Single(item => !item.Ascending);
+                var movement = avatar.GetComponent<Movement>();
+                var input = movement.GetComponent<NatureCalls.Input.PlayerInput>();
+                var activities = map.GetComponent<Map2Interactions>();
+                yield return StandAtMap2Station(movement, activities, activities.Coins[0], "拾取金币");
+                Assert.That(input.TryInteract(), Is.True);
+                yield return null;
+                Assert.That(activities.Wallet(avatar.OwnerClientId), Is.EqualTo(1));
+                yield return StandAtMap2Station(movement, activities, activities.VendingMachine, "买卷纸");
+                Assert.That(input.TryInteract(), Is.True);
+                yield return null;
+                Assert.That(activities.Wallet(avatar.OwnerClientId), Is.Zero);
+                Assert.That(input.HeldItem, Is.TypeOf<PaperRoll>());
+                yield return Teleport(movement, access.Top.position + access.ApproachDirection * access.ApproachDistance + Vector3.up * .03f);
+                Assert.That(input.TryInteract(), Is.True);
+                yield return null;
+                Assert.That(movement.IsTraversing, Is.True);
+                Assert.That(access.ClosedCover.enabled, Is.False);
+                float arrival = Time.realtimeSinceStartup + 4;
+                while (movement.IsTraversing && Time.realtimeSinceStartup < arrival) yield return null;
+                Assert.That(movement.transform.position.y, Is.EqualTo(access.Landing.position.y).Within(.18f));
+                yield return StandAtMap2Station(movement, activities, activities.UpstreamWindow, "查看上游堵塞");
+                Assert.That(input.TryInteract(), Is.True);
+                yield return null;
+                Assert.That(activities.RepairProgress, Is.EqualTo(SewerRepairProgress.Inspected));
             }
 
             // The global round clock and the needs start once everyone is on the map.
@@ -367,7 +533,7 @@ namespace NatureCalls.Tests
         private static Color RendererColor(PlayerAppearance appearance)
         {
             var block = new MaterialPropertyBlock();
-            appearance.ShirtRenderer.GetPropertyBlock(block);
+            appearance.OutfitRenderer.GetPropertyBlock(block, 1);
             return block.GetColor("_BaseColor");
         }
     }

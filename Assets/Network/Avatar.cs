@@ -46,6 +46,9 @@ namespace NatureCalls.Network
         private void PostureChanged(PostureState previous, PostureState current) => posture.Set(current);
         private void AirborneChanged(bool previous, bool current) => appearance.SetRemoteAirborne(current);
 
+        [Rpc(SendTo.NotOwner, InvokePermission = RpcInvokePermission.Owner)]
+        public void PlayReachRpc() => appearance.PlayReach();
+
         private void LateUpdate()
         {
             if (IsSpawned && IsOwner && SharedAirborne.Value != movement.Airborne)

@@ -36,6 +36,7 @@ namespace NatureCalls.Network
     {
         private Movement movement;
         private Posture posture;
+        private float nextSewerTraversal;
         private StallDoor[] doors => Facilities.Current != null ? Facilities.Current.doors : null;
         private Item[] items => Facilities.Current != null ? Facilities.Current.items : null;
         private Toilet[] toilets => Facilities.Current != null ? Facilities.Current.toilets : null;
@@ -49,6 +50,48 @@ namespace NatureCalls.Network
         }
 
         private Facilities ServerFacilities() => IsServer ? Facilities.Current : null;
+
+        public bool RequestMap2Interaction(int action)
+        {
+            if (!IsSpawned || !IsOwner || Facilities.Current == null) return false;
+            InteractMap2Rpc(action);
+            return true;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void InteractMap2Rpc(int action)
+        {
+            if (activeMode == 0 && cleaningIndex < 0)
+                ServerFacilities()?.InteractWithMap2(action, movement, OwnerClientId);
+        }
+
+        public bool RequestSewerTraversal(Map.SewerAccess access)
+        {
+            if (!IsSpawned || !IsOwner || Facilities.Current == null) return false;
+            int index = Array.IndexOf(Facilities.Current.SewerAccesses, access);
+            if (index < 0) return false;
+            RequestSewerTraversalRpc(index);
+            return true;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void RequestSewerTraversalRpc(int index)
+        {
+            var host = ServerFacilities();
+            if (host == null || index < 0 || index >= host.SewerAccesses.Length || Time.time < nextSewerTraversal ||
+                activeMode != 0 || !host.SewerAccesses[index].CanTraverse(movement)) return;
+            nextSewerTraversal = Time.time + 1.7f;
+            host.OpenSewerCover(index);
+            GrantSewerTraversalRpc(index);
+        }
+
+        [Rpc(SendTo.Owner)]
+        private void GrantSewerTraversalRpc(int index)
+        {
+            var shared = Facilities.Current;
+            if (shared != null && index >= 0 && index < shared.SewerAccesses.Length)
+                shared.SewerAccesses[index].TraverseGranted(movement);
+        }
 
         public bool RequestDoor(StallDoor door)
         {
@@ -385,7 +428,7 @@ namespace NatureCalls.Network
                 if (IsServer && shared != null && i < shared.SharedItems.Count)
                     shared.SharedItems[i] = Facilities.Snapshot(item, ItemSnapshot.Landed, 0);
             }
-            if (IsServer) { ClearUse(); LandFlightsOf(OwnerClientId); }
+            if (IsServer) { ClearUse(); LandFlightsOf(OwnerClientId); shared?.ReleaseCoins(OwnerClientId); }
 
         }
     }

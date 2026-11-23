@@ -22,3 +22,6 @@ MonoBehaviour:
   - DisplayName: Map1
     ScenePath: Assets/Scenes/Map1.unity
     RoundSeconds: 180
+  - DisplayName: "Map2 \xB7 \u4E0B\u6C34\u9053"
+    ScenePath: Assets/Scenes/Map2.unity
+    RoundSeconds: 180

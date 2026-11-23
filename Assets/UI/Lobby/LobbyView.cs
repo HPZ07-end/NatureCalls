@@ -17,8 +17,11 @@ namespace NatureCalls.UI
         public GameObject OutfitPanel;
         public RectTransform OutfitOptions;
         public Button OutfitOptionTemplate;
-        public Button OutfitMale;
-        public Button OutfitFemale;
+        [UnityEngine.Serialization.FormerlySerializedAs("OutfitMale")]
+        public Button OutfitBalanced;
+        [UnityEngine.Serialization.FormerlySerializedAs("OutfitFemale")]
+        public Button OutfitTall;
+        public Button OutfitSwift;
         public Text OutfitCurrent;
         public Button OutfitConfirm;
         public Button OutfitCancel;

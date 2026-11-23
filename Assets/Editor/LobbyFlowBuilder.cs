@@ -273,7 +273,7 @@ namespace NatureCalls.Editor
                 view.OutfitCurrent = MakeLabel(outfit, "OutfitCurrent", "当前预览：", 26, TextAnchor.MiddleCenter, new Vector2(0, -410), new Vector2(480, 40));
                 view.OutfitConfirm = MakeButton(outfit, "OutfitConfirm", "确认", new Vector2(-110, 40), new Vector2(200, 64), bottom: true);
                 view.OutfitCancel = MakeButton(outfit, "OutfitCancel", "取消", new Vector2(110, 40), new Vector2(200, 64), bottom: true);
-                ConfigureOutfitGender(view);
+                ConfigureOutfitBodyType(view);
 
                 // Lobby panel: centered over the blurred room.
                 var lobby = Box(root.transform, "LobbyPanel", new Vector2(.5f, .5f), new Vector2(.5f, .5f), Vector2.zero, new Vector2(900, 820));
@@ -759,16 +759,27 @@ namespace NatureCalls.Editor
         private static void Height(GameObject target, float height) =>
             GetOrAdd<LayoutElement>(target).preferredHeight = height;
 
-        internal static void ConfigureOutfitGender(LobbyView view)
+        internal static void ConfigureOutfitBodyType(LobbyView view)
         {
             var panel = (RectTransform)view.OutfitPanel.transform;
             panel.sizeDelta = new Vector2(panel.sizeDelta.x, 620);
             view.OutfitOptions.anchoredPosition = new Vector2(0, -146);
             view.OutfitCurrent.rectTransform.anchoredPosition = new Vector2(0, -458);
-            if (view.OutfitMale == null)
-                view.OutfitMale = MakeButton(panel, "OutfitMale", "男性", new Vector2(-113, -81), new Vector2(214, 48), bottom: false);
-            if (view.OutfitFemale == null)
-                view.OutfitFemale = MakeButton(panel, "OutfitFemale", "女性", new Vector2(113, -81), new Vector2(214, 48), bottom: false);
+            Option(ref view.OutfitSwift, "OutfitSwift", "矮快型", -150);
+            Option(ref view.OutfitBalanced, "OutfitBalanced", "均衡型", 0);
+            Option(ref view.OutfitTall, "OutfitTall", "高伸型", 150);
+
+            void Option(ref Button button, string name, string label, float x)
+            {
+                var position = new Vector2(x, -81);
+                var size = new Vector2(140, 48);
+                if (button == null) button = MakeButton(panel, name, label, position, size, bottom: false);
+                button.name = name;
+                var rect = (RectTransform)button.transform;
+                rect.anchoredPosition = position;
+                rect.sizeDelta = size;
+                button.GetComponentInChildren<Text>(true).text = label;
+            }
         }
 
         private static Button MakeButton(Transform parent, string name, string label) =>

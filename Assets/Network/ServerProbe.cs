@@ -100,9 +100,9 @@ namespace NatureCalls.Network
             var room = LobbyRoom.Current;
             report.connected = room.IsLeader == leader;
             if (!report.connected) { Finish("Wrong initial leader."); yield break; }
-            room.SetAppearance(leader ? PlayerGender.Female : PlayerGender.Male, leader ? 1 : 2);
+            room.SetAppearance(leader ? PlayerBodyType.Tall : PlayerBodyType.Balanced, leader ? 1 : 2);
             yield return Await(() => room.TryGetMember(room.LocalClientId, out var local) &&
-                local.Gender == (leader ? PlayerGender.Female : PlayerGender.Male) && local.Outfit == (leader ? 1 : 2),
+                local.BodyType == (leader ? PlayerBodyType.Tall : PlayerBodyType.Balanced) && local.Outfit == (leader ? 1 : 2),
                 "confirmed appearance in room");
             if (finished) yield break;
             if (leader) Mark("leader-connected");
@@ -133,13 +133,13 @@ namespace NatureCalls.Network
                 var first = player.OwnerClientId == room.LeaderId;
                 var appearance = player.GetComponent<PlayerAppearance>();
                 var shared = player.GetComponent<AvatarAppearance>();
-                var gender = first ? PlayerGender.Female : PlayerGender.Male;
+                var bodyType = first ? PlayerBodyType.Tall : PlayerBodyType.Balanced;
                 var outfit = first ? 1 : 2;
-                return appearance.Gender == gender && appearance.OutfitIndex == outfit &&
-                    shared.Gender.Value == gender && shared.OutfitIndex.Value == outfit &&
+                return appearance.BodyType == bodyType && appearance.OutfitIndex == outfit &&
+                    shared.BodyType.Value == bodyType && shared.OutfitIndex.Value == outfit &&
                     appearance.ActiveAnimator != null && appearance.ActiveAnimator.gameObject.activeInHierarchy;
             });
-            if (!report.appearance) { Finish("A local or remote Player did not show the confirmed gender and outfit."); yield break; }
+            if (!report.appearance) { Finish("A local or remote Player did not show the confirmed bodyType and outfit."); yield break; }
             var world = FindFirstObjectByType<Playground>();
             var screenCameras = UnityEngine.Camera.allCameras
                 .Where(camera => camera.isActiveAndEnabled && camera.targetTexture == null).ToArray();

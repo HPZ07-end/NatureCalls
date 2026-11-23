@@ -48,8 +48,9 @@ namespace NatureCalls.UI
             view.MapOptionTemplate.gameObject.SetActive(false);
             view.OutfitConfirm.onClick.AddListener(ConfirmOutfit);
             view.OutfitCancel.onClick.AddListener(CancelOutfit);
-            view.OutfitMale.onClick.AddListener(() => PreviewGender(PlayerGender.Male));
-            view.OutfitFemale.onClick.AddListener(() => PreviewGender(PlayerGender.Female));
+            view.OutfitBalanced.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Balanced));
+            view.OutfitTall.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Tall));
+            view.OutfitSwift.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Swift));
             view.OfflineButton.onClick.AddListener(StartOffline);
             view.CreateButton.onClick.AddListener(CreateRoom);
             view.JoinButton.onClick.AddListener(JoinRoom);
@@ -95,13 +96,13 @@ namespace NatureCalls.UI
         public void ConfirmOutfit()
         {
             LocalOutfits.ConfirmSelection();
-            if (Room != null) Room.SetAppearance(LocalProfile.Gender, LocalProfile.OutfitIndex);
+            if (Room != null) Room.SetAppearance(LocalProfile.BodyType, LocalProfile.OutfitIndex);
             CloseOutfitPanel();
         }
 
-        private void PreviewGender(PlayerGender gender)
+        private void PreviewBodyType(PlayerBodyType bodyType)
         {
-            LocalOutfits.PreviewByGender(gender);
+            LocalOutfits.PreviewByBodyType(bodyType);
             RefreshOutfit();
         }
 
@@ -120,12 +121,18 @@ namespace NatureCalls.UI
         private void RefreshOutfit()
         {
             var outfits = LocalOutfits;
-            view.OutfitMale.interactable = outfits.PreviewGender != PlayerGender.Male;
-            view.OutfitFemale.interactable = outfits.PreviewGender != PlayerGender.Female;
-            view.OutfitCurrent.text = $"当前预览：{GenderName(outfits.PreviewGender)} · {outfits.PreviewName}";
+            view.OutfitBalanced.interactable = outfits.PreviewBodyType != PlayerBodyType.Balanced;
+            view.OutfitTall.interactable = outfits.PreviewBodyType != PlayerBodyType.Tall;
+            view.OutfitSwift.interactable = outfits.PreviewBodyType != PlayerBodyType.Swift;
+            view.OutfitCurrent.text = $"当前预览：{BodyTypeName(outfits.PreviewBodyType)} · {outfits.PreviewName}";
         }
 
-        private static string GenderName(PlayerGender gender) => gender == PlayerGender.Female ? "女性" : "男性";
+        private static string BodyTypeName(PlayerBodyType bodyType) => bodyType switch
+        {
+            PlayerBodyType.Swift => "矮快型",
+            PlayerBodyType.Tall => "高伸型",
+            _ => "均衡型"
+        };
 
         // ---- Lobby ----
 
@@ -266,7 +273,7 @@ namespace NatureCalls.UI
                     var you = member.ClientId == room.LocalClientId ? "（你）" : "";
                     var outfit = catalog != null && catalog.Contains(member.Outfit) ? catalog[member.Outfit].Name : "-";
                     var state = host ? "领队" : member.Ready ? "已准备" : "未准备";
-                    view.Slots[slot].text = $"玩家 {slot + 1}{you}\n{state} · {GenderName(member.Gender)} · {outfit}";
+                    view.Slots[slot].text = $"玩家 {slot + 1}{you}\n{state} · {BodyTypeName(member.BodyType)} · {outfit}";
                 }
             }
             if (room.IsLeader)
