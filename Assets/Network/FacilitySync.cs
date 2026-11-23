@@ -99,7 +99,7 @@ namespace NatureCalls.Network
             var toilet = host.toilets[index];
             var stall = toilet.GetComponentInParent<StallDoor>();
             if (stall != null && !stall.Contains(movement)) return;
-            if (activeMode != 0) return;
+            if (activeMode != 0 || posture.IsCrawling) return;
             activeMode = 1; activeIndex = index; began = Time.time;
             GetComponent<PlayerNeeds>().Toileting = true;
             host.SharedToilets[index] = OwnerClientId + 1;
@@ -258,7 +258,8 @@ namespace NatureCalls.Network
         [Rpc(SendTo.Server)]
         private void BeginOutsideRpc(RpcParams rpc = default)
         {
-            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || activeMode != 0 || StallDoor.Containing(movement) != null) return;
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || activeMode != 0 || posture.IsCrawling ||
+                StallDoor.Containing(movement) != null) return;
             if (Facilities.Current == null || Facilities.Current.urinals.Any(u => u.Contains(movement))) return;
             activeMode = 3; began = Time.time; GetComponent<PlayerNeeds>().Toileting = true;
             OutsideGrantedRpc();
@@ -269,7 +270,8 @@ namespace NatureCalls.Network
         private void BeginUrinalRpc(int index, RpcParams rpc = default)
         {
             var host = ServerFacilities();
-            if (host == null || rpc.Receive.SenderClientId != OwnerClientId || activeMode != 0 || index < 0 || index >= host.urinals.Length || host.SharedUrinals[index] != 0) return;
+            if (host == null || rpc.Receive.SenderClientId != OwnerClientId || activeMode != 0 || posture.IsCrawling ||
+                index < 0 || index >= host.urinals.Length || host.SharedUrinals[index] != 0) return;
             if (!host.urinals[index].Occupy(movement)) return;
             activeMode = 2; activeIndex = index; began = Time.time;
             GetComponent<PlayerNeeds>().Toileting = true;

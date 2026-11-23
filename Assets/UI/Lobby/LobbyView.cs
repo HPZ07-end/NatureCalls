@@ -17,6 +17,8 @@ namespace NatureCalls.UI
         public GameObject OutfitPanel;
         public RectTransform OutfitOptions;
         public Button OutfitOptionTemplate;
+        public Button OutfitMale;
+        public Button OutfitFemale;
         public Text OutfitCurrent;
         public Button OutfitConfirm;
         public Button OutfitCancel;

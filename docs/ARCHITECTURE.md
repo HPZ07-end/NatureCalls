@@ -1,5 +1,7 @@
 # 技术架构
 
+重做地图、玩法与 UI 前的现有实现和接口清单见 [Demo 实现复用指南](REUSE_GUIDE.md)。该指南记录 2026-11-23 工作区基线、角色/设施公开入口、离线与联机调用顺序、场景和 UI 接线条件及后续迁移建议，不代表已执行重构。
+
 2026-11-16 地图接入：`MapLayoutPrototype` 复用 `Map.Playground` 现有场景契约，接入同一 `MapCatalog → Match → LobbyRoom` 流程；`Avatar` 仍绑定拥有者的本地 CameraController，设施仍经 `FacilitySync → Facilities`。保留 Player、Map、Playground 等既有名称，没有新增或移除运行时模块名称。`Editor/MapLayoutIntegration` 只负责通过 Unity API 接线已有场景，不是新的地图框架。
 
 领域含义只在 [Glossary](../GLOSSARY.md) 定义。当前为 Stage 1 + 人类授权的 M1 Playground；不要求概念树和目录同构。

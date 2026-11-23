@@ -1,5 +1,27 @@
 # 实际开发状态
 
+2026-11-23 Map1 布局与美术细化：地上占地由 26 × 20 m 收到 23.5 × 16.85 m。三间隔间后端接外墙，门扇、门框、门碰撞与前板统一正面基准。B1 门前净空与风道槽口分开；隔间归属同时核对楼层高度。新制 6 件 Blender 模块已导入 Unity 并映射共享材料，README 清单为 59 件。Unity 6000.3.26f1 保存并重开核对，Map1 与原模块厕所 PlayMode 7/7。未进行四人实机走查。`Semantic-Diff: none`。
+
+2026-11-23 Map1 大厅与风道：MapCatalog 和构建场景列表加入 Map1。A、B 风道都配置了双向爬行，使用独立姿态、0.85 m 胶囊与低位第一人称视点，通行后按净空恢复站立。Unity 6000.3.26f1 标准验证通过，Map1 专项 PlayMode 5/5，覆盖大厅离线选图、单进程 LAN Host 加载与姿态发布、两条风道双向通行及现有交互。爬行外观为低姿占位表现，未进行跨客户端或 Relay 验收。`Semantic-Diff: changed`（新增 Crawling，更新 MapSelection，批准见 Glossary）。
+
+2026-11-23 Map1 交互接入：复用共享 Player、镜头与 HUD，接入三扇隔间门、三个马桶、两个小便池、三卷纸和一个工具箱内的拖把。编辑器直接播放 Map1 时启动现有离线对局，使如厕、擦拭和污物正常结算。Map1 专项 PlayMode 2/2，覆盖站立通行、门锁、马桶和小便池的占用释放、卷纸消耗和丢掷、拖把取还和清洁中断。原模块厕所 PlayMode 回归 2/2。维修操作尚未接入。`Semantic-Diff: none`。
+
+2026-11-23 Foundation 场景：新增 `Assets/Scenes/Map1.unity`，包含地上厕所和供给区、地下维修区、A/B 风道与四个出生点标记。Unity 6000.3.26f1 保存并重开场景，核对风道拼接点、净空和门槛，抽样验证地下环路和出生点地面，标准 `validate` 通过。`Semantic-Diff: none`。
+
+2026-11-23 Foundation 地图美术：交付 5 个 Blender 源模型，包括可通行风口框、斜风道、会车段、地下出口收口和维修设备外壳。Blender 4.5 重开全部文件并核对风道净尺寸，按图纸坐标验证 A、B 两条路线的接缝和标高。5 个 FBX 已导入 `Assets/Art/Models/Systems/`，README 清单共 53 件。Unity 6000.3.26f1 验证网格分件、米制定位点、共享 URP 材质和导入 GUID，标准 `validate` 通过。尚未接入场景或测试角色通过性。`Semantic-Diff: none`。
+
+2026-11-23 Demo 复用梳理：新增 [实现复用指南](REUSE_GUIDE.md)，记录角色控制、镜头、外观、设施交互、联机请求、地图与 UI 的现有接口和依赖，区分 HEAD 与工作区未提交角色扩展。用户提出后续重做地图、玩法与 UI；本次只整理技术文档，尚未归档/移动资产、创建新地图或实施新玩法与 UI。未运行 Unity 测试、构建及联机验收。`Semantic-Diff: none`（仅指本次文档新增，不包含工作区既有 Glossary 修改）。
+
+2026-11-20 美术资产导入：48 个 Blender 模型已导出 FBX，按 10 类存放在 `Assets/Art/Models/`，并映射到 `Assets/Art/Materials/` 下的 55 个共享 URP 材质。Windows Unity 6000.3.26f1 逐件核对了网格、尺寸、定位点和材质引用，确认地板为 1 m × 1 m、两款角色保持 1.80 m / 1.74 m 并朝 Unity 的 +Z、隔间门原点在铰链侧、镜面槽独立。标准 Unity `validate` 通过。
+
+2026-11-20 动画资产：两款角色使用 21 根骨骼和一套六个原地 Humanoid 动作，隔间门和准备房门支持双向转动预览，隔间门闩和水闸手轮有独立动画通道。Unity 6000.3.26f1 已验证 Animator 引用并采样动作。预览场景未加入构建，门和水闸动画仍只用于预览。
+
+2026-11-20 玩家外观接入：换装准备房和两张地图共用同一 Player，换装可分别预览男性／女性模型及原有四色上衣，确认后一起保存和同步。玩家根节点、碰撞配置和玩法判定沿用现有实现，Humanoid Animator 读取移动、离地和姿态。原蹲起片段保持不变。当前 Playground 的俯视镜头下男性头部会遮住现有马桶开口中心，按用户要求留到新地图验收。
+
+2026-11-23 玩家验收：Windows Unity EditMode 31/31；PlayMode 33 Passed、1 Failed、1 Relay Ignored。换装预览、取消和确认、两张地图继承外观、女性角色走路、跳跃、落地待机及蹲起、模块地图的门和最近卷纸交互均通过。唯一失败为旧 Playground 俯视时男性头部遮挡马桶开口。仓库检查通过（1278 文件、648 个资产 GUID）。
+
+同日 Windows x86_64 Development 构建通过。模块地图本机专用服务器与两个客户端使用同一构建，两次均在两个客户端上确认自己和对方的性别、服装编号和启用的角色模型（`appearance: true`）。完整三进程设施回归两次均在对方观察马桶占用时超时，不能视为整体通过。证据见 `Artifacts/20261122T162651Z-1172f8-test-playmode/`、`Artifacts/20261122T163029Z-8496cf-build-windows/`、`Artifacts/20261122T163214Z-535961-server/` 和 `Artifacts/20261122T163407Z-eee481-server/`（目录名使用 UTC）。
+
 2026-11-16 地图大厅接入（分支 `feat/map-lobby-integration`，尚未合入 dev）：MapLayoutPrototype 已通过 Unity API 接入已有 Playground、角色、镜头、四出生点、HUD、大厅地图目录及门/马桶/卷纸/唯一拖把组件。Unity 编译/资源验证通过；首次相机总数断言失败后按用户要求暂停，随后获授权修正为排除镜面 RenderTexture 相机，并检查屏幕相机身份及本地跟随目标。完整 PlayMode 33 项中 32 Passed、1 Relay Ignored，EditMode 30/30 通过。Windows x86_64 Development 构建和新地图专用服务器＋双客户端本机 UDP 验收通过，包括大厅准备/选图、本地屏幕相机、共享设施、领队接任、结束返回和空房保留。仓库检查通过（1003 files / 502 asset GUIDs），Python 31/31；人工手感、跨设备和公网部署未执行。详情见 [本次记录](records/map-lobby-integration-2026-11-16.md)。
 
 更新日期：2026-11-13（JST，测试日志使用 UTC）。本文件只描述**当前**状态；逐次变更说明与验收细节见 [开发记录](records/status-log.md) 和 [M1 验收记录](records/m1-2026-10-20.md)。

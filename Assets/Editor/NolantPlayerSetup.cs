@@ -35,6 +35,8 @@ namespace NatureCalls.Editor
         public static void Configure()
         {
             var playerAsset = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPath);
+            if (playerAsset != null && playerAsset.GetComponent<PlayerAppearance>().HasRiggedBody)
+                throw new InvalidOperationException("Legacy Nolant setup is only for the old player. Use Configure Player Appearance.");
             var nolantAsset = AssetDatabase.LoadAssetAtPath<GameObject>(NolantPath);
             var nolantMaterial = EnsureUrpBrownMaterial();
             if (playerAsset == null) throw new InvalidOperationException($"Missing player prefab: {PlayerPath}");

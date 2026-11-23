@@ -45,7 +45,8 @@ namespace NatureCalls.Camera
             Unbind();
             Target = target;
             posture = target.GetComponent<Posture>();
-            body = target.Body.GetComponentsInChildren<Renderer>();
+            // Register both variants so switching the mirror preview preserves first-person hiding.
+            body = target.Body.GetComponentsInChildren<Renderer>(true);
             originalBodyLayers = body.Select(renderer => renderer.gameObject).Distinct()
                 .ToDictionary(item => item, item => item.layer);
             foreach (var item in originalBodyLayers.Keys) item.layer = LocalBodyLayer;
@@ -94,7 +95,7 @@ namespace NatureCalls.Camera
             if (Target == null) return;
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
             if (!posture.IsSquatting)
-                Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * EyeHeight, Target.ViewRotation);
+                Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * (Target.IsCrawling ? .63f : EyeHeight), Target.ViewRotation);
             bool seated = Target.Aiming || (posture.IsSquatting && Target.Seat != null);
             if (posture.IsSquatting || Target.Aiming)
                 Shoulder.SetPositionAndRotation(Target.transform.position + Vector3.up * ThirdPersonHeight,

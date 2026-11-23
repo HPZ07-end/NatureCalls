@@ -48,6 +48,8 @@ namespace NatureCalls.UI
             view.MapOptionTemplate.gameObject.SetActive(false);
             view.OutfitConfirm.onClick.AddListener(ConfirmOutfit);
             view.OutfitCancel.onClick.AddListener(CancelOutfit);
+            view.OutfitMale.onClick.AddListener(() => PreviewGender(PlayerGender.Male));
+            view.OutfitFemale.onClick.AddListener(() => PreviewGender(PlayerGender.Female));
             view.OfflineButton.onClick.AddListener(StartOffline);
             view.CreateButton.onClick.AddListener(CreateRoom);
             view.JoinButton.onClick.AddListener(JoinRoom);
@@ -93,8 +95,14 @@ namespace NatureCalls.UI
         public void ConfirmOutfit()
         {
             LocalOutfits.ConfirmSelection();
-            if (Room != null) Room.SetOutfit(LocalProfile.OutfitIndex);
+            if (Room != null) Room.SetAppearance(LocalProfile.Gender, LocalProfile.OutfitIndex);
             CloseOutfitPanel();
+        }
+
+        private void PreviewGender(PlayerGender gender)
+        {
+            LocalOutfits.PreviewByGender(gender);
+            RefreshOutfit();
         }
 
         public void CancelOutfit()
@@ -112,8 +120,12 @@ namespace NatureCalls.UI
         private void RefreshOutfit()
         {
             var outfits = LocalOutfits;
-            view.OutfitCurrent.text = "当前预览：" + outfits.PreviewName;
+            view.OutfitMale.interactable = outfits.PreviewGender != PlayerGender.Male;
+            view.OutfitFemale.interactable = outfits.PreviewGender != PlayerGender.Female;
+            view.OutfitCurrent.text = $"当前预览：{GenderName(outfits.PreviewGender)} · {outfits.PreviewName}";
         }
+
+        private static string GenderName(PlayerGender gender) => gender == PlayerGender.Female ? "女性" : "男性";
 
         // ---- Lobby ----
 
@@ -254,7 +266,7 @@ namespace NatureCalls.UI
                     var you = member.ClientId == room.LocalClientId ? "（你）" : "";
                     var outfit = catalog != null && catalog.Contains(member.Outfit) ? catalog[member.Outfit].Name : "-";
                     var state = host ? "领队" : member.Ready ? "已准备" : "未准备";
-                    view.Slots[slot].text = $"玩家 {slot + 1}{you}\n{state} · {outfit}";
+                    view.Slots[slot].text = $"玩家 {slot + 1}{you}\n{state} · {GenderName(member.Gender)} · {outfit}";
                 }
             }
             if (room.IsLeader)

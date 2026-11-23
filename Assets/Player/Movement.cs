@@ -1,3 +1,4 @@
+using NatureCalls.Map;
 using UnityEngine;
 
 namespace NatureCalls.Player
@@ -14,8 +15,13 @@ namespace NatureCalls.Player
         public Transform Body;
         [SerializeField] private bool startControlled;
         public bool Controlled { get; private set; }
+        public bool Airborne { get; private set; }
         public bool Aiming { get; set; }
         public bool Immobile { get; set; }
+        public bool IsCrawling => posture.IsCrawling;
+        private const float CrawlingHeight = .85f;
+        private const float CrawlingSpeed = 1.8f;
+        private const float CrawlingStep = .08f;
         public float Pitch { get; private set; }
         public Quaternion ViewRotation => Quaternion.Euler(Pitch, transform.eulerAngles.y, 0);
         private CharacterController controller;
@@ -24,8 +30,12 @@ namespace NatureCalls.Player
         private Quaternion returnRotation;
         private Vector3 returnPosition;
         private Vector3 bodyBaseLocalPosition;
+        private Vector3 bodyBaseLocalScale = Vector3.one;
         private Vector3 bodyGroundedLocalPosition;
         private bool bodyGroundingPending;
+        private bool usesRiggedBody;
+        private float standingStep;
+        private VentPassage[] passages;
         /// <summary>The toilet anchor the player is seated at, or null.</summary>
         public Transform Seat { get; private set; }
 #if UNITY_EDITOR
@@ -39,11 +49,15 @@ namespace NatureCalls.Player
             // Enable physics only when ownership and the initial transform are ready.
             controller.enabled = false;
             posture = GetComponent<Posture>();
+            standingStep = controller.stepOffset;
+            passages = FindObjectsByType<VentPassage>(FindObjectsSortMode.None);
+            usesRiggedBody = GetComponent<PlayerAppearance>()?.HasRiggedBody == true;
             if (Body != null)
             {
                 bodyBaseLocalPosition = Body.localPosition;
+                bodyBaseLocalScale = Body.localScale;
                 bodyGroundedLocalPosition = bodyBaseLocalPosition;
-                bodyGroundingPending = true;
+                bodyGroundingPending = !usesRiggedBody;
             }
             posture.Changed += ApplyPosture;
             ApplyPosture(posture.State);
@@ -76,11 +90,14 @@ namespace NatureCalls.Player
         public void Move(Vector2 direction, float deltaTime)
         {
             if (!Controlled || !controller.enabled) return;
+            RefreshVentPosture();
             var startPosition = transform.position;
             var movement = (posture.IsSquatting || Immobile) ? Vector3.zero : transform.TransformDirection(new Vector3(direction.x, 0, direction.y));
-            movement = Vector3.ClampMagnitude(movement, 1) * Speed;
+            movement = Vector3.ClampMagnitude(movement, 1) * (posture.IsCrawling ? CrawlingSpeed : Speed);
             verticalSpeed = controller.isGrounded && verticalSpeed <= 0 ? -2 : Mathf.Max(verticalSpeed - 20 * deltaTime, -30);
             controller.Move((movement + Vector3.up * verticalSpeed) * deltaTime);
+            Airborne = !controller.isGrounded && !posture.IsSquatting;
+            RefreshVentPosture();
 #if UNITY_EDITOR
             if (!loggedFirstMove && direction.sqrMagnitude > .01f && (transform.position - startPosition).sqrMagnitude > .000001f)
             {
@@ -91,8 +108,10 @@ namespace NatureCalls.Player
         }
         public bool Jump()
         {
-            if (!Controlled || !controller.enabled || posture.IsSquatting || Immobile || !controller.isGrounded) return false;
+            RefreshVentPosture();
+            if (!Controlled || !controller.enabled || posture.State != PostureState.Standing || Immobile || !controller.isGrounded) return false;
             verticalSpeed = JumpSpeed;
+            Airborne = true;
 #if UNITY_EDITOR
             Debug.Log($"PLAYER_JUMP_OK|player={name}|speed={JumpSpeed:F2}|position=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
 #endif
@@ -100,7 +119,7 @@ namespace NatureCalls.Player
         }
         public void Enter(Transform anchor)
         {
-            if (!Controlled || posture.IsSquatting || Immobile) return;
+            if (!Controlled || posture.State != PostureState.Standing || Immobile) return;
             returnRotation = transform.rotation;
             returnPosition = transform.position;
             Seat = anchor;
@@ -116,13 +135,17 @@ namespace NatureCalls.Player
         private void ApplyPosture(PostureState state)
         {
             bool squat = state == PostureState.Squatting;
-            controller.height = squat ? SquattingHeight : StandingHeight;
+            bool crawl = state == PostureState.Crawling;
+            controller.height = crawl ? CrawlingHeight : squat ? SquattingHeight : StandingHeight;
             controller.center = new Vector3(0, controller.height / 2, 0);
-            if (Body != null)
+            controller.stepOffset = crawl ? CrawlingStep : standingStep;
+            if (squat) Airborne = false;
+            if (Body != null && !usesRiggedBody)
             {
                 Body.localPosition = bodyGroundedLocalPosition;
-                Body.localScale = new Vector3(1, squat ? .56f : 1, 1);
             }
+            if (Body != null)
+                Body.localScale = Vector3.Scale(bodyBaseLocalScale, new Vector3(1, crawl ? .43f : squat && !usesRiggedBody ? .56f : 1, 1));
             if (!squat && Seat != null)
             {
                 // Stand up where the player was before sitting: the seat itself sits against the bowl.
@@ -135,6 +158,31 @@ namespace NatureCalls.Player
                 Debug.Log($"TOILET_STOOD_UP|player={name}|at=({returnPosition.x:F2},{returnPosition.z:F2})");
 #endif
             }
+        }
+
+        internal void RefreshVentPosture()
+        {
+            if (!Controlled || !controller.enabled || posture.IsSquatting || Aiming || Immobile) return;
+            foreach (var passage in passages)
+            {
+                if (passage.gameObject.scene != gameObject.scene || !passage.RequiresCrawling(transform.position)) continue;
+                posture.Set(PostureState.Crawling);
+                return;
+            }
+            if (posture.IsCrawling && HasStandingClearance())
+                posture.Set(PostureState.Standing);
+        }
+
+        private bool HasStandingClearance()
+        {
+            float radius = controller.radius - .01f;
+            var feet = transform.position;
+            var lower = feet + Vector3.up * (CrawlingHeight - radius);
+            var upper = feet + Vector3.up * (StandingHeight - radius);
+            foreach (var hit in Physics.OverlapCapsule(lower, upper, radius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                if (!hit.transform.IsChildOf(transform))
+                    return false;
+            return true;
         }
     }
 }
