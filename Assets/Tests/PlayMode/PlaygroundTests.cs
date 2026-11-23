@@ -2,6 +2,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using NatureCalls.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -227,7 +228,7 @@ namespace NatureCalls.Tests
             Assert.That(Physics.Raycast(rayOrigin, Vector3.down, out var floor, 2, worldLayers, QueryTriggerInteraction.Ignore),
                 Is.True, "No floor was found under the standing player.");
             var visualBottom = player.Body.GetComponentsInChildren<Renderer>()
-                .Min(renderer => renderer.bounds.min.y);
+                .Min(renderer => VisualBounds(renderer).min.y);
             Assert.That(Mathf.Abs(visualBottom - floor.point.y), Is.LessThan(.015f),
                 $"The standing visual is {visualBottom - floor.point.y:F3}m above the floor; " +
                 $"controller root gap is {player.transform.position.y - floor.point.y:F3}m and skin width is {controller.skinWidth:F3}m.");
@@ -390,9 +391,60 @@ namespace NatureCalls.Tests
             Assert.That(toilet.IsOccupied, Is.False);
         }
         [UnityTest]
+        public IEnumerator RiggedPlayerFollowsMovementAndPosture()
+        {
+            var player = world.OfflinePlayer;
+            var appearance = player.GetComponent<PlayerAppearance>();
+            appearance.SetGender(PlayerGender.Female);
+            var animator = appearance.ActiveAnimator;
+            var capsule = player.GetComponent<CharacterController>();
+            var posture = player.GetComponent<Posture>();
+            var start = player.transform.position;
+
+            float deadline = Time.time + .4f;
+            while (Time.time < deadline)
+            {
+                player.Move(Vector2.up, Mathf.Min(Time.deltaTime, .05f));
+                yield return null;
+            }
+            Assert.That(Vector3.Distance(start, player.transform.position), Is.GreaterThan(.3f));
+            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Walk"), Is.True);
+            Assert.That(capsule.isGrounded, Is.True);
+            Assert.That(player.Jump(), Is.True);
+            float jumpHeight = player.transform.position.y;
+            deadline = Time.time + .18f;
+            while (Time.time < deadline)
+            {
+                player.Move(Vector2.zero, Mathf.Min(Time.deltaTime, .05f));
+                yield return null;
+            }
+            Assert.That(player.transform.position.y - jumpHeight, Is.GreaterThan(.25f));
+            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Jump"), Is.True);
+            deadline = Time.time + 2;
+            while (!capsule.isGrounded && Time.time < deadline)
+            {
+                player.Move(Vector2.zero, Mathf.Min(Time.deltaTime, .05f));
+                yield return null;
+            }
+            Assert.That(capsule.isGrounded, Is.True);
+            yield return new WaitForSeconds(.25f);
+            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Idle"), Is.True,
+                "Physical landing returns the skin to idle, even after the jump clip's exit time.");
+            posture.Set(PostureState.Squatting);
+            yield return new WaitForSeconds(.8f);
+            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("SquatHold"), Is.True);
+            Assert.That(capsule.height, Is.EqualTo(player.SquattingHeight));
+            posture.Set(PostureState.Standing);
+            yield return new WaitForSeconds(.8f);
+            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Idle"), Is.True);
+            Assert.That(capsule.height, Is.EqualTo(player.StandingHeight));
+        }
+
+        [UnityTest]
         public IEnumerator CameraBlendsAndInteriorIsVisible()
         {
             var player = world.OfflinePlayer;
+            player.GetComponent<PlayerAppearance>().SetGender(PlayerGender.Male);
             var toilet = FindToilet();
             yield return OpenStallAndStandAt(player, toilet);
             var controller = player.GetComponent<CharacterController>();
@@ -415,6 +467,10 @@ namespace NatureCalls.Tests
             }
             Assert.That(intermediateFrames, Is.GreaterThan(1), "Expected a real multi-frame Cinemachine blend.");
             Assert.That(world.Camera.ThirdPerson.Priority.Value, Is.GreaterThan(world.Camera.FirstPerson.Priority.Value));
+            var animator = player.GetComponent<PlayerAppearance>().ActiveAnimator;
+            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("SquatHold"), Is.True,
+                "Gameplay posture drives the skin into the animated squat hold.");
+            Assert.That(player.Body.localScale, Is.EqualTo(Vector3.one), "A rigged player is not compressed to squat.");
             Capture(camera, "squatting.png");
             var offset = player.transform.InverseTransformPoint(camera.transform.position);
             Assert.That(Mathf.Abs(offset.x), Is.LessThan(.03f), "Seated camera must stay centered on the player.");
@@ -441,7 +497,7 @@ namespace NatureCalls.Tests
             foreach (var renderer in player.Body.GetComponentsInChildren<Renderer>())
             {
                 Assert.That(renderer.forceRenderingOff, Is.False, "Local third-person body must be visible.");
-                var bounds = renderer.bounds;
+                var bounds = VisualBounds(renderer);
                 for (int corner = 0; corner < 8; corner++)
                 {
                     var point = bounds.center + Vector3.Scale(bounds.extents, new Vector3((corner & 1) == 0 ? -1 : 1,
@@ -457,6 +513,7 @@ namespace NatureCalls.Tests
             Capture(camera, "squatting.png");
             player.GetComponent<Posture>().Set(PostureState.Standing);
             yield return new WaitForSeconds(1);
+            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Idle"), Is.True);
             Assert.That(Quaternion.Angle(player.ViewRotation, heading), Is.LessThan(.1f), "Return must preserve standing look direction.");
             Assert.That(Vector3.Distance(camera.transform.position, player.transform.position + Vector3.up * world.Camera.EyeHeight), Is.LessThan(.05f));
             // First person hides the local body from the screen camera only (mirrors still render it).
@@ -464,6 +521,21 @@ namespace NatureCalls.Tests
             Capture(camera, "returned.png");
         }
         // Ray test against the body's actual (baked) mesh; bounding boxes are too coarse for the top-down view.
+        private static Bounds VisualBounds(Renderer renderer)
+        {
+            if (renderer is not SkinnedMeshRenderer skinned) return renderer.bounds;
+            var mesh = new Mesh();
+            try
+            {
+                skinned.BakeMesh(mesh);
+                var vertices = mesh.vertices;
+                var bounds = new Bounds(skinned.transform.TransformPoint(vertices[0]), Vector3.zero);
+                foreach (var vertex in vertices) bounds.Encapsulate(skinned.transform.TransformPoint(vertex));
+                return bounds;
+            }
+            finally { Object.DestroyImmediate(mesh); }
+        }
+
         private static bool Obscures(Renderer renderer, Ray ray, float maxDistance)
         {
             var mesh = new Mesh();
