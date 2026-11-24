@@ -1,4 +1,4 @@
-using NatureCalls.Map;
+using NatureCalls.Core;
 using System.Collections;
 using UnityEngine;
 
@@ -37,8 +37,6 @@ namespace NatureCalls.Player
         private bool bodyGroundingPending;
         private bool usesRiggedBody;
         private float standingStep;
-        private VentPassage[] passages;
-        private Map2Interactions map2;
         private Vector3 planarVelocity;
         /// <summary>The toilet anchor the player is seated at, or null.</summary>
         public Transform Seat { get; private set; }
@@ -54,8 +52,6 @@ namespace NatureCalls.Player
             controller.enabled = false;
             posture = GetComponent<Posture>();
             standingStep = controller.stepOffset;
-            passages = FindObjectsByType<VentPassage>(FindObjectsSortMode.None);
-            map2 = FindFirstObjectByType<Map2Interactions>();
             usesRiggedBody = GetComponent<PlayerAppearance>()?.HasRiggedBody == true;
             if (Body != null)
             {
@@ -97,10 +93,12 @@ namespace NatureCalls.Player
             if (!Controlled || !controller.enabled || IsTraversing) return;
             RefreshVentPosture();
             var startPosition = transform.position;
+            var effect = MovementEffectRegistry.Combine(this);
             var movement = (posture.IsSquatting || Immobile) ? Vector3.zero : transform.TransformDirection(new Vector3(direction.x, 0, direction.y));
-            movement = Vector3.ClampMagnitude(movement, 1) * (posture.IsCrawling ? CrawlingSpeed : Speed);
-            planarVelocity = !posture.IsSquatting && !Immobile && map2 != null && map2.IsWet(transform.position)
-                ? Vector3.MoveTowards(planarVelocity, movement, 8 * deltaTime) : movement;
+            var speed = (posture.IsCrawling ? CrawlingSpeed : Speed) * effect.SpeedMultiplier;
+            movement = Vector3.ClampMagnitude(movement, 1) * speed;
+            planarVelocity = effect.Acceleration > 0 && !posture.IsSquatting && !Immobile
+                ? Vector3.MoveTowards(planarVelocity, movement, effect.Acceleration * deltaTime) : movement;
             verticalSpeed = controller.isGrounded && verticalSpeed <= 0 ? -2 : Mathf.Max(verticalSpeed - 20 * deltaTime, -30);
             controller.Move((planarVelocity + Vector3.up * verticalSpeed) * deltaTime);
             Airborne = !controller.isGrounded && !posture.IsSquatting;
@@ -203,12 +201,8 @@ namespace NatureCalls.Player
         internal void RefreshVentPosture()
         {
             if (!Controlled || !controller.enabled || posture.IsSquatting || Aiming || Immobile) return;
-            foreach (var passage in passages)
-            {
-                if (passage.gameObject.scene != gameObject.scene || !passage.RequiresCrawling(transform.position)) continue;
-                posture.Set(PostureState.Crawling);
-                return;
-            }
+            if (MovementEffectRegistry.ForceCrawl(this))
+            { posture.Set(PostureState.Crawling); return; }
             if (posture.IsCrawling && HasStandingClearance())
                 posture.Set(PostureState.Standing);
         }

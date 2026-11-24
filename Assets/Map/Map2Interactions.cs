@@ -1,6 +1,7 @@
 using System;
 using NatureCalls.Facility;
 using NatureCalls.Player;
+using NatureCalls.Core;
 using UnityEngine;
 
 namespace NatureCalls.Map
@@ -8,7 +9,7 @@ namespace NatureCalls.Map
     public enum SewerRepairProgress : byte { Blocked, Inspected, Isolated, Cleared, Running, Confirmed }
 
     /// <summary>The Map2 supply and sewer stations. Mutated by the offline player or the room authority.</summary>
-    public sealed class Map2Interactions : MonoBehaviour
+    public sealed class Map2Interactions : MonoBehaviour, IMovementEffectSource
     {
         public Transform[] Coins;
         public Transform VendingMachine;
@@ -64,6 +65,9 @@ namespace NatureCalls.Map
 
         public bool CanPickupEmergencyPaper(Movement player) =>
             EmergencyPaper != null && EmergencyPaper.isActiveAndEnabled && EmergencyPaper.CanPickup(player);
+
+        public bool AppliesTo(Movement player) => player != null && IsWet(player.transform.position);
+        public MovementModifier GetModifier(Movement player) => new MovementModifier(1, 8);
 
         public bool IsWet(Vector3 feet)
         {

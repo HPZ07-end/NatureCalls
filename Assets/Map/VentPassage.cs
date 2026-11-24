@@ -1,13 +1,18 @@
 using UnityEngine;
+using NatureCalls.Core;
+using NatureCalls.Player;
 
 namespace NatureCalls.Map
 {
     /// <summary>A low passage with two sloped sections and a level passing bay.</summary>
-    public sealed class VentPassage : MonoBehaviour
+    public sealed class VentPassage : MonoBehaviour, IMovementEffectSource
     {
         public Transform PassingBay;
         public Transform LowerSlope;
         public Transform Exit;
+
+        public bool AppliesTo(Movement player) => player != null && RequiresCrawling(player.transform.position);
+        public MovementModifier GetModifier(Movement player) => new MovementModifier(1, 0, true, true);
 
         public bool RequiresCrawling(Vector3 feet)
         {
