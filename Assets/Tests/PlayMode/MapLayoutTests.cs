@@ -80,7 +80,7 @@ namespace NatureCalls.Tests
             Assert.That(panel, Is.Not.Null, "The map door needs a visible panel below its rotating hinge.");
             var closedForward = panel.forward;
             var closedDoorCenter = panel.position;
-            Assert.That(input.TryInteract(), Is.True, "E should select the nearby stall door.");
+            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True, "E should select the nearby stall door.");
             Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
             Assert.That(Vector3.Angle(closedForward, panel.forward), Is.GreaterThan(45f), "Opening a door must visibly rotate its panel.");
             Assert.That(door.DoorColliderPivot.GetComponent<Collider>().enabled, Is.False,
@@ -113,7 +113,7 @@ namespace NatureCalls.Tests
                 "; Controller hits: " + string.Join(", ", hitRecorder.Hits));
 
             Assert.That(StallDoor.Containing(player), Is.SameAs(door), "The player should now be inside the stall.");
-            Assert.That(input.TryInteract(), Is.True, "E should select and close the player's own door from inside the stall.");
+            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True, "E should select and close the player's own door from inside the stall.");
             Assert.That(door.State, Is.EqualTo(StallDoorState.Closed));
 
             var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
@@ -124,7 +124,7 @@ namespace NatureCalls.Tests
             var nearest = eligible.Min(item => Vector3.Distance(item.transform.position, player.transform.position));
             var nearestRolls = eligible.Where(item =>
                 Mathf.Abs(Vector3.Distance(item.transform.position, player.transform.position) - nearest) < .001f).ToArray();
-            Assert.That(input.TryInteract(), Is.True, "E should select the nearby paper roll.");
+            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True, "E should select the nearby paper roll.");
             Assert.That(rolls.Where(item => item.PickedUpBy == player).ToArray(), Has.Length.EqualTo(1));
             Assert.That(nearestRolls, Does.Contain(Item.FindCarriedBy(player)));
         }

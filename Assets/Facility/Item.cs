@@ -28,6 +28,7 @@ namespace NatureCalls.Facility
         public void Take(Movement player) { Stored = false; ApplySharedPickup(player); }
 
         [Min(.1f)] public float InteractionDistance = 1.5f;
+        public string PromptLabel;
         [Min(0)] public float PickupHeightOffset;
         [Min(.1f)] public float ThrowSpeed = 4f;
         [Min(0)] public float ThrowUpwardSpeed = 1.5f;
@@ -62,7 +63,7 @@ namespace NatureCalls.Facility
 
         public override float Distance => InteractionDistance;
         public override bool CanInteract(InteractionContext context) => CanPickup(context.Player);
-        public override string Prompt(InteractionContext context) => this is PaperRoll ? "E  拾取卷纸" : "E  拾取";
+        public override string Prompt(InteractionContext context) => string.IsNullOrEmpty(PromptLabel) ? (this is PaperRoll ? "E  拾取卷纸" : "E  拾取") : "E  " + PromptLabel;
         public override bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestPickup(this) : Pickup(context.Player);
 
         public bool Pickup(Movement player)

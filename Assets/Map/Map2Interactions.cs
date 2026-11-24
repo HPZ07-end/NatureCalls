@@ -57,6 +57,7 @@ namespace NatureCalls.Map
             upstreamRest = UpstreamWater.localPosition;
             downstreamRest = DownstreamWater.localPosition;
             foreach (var roll in VendingStock) roll.Store(VendingMachine.position);
+            if (EmergencyPaper != null) EmergencyPaper.PromptLabel = "拾取应急卷纸";
             ApplyRepairProgress(SewerRepairProgress.Blocked);
             interactables.Clear();
             interactables.Add(new Station(this, VendingMachine, Vending));

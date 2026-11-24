@@ -278,7 +278,7 @@ namespace NatureCalls.Input
             return true;
         }
 
-        private bool TryAction()
+        public bool TryAction()
         {
             if (Unwiped)
             {
