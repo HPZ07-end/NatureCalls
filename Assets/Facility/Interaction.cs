@@ -64,7 +64,7 @@ namespace NatureCalls.Facility
                 foreach (var interactable in provider.Interactables) if (interactable != null && !candidates.Contains(interactable)) candidates.Add(interactable);
             candidates = candidates.Where(value => value.CanInteract(context)).ToList();
             if (candidates.Count == 0) return null;
-            if (camera != null && context.Player != null && context.Player.GetComponent<NatureCalls.Input.PlayerInput>()?.enabled == true && !context.Player.IsCrawling && !context.Player.Aiming)
+            if (camera != null && context.Player != null && !context.Player.IsCrawling && !context.Player.Aiming)
             {
                 var ray = camera.ViewportPointToRay(new Vector3(.5f, .5f));
                 var hit = Physics.RaycastAll(ray, Mathf.Max(1f, candidates.Max(value => value.Distance)), Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)

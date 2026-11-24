@@ -50,7 +50,7 @@ namespace NatureCalls.Facility
             // stall. In the map modules the bowl is farther than InteractionDistance from the
             // hinge, and the gameplay contract requires a player on the toilet to close, lock,
             // and reopen their own door. Contains also prevents selecting a neighbouring stall.
-            return Contains(player) || Vector3.Distance(player.transform.position, DoorColliderPivot.position) <= InteractionDistance || Vector3.Distance(player.transform.position, transform.position) <= InteractionDistance * 2f;
+            return Contains(player) || Vector3.Distance(player.transform.position, DoorColliderPivot.position) <= InteractionDistance;
         }
 
         public bool IsInside(Movement player)

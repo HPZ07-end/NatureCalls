@@ -9,7 +9,7 @@ Implemented: Map2 vending/repair/coin interactables now expose registered E acti
 Verification in required order:
 1. EditMode: PASSED, 35 total, 35 passed, 0 failed, 0 ignored (20261124T151306Z-62bca2).
 2. build-server: PASSED; Linux64 build plus desktop restore succeeded (20261124T151342Z-6fa495).
-3. unfiltered PlayMode: FAILED, 43 total, 27 passed, 15 failed, 1 skipped (latest full run before final compatibility fixes) (20261124T152028Z-35827a). Movement accumulation failures are resolved. Remaining failures are primarily existing tests that still assume old lobby/map setup or old interaction assertions; the prompt-hides-after-toileting test also needs its approved F-prompt expectation migrated. The known CameraBlends test is included among the failures, and Relay remains skipped.
+3. unfiltered PlayMode: FAILED, 43 total, 27 passed, 15 failed, 1 skipped (20261124T152028Z-35827a). Movement accumulation failures are resolved. Remaining failures are primarily existing tests that still assume old lobby/map setup or old interaction assertions; the prompt-hides-after-toileting test also needs its approved F-prompt expectation migrated. The known CameraBlends test is included among the failures, and Relay remains skipped.
 4. generic-reference grep: PASSED, no output.
 5. semantic check: PASSED with pr-body.md.
 

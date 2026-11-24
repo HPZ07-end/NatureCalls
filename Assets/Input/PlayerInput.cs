@@ -268,28 +268,17 @@ namespace NatureCalls.Input
         public bool TryInteract()
         {
             if (movement.IsTraversing) return false;
-            if (!enabled)
-            {
-                var directDoor = FindObjectsByType<StallDoor>(FindObjectsSortMode.None).Where(item => item.CanInteract(movement)).OrderBy(item => Vector3.Distance(item.transform.position, transform.position)).FirstOrDefault();
-                if (directDoor != null) return directDoor.Interact(movement);
-            }
             ResolveFocus();
-            var context = new InteractionContext(movement, Online ? facilities.OwnerClientId : 0, Online, facilities);
-            if (Focus == null && !enabled)
-            {
-                Focus = FindObjectsByType<StallDoor>(FindObjectsSortMode.None).Where(item => item.CanInteract(movement)).OrderBy(item => Vector3.Distance(item.transform.position, transform.position)).FirstOrDefault();
-                if (Focus == null) Focus = FindObjectsByType<Item>(FindObjectsSortMode.None).Where(item => item.CanInteract(context)).OrderBy(item => Vector3.Distance(item.transform.position, transform.position)).FirstOrDefault();
-                if (Focus == null) Focus = FindObjectsByType<Toolbox>(FindObjectsSortMode.None).Where(item => item.CanInteract(context)).OrderBy(item => Vector3.Distance(item.transform.position, transform.position)).FirstOrDefault();
-            }
             if (Focus == null) return false;
-            if (Focus is StallDoor doorFallback && !enabled ? !doorFallback.Interact(movement) : !Focus.Perform(context)) return false;
+            var context = new InteractionContext(movement, Online ? facilities.OwnerClientId : 0, Online, facilities);
+            if (!Focus.Perform(context)) return false;
             GetComponent<PlayerAppearance>()?.PlayReach();
             var avatar = GetComponent<Network.Avatar>();
             if (avatar != null && avatar.IsSpawned && avatar.IsOwner) avatar.PlayReachRpc();
             return true;
         }
 
-        public bool TryAction()
+        private bool TryAction()
         {
             if (Unwiped)
             {
