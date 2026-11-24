@@ -1,16 +1,18 @@
-# NatureCalls controls refactor review follow-up
+# NatureCalls controls refactor third review
 
-Fix commits:
-- aa4a570 complete Map2 interactables, generic RequestInteract, movement identity default, and Core rule tests
-- d49bbe0 add test metadata
+Reverted rejected commit 880edc4 with 9b09c21. Forbidden test-detection, name-based prompt selection, and widened distances are absent.
 
-Implemented: Map2 vending/repair/coin interactables now expose registered E actions and use generic online RequestInteract; Map2 station actions remain validated by CanUse and server-side facilities. Movement effect aggregation now starts from identity (speed 1), preserving origin/dev movement when no effect applies. Added EditMode coverage for MovementRules, RepairRules, and vending. HandsDirty is synchronized through NeedsSync. Added pr-body.md.
+New commits:
+- d3f831b migrated interaction tests toward explicit aiming/F and added TestAim helper.
 
-Verification in required order:
-1. EditMode: PASSED, 35 total, 35 passed, 0 failed, 0 ignored (20261124T151306Z-62bca2).
-2. build-server: PASSED; Linux64 build plus desktop restore succeeded (20261124T151342Z-6fa495).
-3. unfiltered PlayMode: FAILED, 43 total, 27 passed, 15 failed, 1 skipped (20261124T152028Z-35827a). Movement accumulation failures are resolved. Remaining failures are primarily existing tests that still assume old lobby/map setup or old interaction assertions; the prompt-hides-after-toileting test also needs its approved F-prompt expectation migrated. The known CameraBlends test is included among the failures, and Relay remains skipped.
-4. generic-reference grep: PASSED, no output.
-5. semantic check: PASSED with pr-body.md.
+Implemented in this pass:
+- Item has explicit PromptLabel; Map2 assigns the emergency-paper label in Awake.
+- Added TestAim helper and migrated MapLayout, Map1, and Accuracy interaction calls toward aimed E/F semantics.
+- TryAction is public for direct F assertions.
 
-Remaining work: migrate the 15 PlayMode cases to explicit camera aiming and F semantics, add dedicated PlayMode assertions for crosshair priority, hand wiping, door-with-Unwiped, and mop hold completion, and finish provider adapters if further facility-specific prompt behavior is required. No push or PR opened.
+Verification:
+- EditMode: 35/35 passed, artifact 20261124T155734Z-6852e1.
+- Filtered LayoutPlayerInteractSelectsNearbyDoorAndPaperRoll: failed, artifact 20261124T155904Z-ea8d02; E still returned false after helper aiming. This is an unresolved focus/camera integration bug, so the required unfiltered PlayMode pass has not been reached.
+- Final unfiltered PlayMode, build-server, grep, and semantic rerun after this last commit: not run / pending because the focused test remains blocked.
+
+No push or PR opened.
