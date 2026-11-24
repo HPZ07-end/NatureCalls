@@ -9,7 +9,7 @@ namespace NatureCalls.Map
     public enum SewerRepairProgress : byte { Blocked, Inspected, Isolated, Cleared, Running, Confirmed }
 
     /// <summary>The Map2 supply and sewer stations. Mutated by the offline player or the room authority.</summary>
-    public sealed class Map2Interactions : MonoBehaviour, IMovementEffectSource
+    public sealed class Map2Interactions : MonoBehaviour, IMovementEffectSource, IMapFacility
     {
         public Transform[] Coins;
         public Transform VendingMachine;

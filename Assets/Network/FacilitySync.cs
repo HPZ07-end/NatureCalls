@@ -62,13 +62,13 @@ namespace NatureCalls.Network
         private void InteractMap2Rpc(int action)
         {
             if (activeMode == 0 && cleaningIndex < 0)
-                ServerFacilities()?.InteractWithMap2(action, movement, OwnerClientId);
+                ServerFacilities()?.InteractWithMapFacility(action, movement, OwnerClientId);
         }
 
-        public bool RequestSewerTraversal(Map.SewerAccess access)
+        public bool RequestSewerTraversal(ITraversalFacility access)
         {
             if (!IsSpawned || !IsOwner || Facilities.Current == null) return false;
-            int index = Array.IndexOf(Facilities.Current.SewerAccesses, access);
+            int index = Array.IndexOf(Facilities.Current.TraversalFacilities, access);
             if (index < 0) return false;
             RequestSewerTraversalRpc(index);
             return true;
@@ -78,8 +78,8 @@ namespace NatureCalls.Network
         private void RequestSewerTraversalRpc(int index)
         {
             var host = ServerFacilities();
-            if (host == null || index < 0 || index >= host.SewerAccesses.Length || Time.time < nextSewerTraversal ||
-                activeMode != 0 || !host.SewerAccesses[index].CanTraverse(movement)) return;
+            if (host == null || index < 0 || index >= host.TraversalFacilities.Length || Time.time < nextSewerTraversal ||
+                activeMode != 0 || !host.TraversalFacilities[index].CanTraverse(movement)) return;
             nextSewerTraversal = Time.time + 1.7f;
             host.OpenSewerCover(index);
             GrantSewerTraversalRpc(index);
@@ -89,8 +89,8 @@ namespace NatureCalls.Network
         private void GrantSewerTraversalRpc(int index)
         {
             var shared = Facilities.Current;
-            if (shared != null && index >= 0 && index < shared.SewerAccesses.Length)
-                shared.SewerAccesses[index].TraverseGranted(movement);
+            if (shared != null && index >= 0 && index < shared.TraversalFacilities.Length)
+                shared.TraversalFacilities[index].TraverseGranted(movement);
         }
 
         public bool RequestDoor(StallDoor door)

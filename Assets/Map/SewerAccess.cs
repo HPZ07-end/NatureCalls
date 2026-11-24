@@ -5,7 +5,7 @@ using UnityEngine;
 namespace NatureCalls.Map
 {
     /// <summary>Map2 descent at A and ladder return at B.</summary>
-    public sealed class SewerAccess : InteractableComponent
+    public sealed class SewerAccess : InteractableComponent, ITraversalFacility
     {
         public bool Ascending;
         public Transform Top;
@@ -70,7 +70,7 @@ namespace NatureCalls.Map
             return player.Traverse(Route(player.transform.position), Ascending ? 1.55f : .95f);
         }
 
-        internal bool TraverseGranted(Movement player)
+        public bool TraverseGranted(Movement player)
         {
             if (!open) SetOpen(true);
             return player.Traverse(Route(player.transform.position), Ascending ? 1.55f : .95f);

@@ -27,6 +27,22 @@ namespace NatureCalls.Facility
         bool Perform(InteractionContext context);
     }
 
+    public interface ITraversalFacility
+    {
+        bool CanTraverse(Movement player);
+        bool TraverseGranted(Movement player);
+        void SetOpen(bool value);
+    }
+    public interface IMapFacility
+    {
+        int CoinCount { get; }
+        ulong CoinOwner(int index);
+        void ApplyCoin(int index, ulong owner);
+        NatureCalls.Map.SewerRepairProgress RepairProgress { get; }
+        void ApplyRepairProgress(NatureCalls.Map.SewerRepairProgress progress);
+        bool Interact(int action, Movement player, ulong clientId, out int changedCoin, out PaperRoll dispensed);
+    }
+
     public interface IInteractableProvider
     {
         IEnumerable<IInteractable> Interactables { get; }
