@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NatureCalls.Facility;
 using NatureCalls.Player;
 using NatureCalls.Core;
@@ -9,7 +10,7 @@ namespace NatureCalls.Map
     public enum SewerRepairProgress : byte { Blocked, Inspected, Isolated, Cleared, Running, Confirmed }
 
     /// <summary>The Map2 supply and sewer stations. Mutated by the offline player or the room authority.</summary>
-    public sealed class Map2Interactions : MonoBehaviour, IMovementEffectSource, IMapFacility
+    public sealed class Map2Interactions : MonoBehaviour, IMovementEffectSource, IMapFacility, IInteractableProvider
     {
         public Transform[] Coins;
         public Transform VendingMachine;
@@ -34,6 +35,7 @@ namespace NatureCalls.Map
 
         public SewerRepairProgress RepairProgress { get; private set; }
         public int CoinCount => Coins.Length;
+        public IEnumerable<IInteractable> Interactables => Array.Empty<IInteractable>();
 
         private void Awake()
         {

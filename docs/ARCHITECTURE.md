@@ -114,3 +114,6 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 纯服务器入口：`Session.Dedicated` 识别 `UNITY_SERVER` 或 `-server`，`Session.StartServer` 使用 UDP，默认 8000，`-port` 覆盖；房间为空时仍保持监听并重置为 Waiting。服务器加载 DressingRoom 时仅创建持久 Session，跳过 UI、离线玩家、摄像机和镜面运行时贴图，限制 30 FPS。`LobbyController` 接受 IP:端口，Relay Join Code 路径保持不变。Linux 构建和 systemd 运维命令见 DEVELOPMENT；实际验证与部署状态见 DEVELOPMENT_STATUS。
 
 2026-11-13 技术名称：沿用 `NeedsRules` 集中参数；新增 `Accuracy` 表示时间积分；`Item` 抽取唯一携带职责，`PaperRoll` 与 `Mop` 复用。移除仅适用于卷纸的快照名（由 `ItemSnapshot`/`SharedItems` 替代）和单一黑球列表（由 `MessSnapshot`/`SharedMesses` 替代），移除固定 `SeatPose` 吸附接口。未增加兼容层。`Facilities` 继续是唯一服务器共享设施对象；客户端表现从列表恢复，污物用相同对象池。离线与服务器调用同一结算入口，入口拒绝非服务器联网调用。
+
+
+2026-11-24 controls refactor: E resolves a registered facility through the camera centre ray (with cone/proximity fallback); F handles wiping and mop cleaning. Movement uses registered continuous effects and shared map state uses FacilityStateEntry.

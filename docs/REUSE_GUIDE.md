@@ -307,3 +307,6 @@ NGO Scene Management 当前关闭，Scene 由本地加载加 RPC 协调。当前
 `Semantic-Diff: none`
 
 本次只新增技术复用说明和开发状态入口，不增删改领域语义、代码、资源或既有命名。工作区原有 Glossary/角色修改属于此前工作，不纳入本次 none；以后如果将它们一并提交，PR 必须按实际 Glossary 与实现变化重新声明，不能沿用本次声明掩盖已有变化。
+
+
+2026-11-24 controls refactor: E resolves a registered facility through the camera centre ray (with cone/proximity fallback); F handles wiping and mop cleaning. Movement uses registered continuous effects and shared map state uses FacilityStateEntry.
