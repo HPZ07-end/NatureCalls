@@ -54,7 +54,7 @@ namespace NatureCalls.Facility
         private static readonly List<IInteractable> entries = new();
         public static void Register(IInteractable value) { if (value != null && !entries.Contains(value)) entries.Add(value); }
         public static void Unregister(IInteractable value) => entries.Remove(value);
-        public static IEnumerable<IInteractable> All => entries.Where(value => value != null);
+        public static IEnumerable<IInteractable> All => entries.Where(value => value != null && (value as UnityEngine.Object) != null);
         public static IInteractable Resolve(InteractionContext context, UnityEngine.Camera camera)
         {
             var candidates = All.Where(value => value.CanInteract(context)).ToList();
