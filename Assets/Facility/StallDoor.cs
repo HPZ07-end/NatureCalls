@@ -103,6 +103,7 @@ namespace NatureCalls.Facility
         }
 
         public override float Distance => InteractionDistance;
+        public override Vector3 AimPoint => DoorLeaf != null ? DoorLeaf.GetComponentInChildren<Collider>()?.bounds.center ?? DoorLeaf.position : transform.position;
         public override bool CanInteract(InteractionContext context) => CanInteract(context.Player);
         public override string Prompt(InteractionContext context) => State == StallDoorState.Open ? "E  关门" : State == StallDoorState.Locked ? "E  开门" : "E  开门";
         public override bool Perform(InteractionContext context)

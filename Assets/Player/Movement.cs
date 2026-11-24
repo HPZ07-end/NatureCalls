@@ -88,6 +88,13 @@ namespace NatureCalls.Player
             transform.Rotate(Vector3.up, delta.x * Sensitivity, Space.World);
             Pitch = Mathf.Clamp(Pitch - delta.y * Sensitivity, -PitchLimit, PitchLimit);
         }
+        public void LookAt(Vector3 worldPoint)
+        {
+            var delta = worldPoint - transform.position;
+            var flat = Vector3.ProjectOnPlane(delta, Vector3.up);
+            if (flat.sqrMagnitude > .0001f) transform.rotation = Quaternion.LookRotation(flat, Vector3.up);
+            Pitch = Mathf.Clamp(-Mathf.Atan2(delta.y, Mathf.Max(.0001f, flat.magnitude)) * Mathf.Rad2Deg, -PitchLimit, PitchLimit);
+        }
         public void Move(Vector2 direction, float deltaTime)
         {
             if (!Controlled || !controller.enabled || IsTraversing) return;

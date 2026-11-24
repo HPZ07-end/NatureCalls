@@ -42,6 +42,7 @@ namespace NatureCalls.Map
             private readonly Map2Interactions owner; private readonly Transform target; private readonly int action;
             public Station(Map2Interactions owner, Transform target, int action) { this.owner = owner; this.target = target; this.action = action; }
             public int Priority => action; public Transform Target => target; public float Distance => 1.15f;
+            public Vector3 AimPoint => target != null ? target.position : Vector3.zero;
             public bool CanInteract(InteractionContext context) => target != null && context.Player != null && Vector3.Distance(context.Player.transform.position, target.position) <= Distance && owner.CanUse(action, context.Player, context.ClientId);
             public string Prompt(InteractionContext context) => owner.Prompt(action, context.ClientId, context.Player);
             public bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestInteract(action) : owner.Interact(action, context.Player, context.ClientId, out _, out _);

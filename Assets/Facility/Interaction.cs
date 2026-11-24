@@ -21,6 +21,7 @@ namespace NatureCalls.Facility
     {
         int Priority { get; }
         Transform Target { get; }
+        Vector3 AimPoint { get; }
         float Distance { get; }
         bool CanInteract(InteractionContext context);
         string Prompt(InteractionContext context);
@@ -57,12 +58,7 @@ namespace NatureCalls.Facility
         public static IEnumerable<IInteractable> All => entries.Where(value => value != null && (!(value is UnityEngine.Object unity) || unity != null));
         public static IInteractable Resolve(InteractionContext context, UnityEngine.Camera camera)
         {
-            var candidates = All.ToList();
-            foreach (var component in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-                if (component is IInteractable interactable && !candidates.Contains(interactable)) candidates.Add(interactable);
-            foreach (var provider in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None).OfType<IInteractableProvider>())
-                foreach (var interactable in provider.Interactables) if (interactable != null && !candidates.Contains(interactable)) candidates.Add(interactable);
-            candidates = candidates.Where(value => value.CanInteract(context)).ToList();
+            var candidates = All.Where(value => value.CanInteract(context)).ToList();
             if (candidates.Count == 0) return null;
             if (camera != null && context.Player != null && !context.Player.IsCrawling && !context.Player.Aiming)
             {
@@ -73,11 +69,11 @@ namespace NatureCalls.Facility
                     .FirstOrDefault(value => value != null);
                 if (hit != null) return hit;
                 const float cone = .965f; // about 15 degrees
-                return candidates.Where(value => Vector3.Dot(ray.direction, (value.Target.position - ray.origin).normalized) >= cone)
-                    .OrderBy(value => Vector3.Distance(ray.origin, value.Target.position))
+                return candidates.Where(value => Vector3.Dot(ray.direction, (value.AimPoint - ray.origin).normalized) >= cone)
+                    .OrderBy(value => Vector3.Cross(ray.direction, value.AimPoint - ray.origin).sqrMagnitude)
                     .ThenBy(value => value.Priority).FirstOrDefault();
             }
-            return candidates.OrderBy(value => Vector3.Distance(context.Player.transform.position, value.Target.position))
+            return candidates.OrderBy(value => Vector3.Distance(context.Player.transform.position, value.AimPoint))
                 .ThenBy(value => value.Priority).FirstOrDefault();
         }
     }
@@ -86,6 +82,16 @@ namespace NatureCalls.Facility
     {
         public virtual int Priority => 0;
         public virtual Transform Target => transform;
+        public virtual Vector3 AimPoint
+        {
+            get
+            {
+                var bounds = new Bounds(transform.position, Vector3.zero); var found = false;
+                foreach (var collider in GetComponentsInChildren<Collider>(true)) { if (!found) { bounds = collider.bounds; found = true; } else bounds.Encapsulate(collider.bounds); }
+                if (!found) foreach (var renderer in GetComponentsInChildren<Renderer>(true)) { if (!found) { bounds = renderer.bounds; found = true; } else bounds.Encapsulate(renderer.bounds); }
+                return bounds.center;
+            }
+        }
         public virtual float Distance => 1.5f;
         public abstract bool CanInteract(InteractionContext context);
         public abstract string Prompt(InteractionContext context);
