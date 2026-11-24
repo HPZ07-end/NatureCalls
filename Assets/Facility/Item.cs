@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 namespace NatureCalls.Facility
 {
     [DisallowMultipleComponent]
-    public abstract class Item : MonoBehaviour
+    public abstract class Item : InteractableComponent
     {
         private Scene mapScene;
         protected virtual void Awake() => mapScene = gameObject.scene;
@@ -59,6 +59,11 @@ namespace NatureCalls.Facility
                 if (roll.PickedUpBy == player) return roll;
             return null;
         }
+
+        public override float Distance => InteractionDistance;
+        public override bool CanInteract(InteractionContext context) => CanPickup(context.Player);
+        public override string Prompt(InteractionContext context) => this is PaperRoll ? "E  拾取卷纸" : "E  拾取";
+        public override bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestPickup(this) : Pickup(context.Player);
 
         public bool Pickup(Movement player)
         {

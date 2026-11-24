@@ -11,7 +11,7 @@ namespace NatureCalls.Facility
     }
 
     [DisallowMultipleComponent]
-    public sealed class StallDoor : MonoBehaviour
+    public sealed class StallDoor : InteractableComponent
     {
         [Min(.1f)] public float InteractionDistance = 1.5f;
         [Range(-120, 120)] public float OpenAngle = 95f;
@@ -100,6 +100,15 @@ namespace NatureCalls.Facility
                 }
             }
             return bounds;
+        }
+
+        public override float Distance => InteractionDistance;
+        public override bool CanInteract(InteractionContext context) => CanInteract(context.Player);
+        public override string Prompt(InteractionContext context) => State == StallDoorState.Open ? "E  关门" : State == StallDoorState.Locked ? "E  开门" : "E  开门";
+        public override bool Perform(InteractionContext context)
+        {
+            if (context.Online) return context.Sync != null && context.Sync.RequestDoor(this);
+            return Interact(context.Player);
         }
 
         public bool Interact(Movement player)

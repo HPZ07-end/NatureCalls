@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -12,30 +13,21 @@ namespace NatureCalls.Input
     [RequireComponent(typeof(Movement), typeof(Posture))]
     public sealed class PlayerInput : MonoBehaviour
     {
-        private InputAction move, look, jump, toggle, interact, throwRoll, release;
+        private InputAction move, look, jump, toggle, interact, action, throwRoll, release;
         private Movement movement;
         private Posture posture;
         private FacilitySync facilities;
         private NeedsSync needsSync;
         private PlayerNeeds needs;
-        private Map2Interactions map2;
         public enum Stage { None, Aligning, Holding, Urinating, Cleaning }
         public Stage Phase { get; private set; }
         public bool IsToileting => Phase == Stage.Holding || Phase == Stage.Urinating;
         public bool Unwiped => needs != null && needs.Unwiped;
         public Item HeldItem => Item.FindCarriedBy(movement);
         public int PaperRemainingUses => HeldItem is PaperRoll roll ? roll.RemainingUses : 0;
-        public string NearbyMap2Prompt()
-        {
-            if (Phase != Stage.None || map2 == null || movement.IsTraversing) return "";
-            if (Unwiped && HeldItem is PaperRoll) return "E  擦拭";
-            var access = map2.NearbySewerAccess(movement);
-            if (access != null) return access.Prompt;
-            if (map2.CanPickupEmergencyPaper(movement)) return "E  拾取应急卷纸";
-            int station = map2.Nearby(movement);
-            var client = Online ? facilities.OwnerClientId : 0;
-            return map2.Prompt(station, client, movement);
-        }
+        public IInteractable Focus { get; private set; }
+        public string FocusPrompt { get; private set; } = "";
+        public string FPrompt => Unwiped ? (HeldItem is PaperRoll ? "F  擦拭" : "F  用手擦拭") : HeldItem is Mop ? "F  长按清理" : "";
         public Vector3 TargetCenter => toilet != null ? toilet.TargetCenter : urinal != null ? urinal.TargetCenter : CurrentLanding;
         public float TargetRadius => NeedsRules.TargetRadius;
         /// <summary>The two axes the target circle lies in: the floor for a toilet, the wall for a urinal.</summary>
@@ -71,7 +63,6 @@ namespace NatureCalls.Input
             facilities = GetComponent<FacilitySync>();
             needsSync = GetComponent<NeedsSync>();
             needs = GetComponent<PlayerNeeds>();
-            map2 = FindFirstObjectByType<Map2Interactions>();
 
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
@@ -80,17 +71,18 @@ namespace NatureCalls.Input
             jump = new InputAction("Jump", InputActionType.Button, "<Keyboard>/space");
             toggle = new InputAction("Posture", InputActionType.Button, "<Keyboard>/c");
             interact = new InputAction("Interact", InputActionType.Button, "<Keyboard>/e");
+            action = new InputAction("Action", InputActionType.Button, "<Keyboard>/f");
             throwRoll = new InputAction("Throw Paper Roll", InputActionType.Button, "<Keyboard>/r");
             release = new InputAction("Release", InputActionType.Button, "<Keyboard>/escape");
         }
-        private void OnEnable() { move?.Enable(); look?.Enable(); jump?.Enable(); toggle?.Enable(); interact?.Enable(); throwRoll?.Enable(); release?.Enable(); }
+        private void OnEnable() { move?.Enable(); look?.Enable(); jump?.Enable(); toggle?.Enable(); interact?.Enable(); action?.Enable(); throwRoll?.Enable(); release?.Enable(); }
         private void OnDisable()
         {
-            move?.Disable(); look?.Disable(); jump?.Disable(); toggle?.Disable(); interact?.Disable(); throwRoll?.Disable(); release?.Disable();
+            move?.Disable(); look?.Disable(); jump?.Disable(); toggle?.Disable(); interact?.Disable(); action?.Disable(); throwRoll?.Disable(); release?.Disable();
             CancelCleaning();
             Unlock();
         }
-        private void OnDestroy() { move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); interact?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
+        private void OnDestroy() { move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); interact?.Dispose(); action?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
         public static void Unlock() { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
         private void OnApplicationFocus(bool focused) { if (!focused) Unlock(); }
         private void Update()
@@ -110,10 +102,12 @@ namespace NatureCalls.Input
             bool accept = Application.isFocused && (Captured || !CaptureMouse);
             if (accept)
             {
+                ResolveFocus();
                 if (!IsToileting) movement.Look(look.ReadValue<Vector2>());
                 if (jump.WasPressedThisFrame()) movement.Jump();
                 if (toggle.WasPressedThisFrame()) TryToilet();
                 if (interact.WasPressedThisFrame()) TryInteract();
+                if (action.WasPressedThisFrame()) TryAction();
                 if (throwRoll.WasPressedThisFrame()) TryThrowCarriedItem();
             }
             if (IsToileting)
@@ -124,11 +118,19 @@ namespace NatureCalls.Input
                     new Vector2(worldMove.x, worldMove.z) * NeedsRules.CorrectionSpeed * Time.deltaTime;
                 TickAim(Time.deltaTime, accept ? adjustment : Vector2.zero);
             }
-            if (Phase == Stage.Cleaning) ContinueCleaning(accept && interact.IsPressed(), Time.deltaTime);
+            if (Phase == Stage.Cleaning) ContinueCleaning(accept && action.IsPressed(), Time.deltaTime);
             movement.Move(accept ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
         }
 
         private static bool IsPointerOverUi() => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+
+        private void ResolveFocus()
+        {
+            if (movement == null || movement.IsTraversing || Phase != Stage.None) { Focus = null; FocusPrompt = ""; return; }
+            var context = new InteractionContext(movement, Online ? facilities.OwnerClientId : 0, Online, facilities);
+            Focus = InteractionRegistry.Resolve(context, UnityEngine.Camera.main);
+            FocusPrompt = Focus == null ? "" : Focus.Prompt(context);
+        }
 
         private Vector3 ButtLanding()
         {
@@ -262,89 +264,41 @@ namespace NatureCalls.Input
             cleaning = null; cleanElapsed = 0; Phase = Stage.None;
         }
 
-        /// <summary>E: paper rolls, the mirror, stall doors and the Lobby door. Works while seated, so a seated player can lock the door.</summary>
+        /// <summary>E performs the facility selected by the active camera centre ray.</summary>
         public bool TryInteract()
         {
-            if (movement.IsTraversing || !TryUseNearby()) return false;
+            if (movement.IsTraversing) return false;
+            ResolveFocus();
+            if (Focus == null) return false;
+            var context = new InteractionContext(movement, Online ? facilities.OwnerClientId : 0, Online, facilities);
+            if (!Focus.Perform(context)) return false;
             GetComponent<PlayerAppearance>()?.PlayReach();
             var avatar = GetComponent<Network.Avatar>();
             if (avatar != null && avatar.IsSpawned && avatar.IsOwner) avatar.PlayReachRpc();
             return true;
         }
 
-        private bool TryUseNearby()
+        private bool TryAction()
         {
-            if (Unwiped && HeldItem is PaperRoll paper)
+            if (Unwiped)
             {
-                if (Online) return facilities.RequestWipe();
-                if (!paper.Use()) return false;
-                needs.Wipe(); return true;
+                if (HeldItem is PaperRoll paper)
+                {
+                    if (Online) return facilities.RequestWipe();
+                    if (!paper.Use()) return false;
+                    needs.Wipe(); return true;
+                }
+                needs?.WipeByHand();
+                return true;
             }
-            if (Phase == Stage.None && map2 != null)
+            if (HeldItem is Mop && Phase != Stage.Cleaning)
             {
-                var access = map2.NearbySewerAccess(movement);
-                if (access != null)
-                    return Online ? facilities.RequestSewerTraversal(access) : access.Traverse(movement);
-                if (map2.CanPickupEmergencyPaper(movement) && PickupItem(map2.EmergencyPaper)) return true;
+                var ray = UnityEngine.Camera.main != null ? UnityEngine.Camera.main.ViewportPointToRay(new Vector3(.5f, .5f)) : new Ray(transform.position, transform.forward);
+                var nearest = FindObjectsByType<Mess>(FindObjectsSortMode.None).Where(m => m.CanClean(movement))
+                    .OrderBy(m => Vector3.Cross(ray.direction, m.transform.position - ray.origin).sqrMagnitude).FirstOrDefault();
+                if (nearest != null) return BeginCleaning(nearest);
             }
-            if (HeldItem is Mop)
-            {
-                Mess nearest = null;
-                foreach (var mess in FindObjectsByType<Mess>(FindObjectsSortMode.None))
-                    if (mess.CanClean(movement) && (nearest == null || Vector3.Distance(mess.transform.position, transform.position) < Vector3.Distance(nearest.transform.position, transform.position))) nearest = mess;
-                if (nearest != null && BeginCleaning(nearest)) return true;
-            }
-            if (Phase == Stage.None && map2 != null)
-            {
-                int station = map2.Nearby(movement);
-                var client = Online ? facilities.OwnerClientId : 0;
-                if (map2.CanUse(station, movement, client) && (Online ? facilities.RequestMap2Interaction(station) :
-                    map2.Interact(station, movement, client, out _, out _))) return true;
-            }
-            if (TryPickupNearestItem()) return true;
-            foreach (var toolbox in FindObjectsByType<Toolbox>(FindObjectsSortMode.None))
-                if (toolbox.CanInteract(movement) && (Online ? facilities.RequestToolbox(toolbox) : toolbox.Interact(movement))) return true;
-            foreach (var mirror in FindObjectsByType<DressingMirror>(FindObjectsSortMode.None))
-                if (mirror.Interact(movement)) return true;
-            if (TryInteractNearestStallDoor()) return true;
-            foreach (var door in FindObjectsByType<LobbyDoor>(FindObjectsSortMode.None))
-                if (door.Interact(movement)) return true;
             return false;
-        }
-
-        private bool TryPickupNearestItem()
-        {
-            Item nearest = null;
-            var nearestDistance = float.PositiveInfinity;
-            foreach (var roll in FindObjectsByType<Item>(FindObjectsSortMode.None))
-            {
-                if (!roll.CanPickup(movement)) continue;
-                var distance = Vector3.SqrMagnitude(roll.transform.position - movement.transform.position);
-                if (distance >= nearestDistance) continue;
-                nearest = roll;
-                nearestDistance = distance;
-            }
-            return nearest != null && PickupItem(nearest);
-        }
-
-        private bool PickupItem(Item item) => Online ? facilities.RequestPickup(item) : item.Pickup(movement);
-
-        private bool TryInteractNearestStallDoor()
-        {
-            StallDoor nearest = null;
-            var nearestDistance = float.PositiveInfinity;
-            foreach (var door in FindObjectsByType<StallDoor>(FindObjectsSortMode.None))
-            {
-                if (!door.CanInteract(movement)) continue;
-                var distance = Vector3.SqrMagnitude(door.DoorColliderPivot.position - movement.transform.position);
-                if (distance >= nearestDistance) continue;
-                nearest = door;
-                nearestDistance = distance;
-            }
-            if (nearest == null) return false;
-            if (Online) return facilities.RequestDoor(nearest);
-            if (!nearest.Interact(movement)) return false;
-            needs?.LeaveUnwiped(); return true;
         }
 
         private bool TryThrowCarriedItem()

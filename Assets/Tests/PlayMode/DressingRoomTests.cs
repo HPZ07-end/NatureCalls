@@ -201,7 +201,7 @@ namespace NatureCalls.Tests
             Assert.That(activities.EmergencyPaper.GetComponentsInChildren<Renderer>().Any(r => r.enabled), Is.True);
             input.enabled = false;
             yield return WalkTo(player, 6f, 1.32f);
-            Assert.That(input.NearbyMap2Prompt(), Does.Contain("应急卷纸"));
+            Assert.That(input.FocusPrompt, Does.Contain("应急卷纸"));
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(input.HeldItem, Is.SameAs(activities.EmergencyPaper));
             Assert.That(input.PaperRemainingUses, Is.EqualTo(3));
@@ -209,7 +209,7 @@ namespace NatureCalls.Tests
             yield return WalkTo(player, 6f, 1.86f);
             yield return WalkTo(player, 4.4f, 1.86f);
             yield return WalkTo(player, 4.4f, 5.25f);
-            Assert.That(input.NearbyMap2Prompt(), Does.Contain("打开井盖"));
+            Assert.That(input.FocusPrompt, Does.Contain("打开井盖"));
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(player.IsTraversing, Is.True);
             float arrival = Time.realtimeSinceStartup + 4;

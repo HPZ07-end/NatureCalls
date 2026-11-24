@@ -1,10 +1,11 @@
 using NatureCalls.Player;
+using NatureCalls.Facility;
 using UnityEngine;
 
 namespace NatureCalls.Map
 {
     /// <summary>Map2 descent at A and ladder return at B.</summary>
-    public sealed class SewerAccess : MonoBehaviour
+    public sealed class SewerAccess : InteractableComponent
     {
         public bool Ascending;
         public Transform Top;
@@ -27,7 +28,12 @@ namespace NatureCalls.Map
 
         private Vector3 Approach => (Ascending ? Landing : Top).position + ApproachDirection * ApproachDistance;
 
-        public string Prompt => Ascending ? "E  爬梯返回地面" : "E  打开井盖并下滑";
+        public string ActionPrompt => Ascending ? "E  爬梯返回地面" : "E  打开井盖并下滑";
+
+        public override float Distance => 1.85f;
+        public override bool CanInteract(InteractionContext context) => CanTraverse(context.Player);
+        public override string Prompt(InteractionContext context) => ActionPrompt;
+        public override bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestSewerTraversal(this) : Traverse(context.Player);
 
         public bool CanTraverse(Movement player)
         {
