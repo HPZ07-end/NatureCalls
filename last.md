@@ -1,22 +1,16 @@
-# NatureCalls controls refactor report
+# NatureCalls controls refactor review follow-up
 
-Commits:
-- 171af9f refactor: route E and F through facility interactions
-- 59c9bfd refactor: combine movement effects through core rules
-- a38b6e9 refactor: store shared facility state generically
-- 839c46b docs: record E F controls and facility contracts
-- ff48ae9 chore: add repair rules asset metadata
-- 8a56733 fix: discard destroyed interaction registry entries
+Fix commits:
+- aa4a570 complete Map2 interactables, generic RequestInteract, movement identity default, and Core rule tests
+- d49bbe0 add test metadata
 
-Implemented: registered facility-owned interactables and camera-centre E focus with cone/proximity fallback; F paper/hand wipe and mop hold; HandsDirty; Core MovementRules and effect sources; generic FacilityStateEntry for sewer/coin/repair state; RepairRules and vending helpers; docs and approved Glossary markers.
+Implemented: Map2 vending/repair/coin interactables now expose registered E actions and use generic online RequestInteract; Map2 station actions remain validated by CanUse and server-side facilities. Movement effect aggregation now starts from identity (speed 1), preserving origin/dev movement when no effect applies. Added EditMode coverage for MovementRules, RepairRules, and vending. HandsDirty is synchronized through NeedsSync. Added pr-body.md.
 
-Verification:
-- EditMode: PASSED, 31 total, 31 passed, 0 failed, 0 ignored (latest 20261124T145422Z-6daa22).
-- Build server: PASSED; Linux64 build and desktop restore succeeded (20261124T145529Z-135e58).
-- PlayMode unfiltered: FAILED, 43 total, 24 passed, 18 failed, 1 skipped. Failures include stale tests still assuming proximity E and one allowed camera blend test; several lifecycle/movement regressions remain and require follow-up before integration.
-- Generic-reference grep: PASSED, no output for requested six files.
-- Semantic check: PASSED, changed; required paths and approval sections present.
+Verification in required order:
+1. EditMode: PASSED, 35 total, 35 passed, 0 failed, 0 ignored (20261124T151306Z-62bca2).
+2. build-server: PASSED; Linux64 build plus desktop restore succeeded (20261124T151342Z-6fa495).
+3. unfiltered PlayMode: FAILED, 43 total, 27 passed, 15 failed, 1 skipped (20261124T152028Z-35827a). Movement accumulation failures are resolved. Remaining failures are primarily existing tests that still assume old lobby/map setup or old interaction assertions; the prompt-hides-after-toileting test also needs its approved F-prompt expectation migrated. The known CameraBlends test is included among the failures, and Relay remains skipped.
+4. generic-reference grep: PASSED, no output.
+5. semantic check: PASSED with pr-body.md.
 
-PR body draft is in /tmp/naturecalls-pr-body.md.
-
-Unfinished/uncertain: Map2Interactions exposes the provider contract but its adapter collection is still empty; PlayMode tests were not fully migrated to aim cameras; Network NeedsSync does not yet serialize HandsDirty; dedicated door/item/toilet/mess lists remain legacy compatibility state. No PR opened or pushed.
+Remaining work: migrate the 15 PlayMode cases to explicit camera aiming and F semantics, add dedicated PlayMode assertions for crosshair priority, hand wiping, door-with-Unwiped, and mop hold completion, and finish provider adapters if further facility-specific prompt behavior is required. No push or PR opened.
