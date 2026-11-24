@@ -1,18 +1,17 @@
-# NatureCalls controls refactor third review
+# NatureCalls controls refactor fourth review
 
-Reverted rejected commit 880edc4 with 9b09c21. Forbidden test-detection, name-based prompt selection, and widened distances are absent.
+Rejected compatibility commit was reverted: `9b09c21` reverts `880edc4`.
 
-New commits:
-- d3f831b migrated interaction tests toward explicit aiming/F and added TestAim helper.
-
-Implemented in this pass:
-- Item has explicit PromptLabel; Map2 assigns the emergency-paper label in Awake.
-- Added TestAim helper and migrated MapLayout, Map1, and Accuracy interaction calls toward aimed E/F semantics.
-- TryAction is public for direct F assertions.
+Current fixes:
+- `Movement.LookAt(Vector3)` sets yaw and clamped pitch from the player view state.
+- `TestAim` uses movement view state and waits two frames.
+- `IInteractable.AimPoint` uses combined collider/renderer bounds; stall doors use the door leaf collider centre.
+- `InteractionRegistry.Resolve` now uses the registry only; per-frame scene scans were removed.
+- Emergency paper uses explicit `Item.PromptLabel`, assigned by `Map2Interactions`.
 
 Verification:
-- EditMode: 35/35 passed, artifact 20261124T155734Z-6852e1.
-- Filtered LayoutPlayerInteractSelectsNearbyDoorAndPaperRoll: failed, artifact 20261124T155904Z-ea8d02; E still returned false after helper aiming. This is an unresolved focus/camera integration bug, so the required unfiltered PlayMode pass has not been reached.
-- Final unfiltered PlayMode, build-server, grep, and semantic rerun after this last commit: not run / pending because the focused test remains blocked.
+- EditMode: PASSED, 35/35, artifact `20261124T160910Z-6caa17`.
+- Filtered `LayoutPlayerInteractSelectsNearbyDoorAndPaperRoll`: FAILED, 0/1, artifact `20261124T160946Z-9afd18`; E still returns false after the new aim helper. This is an unresolved registration/focus integration issue.
+- Required final unfiltered PlayMode, server build, grep, and final semantic verification after this commit: not run because the focused test remains blocked.
 
 No push or PR opened.
