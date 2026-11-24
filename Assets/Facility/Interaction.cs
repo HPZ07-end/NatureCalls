@@ -54,10 +54,15 @@ namespace NatureCalls.Facility
         private static readonly List<IInteractable> entries = new();
         public static void Register(IInteractable value) { if (value != null && !entries.Contains(value)) entries.Add(value); }
         public static void Unregister(IInteractable value) => entries.Remove(value);
-        public static IEnumerable<IInteractable> All => entries.Where(value => value != null && (value as UnityEngine.Object) != null);
+        public static IEnumerable<IInteractable> All => entries.Where(value => value != null && (!(value is UnityEngine.Object unity) || unity != null));
         public static IInteractable Resolve(InteractionContext context, UnityEngine.Camera camera)
         {
-            var candidates = All.Where(value => value.CanInteract(context)).ToList();
+            var candidates = All.ToList();
+            foreach (var component in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+                if (component is IInteractable interactable && !candidates.Contains(interactable)) candidates.Add(interactable);
+            foreach (var provider in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None).OfType<IInteractableProvider>())
+                foreach (var interactable in provider.Interactables) if (interactable != null && !candidates.Contains(interactable)) candidates.Add(interactable);
+            candidates = candidates.Where(value => value.CanInteract(context)).ToList();
             if (candidates.Count == 0) return null;
             if (camera != null && context.Player != null && !context.Player.IsCrawling && !context.Player.Aiming)
             {

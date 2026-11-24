@@ -58,6 +58,18 @@ namespace NatureCalls.Network
             return true;
         }
 
+        public bool RequestInteract(int stableId)
+        {
+            if (!IsSpawned || !IsOwner || Facilities.Current == null) return false;
+            InteractFacilityRpc(stableId); return true;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void InteractFacilityRpc(int stableId)
+        {
+            if (activeMode == 0 && cleaningIndex < 0) ServerFacilities()?.InteractWithMapFacility(stableId, movement, OwnerClientId);
+        }
+
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void InteractMap2Rpc(int action)
         {

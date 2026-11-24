@@ -8,7 +8,7 @@ namespace NatureCalls.Player
     {
         public static MovementModifier Combine(Movement player)
         {
-            var result = new MovementModifier();
+            var result = new MovementModifier(1);
             foreach (var source in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
                 if (source is IMovementEffectSource effect && effect.AppliesTo(player)) result = MovementRules.Combine(result, effect.GetModifier(player));
             return result;

@@ -15,6 +15,7 @@ namespace NatureCalls.Network
         public NetworkVariable<float> SharedUrgency = new(0);
         public NetworkVariable<float> SharedDisgust = new(0);
         public NetworkVariable<bool> SharedUnwiped = new(false);
+        public NetworkVariable<bool> SharedHandsDirty = new(false);
         private PlayerNeeds needs;
         private FacilitySync facilities;
         private float nextNeedsUpdate;
@@ -38,6 +39,7 @@ namespace NatureCalls.Network
         {
             if (!IsServer || needs == null) return;
             SharedUnwiped.Value = needs.Unwiped;
+            SharedHandsDirty.Value = needs.HandsDirty;
             if (Mathf.Abs(SharedUrgency.Value - needs.Urgency) > .05f) SharedUrgency.Value = needs.Urgency;
             if (Mathf.Abs(SharedDisgust.Value - needs.Disgust) > .05f) SharedDisgust.Value = needs.Disgust;
         }
@@ -45,7 +47,7 @@ namespace NatureCalls.Network
         private void Update()
         {
             if (!IsSpawned || needs == null) return;
-            if (!IsServer) needs.ApplyShared(SharedUrgency.Value, SharedDisgust.Value, SharedUnwiped.Value);
+            if (!IsServer) needs.ApplyShared(SharedUrgency.Value, SharedDisgust.Value, SharedUnwiped.Value, SharedHandsDirty.Value);
             else if (Time.time >= nextNeedsUpdate) { nextNeedsUpdate = Time.time + .2f; PublishNeeds(); }
         }
     }

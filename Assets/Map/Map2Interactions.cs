@@ -35,7 +35,17 @@ namespace NatureCalls.Map
 
         public SewerRepairProgress RepairProgress { get; private set; }
         public int CoinCount => Coins.Length;
-        public IEnumerable<IInteractable> Interactables => Array.Empty<IInteractable>();
+        private readonly List<IInteractable> interactables = new();
+        public IEnumerable<IInteractable> Interactables => interactables;
+        private sealed class Station : IInteractable
+        {
+            private readonly Map2Interactions owner; private readonly Transform target; private readonly int action;
+            public Station(Map2Interactions owner, Transform target, int action) { this.owner = owner; this.target = target; this.action = action; }
+            public int Priority => action; public Transform Target => target; public float Distance => 1.15f;
+            public bool CanInteract(InteractionContext context) => target != null && context.Player != null && Vector3.Distance(context.Player.transform.position, target.position) <= Distance && owner.CanUse(action, context.Player, context.ClientId);
+            public string Prompt(InteractionContext context) => owner.Prompt(action, context.ClientId, context.Player);
+            public bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestInteract(action) : owner.Interact(action, context.Player, context.ClientId, out _, out _);
+        }
 
         private void Awake()
         {
@@ -48,7 +58,18 @@ namespace NatureCalls.Map
             downstreamRest = DownstreamWater.localPosition;
             foreach (var roll in VendingStock) roll.Store(VendingMachine.position);
             ApplyRepairProgress(SewerRepairProgress.Blocked);
+            interactables.Clear();
+            interactables.Add(new Station(this, VendingMachine, Vending));
+            interactables.Add(new Station(this, UpstreamWindow, Upstream));
+            interactables.Add(new Station(this, Valve, ValveAction));
+            interactables.Add(new Station(this, InspectionPort, Inspection));
+            interactables.Add(new Station(this, DownstreamWindow, Downstream));
+            for (int i = 0; i < Coins.Length; i++) interactables.Add(new Station(this, Coins[i], FirstCoin + i));
         }
+
+        private void Start() { foreach (var value in interactables) InteractionRegistry.Register(value); }
+        private void OnEnable() { }
+        private void OnDisable() { foreach (var value in interactables) InteractionRegistry.Unregister(value); }
 
         public int Wallet(ulong player)
         {
