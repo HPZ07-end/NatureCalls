@@ -26,6 +26,11 @@ namespace NatureCalls.Player
         private const float CrawlingStep = .08f;
         public float Pitch { get; private set; }
         public Quaternion ViewRotation => Quaternion.Euler(Pitch, transform.eulerAngles.y, 0);
+        /// <summary>Eye heights matching the first-person camera rig (CameraController.EyeHeight and its crawl height).</summary>
+        public const float StandingEyeHeight = 1.65f, CrawlingEyeHeight = .63f;
+        public Vector3 ViewOrigin => transform.position + Vector3.up * (IsCrawling ? CrawlingEyeHeight : StandingEyeHeight);
+        /// <summary>The first-person view ray, valid in the same frame as a look change (the camera follows it in LateUpdate).</summary>
+        public Ray ViewRay => new Ray(ViewOrigin, ViewRotation * Vector3.forward);
         private CharacterController controller;
         private Posture posture;
         private float verticalSpeed;
@@ -90,7 +95,7 @@ namespace NatureCalls.Player
         }
         public void LookAt(Vector3 worldPoint)
         {
-            var delta = worldPoint - transform.position;
+            var delta = worldPoint - ViewOrigin;
             var flat = Vector3.ProjectOnPlane(delta, Vector3.up);
             if (flat.sqrMagnitude > .0001f) transform.rotation = Quaternion.LookRotation(flat, Vector3.up);
             Pitch = Mathf.Clamp(-Mathf.Atan2(delta.y, Mathf.Max(.0001f, flat.magnitude)) * Mathf.Rad2Deg, -PitchLimit, PitchLimit);

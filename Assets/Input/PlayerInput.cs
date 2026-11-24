@@ -128,7 +128,10 @@ namespace NatureCalls.Input
         {
             if (movement == null || movement.IsTraversing || Phase != Stage.None) { Focus = null; FocusPrompt = ""; return; }
             var context = new InteractionContext(movement, Online ? facilities.OwnerClientId : 0, Online, facilities);
-            Focus = InteractionRegistry.Resolve(context, UnityEngine.Camera.main);
+            // First person: the crosshair (view ray). Seated, squatting, crawling or aiming: nearest by proximity.
+            Ray? view = posture.State == PostureState.Standing && movement.Seat == null && !movement.IsCrawling && !movement.Aiming
+                ? movement.ViewRay : null;
+            Focus = InteractionRegistry.Resolve(context, view);
             FocusPrompt = Focus == null ? "" : Focus.Prompt(context);
         }
 
@@ -288,12 +291,13 @@ namespace NatureCalls.Input
                     if (!paper.Use()) return false;
                     needs.Wipe(); return true;
                 }
+                if (Online) return facilities.RequestWipe();
                 needs?.WipeByHand();
                 return true;
             }
             if (HeldItem is Mop && Phase != Stage.Cleaning)
             {
-                var ray = UnityEngine.Camera.main != null ? UnityEngine.Camera.main.ViewportPointToRay(new Vector3(.5f, .5f)) : new Ray(transform.position, transform.forward);
+                var ray = movement.ViewRay;
                 var nearest = FindObjectsByType<Mess>(FindObjectsSortMode.None).Where(m => m.CanClean(movement))
                     .OrderBy(m => Vector3.Cross(ray.direction, m.transform.position - ray.origin).sqrMagnitude).FirstOrDefault();
                 if (nearest != null) return BeginCleaning(nearest);

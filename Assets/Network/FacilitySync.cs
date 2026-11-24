@@ -372,7 +372,9 @@ namespace NatureCalls.Network
         private void WipeRpc(RpcParams rpc = default)
         {
             var host = ServerFacilities(); var needs = GetComponent<PlayerNeeds>();
-            if (host == null || rpc.Receive.SenderClientId != OwnerClientId || !needs.Unwiped || Item.FindCarriedBy(movement) is not PaperRoll roll) return;
+            if (host == null || rpc.Receive.SenderClientId != OwnerClientId || !needs.Unwiped) return;
+            // F without paper wipes by hand (approved 2026-11-24); the server decides which, like offline.
+            if (Item.FindCarriedBy(movement) is not PaperRoll roll) { needs.WipeByHand(); return; }
             if (!roll.Use()) return;
             needs.Wipe();
             int index = Array.IndexOf(host.items, roll);

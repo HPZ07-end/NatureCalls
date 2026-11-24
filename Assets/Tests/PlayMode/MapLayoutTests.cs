@@ -118,15 +118,23 @@ namespace NatureCalls.Tests
 
             var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
             var roll = rolls.First();
-            player.transform.position = roll.transform.position + Vector3.right * .3f;
-            var eligible = rolls.Where(item => item.CanPickup(player)).ToArray();
-            Assert.That(eligible, Is.Not.Empty);
-            var nearest = eligible.Min(item => Vector3.Distance(item.transform.position, player.transform.position));
-            var nearestRolls = eligible.Where(item =>
-                Mathf.Abs(Vector3.Distance(item.transform.position, player.transform.position) - nearest) < .001f).ToArray();
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True, "E should select the nearby paper roll.");
+            // Stand on the floor in front of the supply cabinet and look at one roll on its shelves.
+            var front = roll.transform.position + Vector3.right * 1f;
+            Assert.That(Physics.Raycast(front + Vector3.up * 2f, Vector3.down, out var standing, 4f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore), Is.True, "The cabinet front needs a floor.");
+            controller.enabled = false;
+            player.transform.position = standing.point + Vector3.up * .01f;
+            Physics.SyncTransforms();
+            controller.enabled = true;
+            Assert.That(roll.CanPickup(player), Is.True, "The roll next to the player must be within reach.");
+            // E picks the roll under the crosshair (2026-11-24 key scheme), not merely the nearest one.
+            player.LookAt(roll.AimPoint);
+            Assert.That(input.TryInteract(), Is.True, "E should pick up the paper roll under the crosshair.");
             Assert.That(rolls.Where(item => item.PickedUpBy == player).ToArray(), Has.Length.EqualTo(1));
-            Assert.That(nearestRolls, Does.Contain(Item.FindCarriedBy(player)));
+            var view = player.ViewRay;
+            Assert.That(Item.FindCarriedBy(player), Is.SameAs(roll), "view " + view.origin.ToString("F2") + view.direction.ToString("F2") + " | " +
+                string.Join("; ", rolls.Select(r => r.name + " aim " + r.AimPoint.ToString("F2") + " pos " + r.transform.position.ToString("F2"))) + " | hits " +
+                string.Join(",", Physics.RaycastAll(view, 3f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide).OrderBy(h => h.distance).Select(h => h.collider.name + "<" + h.collider.transform.parent?.name + "@" + h.distance.ToString("F2"))));
         }
 
         [UnityTearDown]

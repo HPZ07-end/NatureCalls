@@ -56,13 +56,13 @@ namespace NatureCalls.Facility
         public static void Register(IInteractable value) { if (value != null && !entries.Contains(value)) entries.Add(value); }
         public static void Unregister(IInteractable value) => entries.Remove(value);
         public static IEnumerable<IInteractable> All => entries.Where(value => value != null && (!(value is UnityEngine.Object unity) || unity != null));
-        public static IInteractable Resolve(InteractionContext context, UnityEngine.Camera camera)
+        public static IInteractable Resolve(InteractionContext context, Ray? view)
         {
             var candidates = All.Where(value => value.CanInteract(context)).ToList();
             if (candidates.Count == 0) return null;
-            if (camera != null && context.Player != null && !context.Player.IsCrawling && !context.Player.Aiming)
+            if (view.HasValue)
             {
-                var ray = camera.ViewportPointToRay(new Vector3(.5f, .5f));
+                var ray = view.Value;
                 var hit = Physics.RaycastAll(ray, Mathf.Max(1f, candidates.Max(value => value.Distance)), Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)
                     .OrderBy(value => value.distance)
                     .Select(value => candidates.FirstOrDefault(item => value.transform == item.Target || value.transform.IsChildOf(item.Target)))
