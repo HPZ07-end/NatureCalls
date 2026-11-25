@@ -187,7 +187,7 @@ namespace NatureCalls.Tests
             Assert.That(input.TryAction(), Is.True, "F starts cleaning while holding the mop.");
             input.ContinueCleaning(false, .1f);
             Assert.That(world.Messes[puddle.Index], Is.SameAs(puddle));
-            Assert.That(input.TryAction(), Is.True, "F resumes cleaning while holding the mop.");
+            Assert.That(input.BeginCleaning(puddle), Is.True, "F resumes cleaning the selected puddle while holding the mop.");
             input.ContinueCleaning(true, NeedsRules.CleaningSeconds);
             Assert.That(world.Messes[puddle.Index], Is.Null);
             Place(box.transform.position + Vector3.back * .55f, Vector3.forward);

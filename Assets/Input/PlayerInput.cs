@@ -287,7 +287,7 @@ namespace NatureCalls.Input
                 if (Time.time >= nextCleanReport) { facilities.RequestClean(cleaning.Index, true); nextCleanReport = Time.time + .1f; }
                 return; // Server removes the object; clients never award cleaning themselves.
             }
-            if (cleanElapsed < NeedsRules.CleaningSeconds) return;
+            if (cleanElapsed + .001f < NeedsRules.CleaningSeconds) return;
             FindFirstObjectByType<Playground>()?.RemoveMess(cleaning.Index);
             needs?.AddDisgust(NeedsRules.CleaningDisgust);
             CancelCleaning();

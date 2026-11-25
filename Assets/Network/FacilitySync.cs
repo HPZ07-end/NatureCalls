@@ -407,7 +407,7 @@ namespace NatureCalls.Network
             var box = host.toolboxes[index];
             if (!box.Interact(movement)) return;
             int item = Array.IndexOf(host.items, box.Mop);
-            host.SharedItems[item] = Facilities.Snapshot(box.Mop, box.Mop.Stored ? ItemSnapshot.Stored : ItemSnapshot.Carried, OwnerClientId);
+            if (item >= 0) host.SharedItems[item] = Facilities.Snapshot(box.Mop, box.Mop.Stored ? ItemSnapshot.Stored : ItemSnapshot.Carried, OwnerClientId);
         }
         public void RequestClean(int index, bool held)
         {
