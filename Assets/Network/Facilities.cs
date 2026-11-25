@@ -35,9 +35,9 @@ namespace NatureCalls.Network
         // Where players toileted outside a stall during this round.
         public NetworkList<MessSnapshot> SharedMesses;
         private Map.Playground world;
-        internal ITraversalFacility[] TraversalFacilities { get; private set; } = Array.Empty<ITraversalFacility>();
+        internal ITraversalFacility[] TraversalSources { get; private set; } = Array.Empty<ITraversalFacility>();
         public NetworkList<FacilityStateEntry> SharedFacilityState;
-        internal IMapFacility MapFacility { get; private set; }
+        internal ISharedFacilityState SharedSource { get; private set; }
 
 
         internal StallDoor[] doors;
@@ -67,18 +67,18 @@ namespace NatureCalls.Network
             world = FindFirstObjectByType<Map.Playground>();
             if (world != null)
             {
-                TraversalFacilities = world.GetComponentsInChildren<MonoBehaviour>().OfType<ITraversalFacility>()
+                TraversalSources = world.GetComponentsInChildren<MonoBehaviour>().OfType<ITraversalFacility>()
                     .OrderBy(access => ((MonoBehaviour)access).name).ToArray();
                 SharedFacilityState.OnListChanged += FacilityStateChanged;
                 ApplyGenericFacilityState();
-                MapFacility = world.GetComponentsInChildren<MonoBehaviour>().OfType<IMapFacility>().FirstOrDefault();
-                if (MapFacility != null)
+                SharedSource = world.GetComponentsInChildren<MonoBehaviour>().OfType<ISharedFacilityState>().FirstOrDefault();
+                if (SharedSource != null)
                 {
                     if (IsServer)
                     {
-                        for (int i = 0; i < TraversalFacilities.Length; i++) SharedFacilityState.Add(new FacilityStateEntry { Id = (ushort)i });
-                        for (int i = 0; i < MapFacility.CoinCount; i++) SharedFacilityState.Add(new FacilityStateEntry { Id = (ushort)(100 + i) });
-                        SharedFacilityState.Add(new FacilityStateEntry { Id = 200, State = (byte)Map.SewerRepairProgress.Blocked });
+                        for (int i = 0; i < TraversalSources.Length; i++) SharedFacilityState.Add(new FacilityStateEntry { Id = (ushort)i });
+                        for (int i = 0; i < SharedSource.EntryCount; i++) SharedFacilityState.Add(new FacilityStateEntry { Id = (ushort)(100 + i) });
+                        SharedFacilityState.Add(new FacilityStateEntry { Id = 200, State = (byte)0 });
                     }
                     SharedFacilityState.OnListChanged += FacilityStateChanged;
                     ApplyGenericFacilityState();
@@ -139,24 +139,24 @@ namespace NatureCalls.Network
         }
 
         private void DoorChanged(NetworkListEvent<byte> change) => ApplyAllFacilityState();
-        internal void OpenSewerCover(int index) => SetFacilityState((ushort)index, 1, 0);
+        internal void OpenTraversal(int index) => SetFacilityState((ushort)index, 1, 0);
 
-        internal void InteractWithMapFacility(int action, Movement player, ulong clientId)
+        internal void PerformShared(int action, Movement player, ulong clientId)
         {
-            if (!IsServer || MapFacility == null || !MapFacility.Interact(action, player, clientId, out var coin, out var roll)) return;
-            if (coin >= 0) SetFacilityState((ushort)(100 + coin), MapFacility.CoinOwner(coin) == ulong.MaxValue ? (byte)1 : (byte)0, MapFacility.CoinOwner(coin));
+            if (!IsServer || SharedSource == null || !SharedSource.Interact(action, player, clientId, out var coin, out var roll)) return;
+            if (coin >= 0) SetFacilityState((ushort)(100 + coin), SharedSource.OwnerAt(coin) == ulong.MaxValue ? (byte)1 : (byte)0, SharedSource.OwnerAt(coin));
             if (roll != null)
             {
                 var index = Array.IndexOf(items, roll);
                 SharedItems[index] = Snapshot(roll, ItemSnapshot.Carried, clientId);
             }
-            SetFacilityState(200, (byte)MapFacility.RepairProgress, 0);
+            SetFacilityState(200, (byte)SharedSource.Progress, 0);
         }
 
-        internal void ReleaseCoins(ulong clientId)
+        internal void ReleaseOwned(ulong clientId)
         {
-            if (!IsServer || MapFacility == null) return;
-            for (int i = 0; i < MapFacility.CoinCount; i++)
+            if (!IsServer || SharedSource == null) return;
+            for (int i = 0; i < SharedSource.EntryCount; i++)
             {
                 var state = GetFacilityState((ushort)(100 + i));
                 if (state.Owner == clientId + 1) SetFacilityState((ushort)(100 + i), 0, 0);
@@ -176,10 +176,10 @@ namespace NatureCalls.Network
         private void FacilityStateChanged(NetworkListEvent<FacilityStateEntry> change) => ApplyGenericFacilityState();
         private void ApplyGenericFacilityState()
         {
-            if (MapFacility == null) return;
-            for (int i = 0; i < TraversalFacilities.Length; i++) TraversalFacilities[i].SetOpen(GetFacilityState((ushort)i).State != 0);
-            for (int i = 0; i < MapFacility.CoinCount; i++) { var value = GetFacilityState((ushort)(100 + i)); MapFacility.ApplyCoin(i, value.Owner); }
-            MapFacility.ApplyRepairProgress((Map.SewerRepairProgress)GetFacilityState(200).State);
+            if (SharedSource == null) return;
+            for (int i = 0; i < TraversalSources.Length; i++) TraversalSources[i].SetOpen(GetFacilityState((ushort)i).State != 0);
+            for (int i = 0; i < SharedSource.EntryCount; i++) { var value = GetFacilityState((ushort)(100 + i)); SharedSource.ApplyAt(i, value.Owner); }
+            SharedSource.ApplyProgress(GetFacilityState(200).State);
         }
         private void ItemChanged(NetworkListEvent<ItemSnapshot> change) => ApplyAllFacilityState();
         private void ToiletChanged(NetworkListEvent<ulong> change) => ApplyAllFacilityState();

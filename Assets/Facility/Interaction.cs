@@ -36,14 +36,14 @@ namespace NatureCalls.Facility
         bool TraverseGranted(Movement player);
         void SetOpen(bool value);
     }
-    public interface IMapFacility
+    public interface ISharedFacilityState
     {
-        int CoinCount { get; }
-        ulong CoinOwner(int index);
-        void ApplyCoin(int index, ulong owner);
-        NatureCalls.Map.SewerRepairProgress RepairProgress { get; }
-        void ApplyRepairProgress(NatureCalls.Map.SewerRepairProgress progress);
-        bool Interact(int action, Movement player, ulong clientId, out int changedCoin, out PaperRoll dispensed);
+        int EntryCount { get; }
+        ulong OwnerAt(int index);
+        void ApplyAt(int index, ulong owner);
+        byte Progress { get; }
+        void ApplyProgress(byte progress);
+        bool Interact(int action, Movement player, ulong clientId, out int changedEntry, out PaperRoll dispensed);
     }
 
     public interface IInteractableProvider

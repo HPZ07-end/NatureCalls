@@ -36,7 +36,7 @@ namespace NatureCalls.Network
     {
         private Movement movement;
         private Posture posture;
-        private float nextSewerTraversal;
+        private float nextTraversal;
         private StallDoor[] doors => Facilities.Current != null ? Facilities.Current.doors : null;
         private Item[] items => Facilities.Current != null ? Facilities.Current.items : null;
         private Toilet[] toilets => Facilities.Current != null ? Facilities.Current.toilets : null;
@@ -51,10 +51,10 @@ namespace NatureCalls.Network
 
         private Facilities ServerFacilities() => IsServer ? Facilities.Current : null;
 
-        public bool RequestMap2Interaction(int action)
+        public bool RequestInteractLegacy(int action)
         {
             if (!IsSpawned || !IsOwner || Facilities.Current == null) return false;
-            InteractMap2Rpc(action);
+            InteractLegacyRpc(action);
             return true;
         }
 
@@ -67,42 +67,42 @@ namespace NatureCalls.Network
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void InteractFacilityRpc(int stableId)
         {
-            if (activeMode == 0 && cleaningIndex < 0) ServerFacilities()?.InteractWithMapFacility(stableId, movement, OwnerClientId);
+            if (activeMode == 0 && cleaningIndex < 0) ServerFacilities()?.PerformShared(stableId, movement, OwnerClientId);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        private void InteractMap2Rpc(int action)
+        private void InteractLegacyRpc(int action)
         {
             if (activeMode == 0 && cleaningIndex < 0)
-                ServerFacilities()?.InteractWithMapFacility(action, movement, OwnerClientId);
+                ServerFacilities()?.PerformShared(action, movement, OwnerClientId);
         }
 
-        public bool RequestSewerTraversal(ITraversalFacility access)
+        public bool RequestTraversal(ITraversalFacility access)
         {
             if (!IsSpawned || !IsOwner || Facilities.Current == null) return false;
-            int index = Array.IndexOf(Facilities.Current.TraversalFacilities, access);
+            int index = Array.IndexOf(Facilities.Current.TraversalSources, access);
             if (index < 0) return false;
-            RequestSewerTraversalRpc(index);
+            RequestTraversalRpc(index);
             return true;
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        private void RequestSewerTraversalRpc(int index)
+        private void RequestTraversalRpc(int index)
         {
             var host = ServerFacilities();
-            if (host == null || index < 0 || index >= host.TraversalFacilities.Length || Time.time < nextSewerTraversal ||
-                activeMode != 0 || !host.TraversalFacilities[index].CanTraverse(movement)) return;
-            nextSewerTraversal = Time.time + 1.7f;
-            host.OpenSewerCover(index);
-            GrantSewerTraversalRpc(index);
+            if (host == null || index < 0 || index >= host.TraversalSources.Length || Time.time < nextTraversal ||
+                activeMode != 0 || !host.TraversalSources[index].CanTraverse(movement)) return;
+            nextTraversal = Time.time + 1.7f;
+            host.OpenTraversal(index);
+            GrantTraversalRpc(index);
         }
 
         [Rpc(SendTo.Owner)]
-        private void GrantSewerTraversalRpc(int index)
+        private void GrantTraversalRpc(int index)
         {
             var shared = Facilities.Current;
-            if (shared != null && index >= 0 && index < shared.TraversalFacilities.Length)
-                shared.TraversalFacilities[index].TraverseGranted(movement);
+            if (shared != null && index >= 0 && index < shared.TraversalSources.Length)
+                shared.TraversalSources[index].TraverseGranted(movement);
         }
 
         public bool RequestDoor(StallDoor door)
@@ -442,7 +442,7 @@ namespace NatureCalls.Network
                 if (IsServer && shared != null && i < shared.SharedItems.Count)
                     shared.SharedItems[i] = Facilities.Snapshot(item, ItemSnapshot.Landed, 0);
             }
-            if (IsServer) { ClearUse(); LandFlightsOf(OwnerClientId); shared?.ReleaseCoins(OwnerClientId); }
+            if (IsServer) { ClearUse(); LandFlightsOf(OwnerClientId); shared?.ReleaseOwned(OwnerClientId); }
 
         }
     }

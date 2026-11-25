@@ -10,7 +10,7 @@ namespace NatureCalls.Map
     public enum SewerRepairProgress : byte { Blocked, Inspected, Isolated, Cleared, Running, Confirmed }
 
     /// <summary>The Map2 supply and sewer stations. Mutated by the offline player or the room authority.</summary>
-    public sealed class Map2Interactions : MonoBehaviour, IMovementEffectSource, IMapFacility, IInteractableProvider
+    public sealed class Map2Interactions : MonoBehaviour, IMovementEffectSource, ISharedFacilityState, IInteractableProvider
     {
         public Transform[] Coins;
         public Transform VendingMachine;
@@ -34,7 +34,9 @@ namespace NatureCalls.Map
         private const int Vending = 0, Upstream = 1, ValveAction = 2, Inspection = 3, Downstream = 4, FirstCoin = 5;
 
         public SewerRepairProgress RepairProgress { get; private set; }
-        public int CoinCount => Coins.Length;
+        public int EntryCount => Coins.Length;
+        public byte Progress => (byte)RepairProgress;
+        public void ApplyProgress(byte progress) => ApplyProgressVisual((SewerRepairProgress)progress);
         private readonly List<IInteractable> interactables = new();
         public IEnumerable<IInteractable> Interactables => interactables;
         private sealed class Station : IInteractable
@@ -48,6 +50,8 @@ namespace NatureCalls.Map
             public bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestInteract(action) : owner.Interact(action, context.Player, context.ClientId, out _, out _);
         }
 
+        private void OnEnable() => MovementEffectRegistry.Register(this);
+
         private void Awake()
         {
             coinOwners = new ulong[Coins.Length];
@@ -59,7 +63,7 @@ namespace NatureCalls.Map
             downstreamRest = DownstreamWater.localPosition;
             foreach (var roll in VendingStock) roll.Store(VendingMachine.position);
             if (EmergencyPaper != null) EmergencyPaper.PromptLabel = "拾取应急卷纸";
-            ApplyRepairProgress(SewerRepairProgress.Blocked);
+            ApplyProgress((byte)SewerRepairProgress.Blocked);
             interactables.Clear();
             interactables.Add(new Station(this, VendingMachine, Vending));
             interactables.Add(new Station(this, UpstreamWindow, Upstream));
@@ -70,8 +74,7 @@ namespace NatureCalls.Map
         }
 
         private void Start() { foreach (var value in interactables) InteractionRegistry.Register(value); }
-        private void OnEnable() { }
-        private void OnDisable() { foreach (var value in interactables) InteractionRegistry.Unregister(value); }
+        private void OnDisable() { MovementEffectRegistry.Unregister(this); foreach (var value in interactables) InteractionRegistry.Unregister(value); }
 
         public int Wallet(ulong player)
         {
@@ -167,7 +170,7 @@ namespace NatureCalls.Map
             if (action >= FirstCoin)
             {
                 changedCoin = action - FirstCoin;
-                ApplyCoin(changedCoin, clientId + 1);
+                ApplyAt(changedCoin, clientId + 1);
                 return true;
             }
             if (action == Vending)
@@ -177,10 +180,10 @@ namespace NatureCalls.Map
                 roll.Take(player);
                 dispensed = roll;
                 changedCoin = coin;
-                ApplyCoin(coin, Spent);
+                ApplyAt(coin, Spent);
                 return true;
             }
-            ApplyRepairProgress(NextRepairStep(action));
+            ApplyProgress((byte)NextRepairStep(action));
             return true;
         }
 
@@ -207,16 +210,16 @@ namespace NatureCalls.Map
                 _ => RepairProgress
             };
 
-        public ulong CoinOwner(int index) => coinOwners[index];
+        public ulong OwnerAt(int index) => coinOwners[index];
 
-        public void ApplyCoin(int index, ulong owner)
+        public void ApplyAt(int index, ulong owner)
         {
             if (index < 0 || index >= coinOwners.Length) return;
             coinOwners[index] = owner;
             Coins[index].gameObject.SetActive(owner == 0);
         }
 
-        public void ApplyRepairProgress(SewerRepairProgress progress)
+        private void ApplyProgressVisual(SewerRepairProgress progress)
         {
             RepairProgress = progress;
             UpstreamWater.localPosition = upstreamRest + Vector3.up * (progress < SewerRepairProgress.Cleared ? .1f : 0);
