@@ -8,7 +8,7 @@ namespace NatureCalls.Facility
     /// A toilet a player can sit on. One player at a time: the seat is occupied until that player stands up.
     /// Which toilet a player uses is decided by the stall they stand in (<see cref="StallDoor.Containing"/>).
     /// </summary>
-    public sealed class Toilet : InteractableComponent, ISharedFacilityState, IWaterFixture
+    public sealed class Toilet : InteractableComponent, ISharedFacilityState, IWaterFixture, IInteractableProvider, IHoldInteractable
     {
         public Transform Anchor;
         public Transform Interior;
@@ -20,14 +20,31 @@ namespace NatureCalls.Facility
         public void SetPipe(Pipe value) => pipe = value;
         public void SetFlushTarget(Transform value) => flushTarget = value;
         public bool IsBackflow { get; private set; }
+        /// <summary>Versus: broken by the saboteur until repaired (owned by the saboteur-actions work).</summary>
+        public bool IsBroken { get; set; }
+        /// <summary>Versus: a toilet a player losing control can run to.</summary>
+        public bool IsAvailable => !IsOccupied && !IsBackflow && !IsBroken;
+        public float HoldSeconds => RoleRegistry.IsSaboteur(Occupant) ? 0f : 2f;
+        public System.Collections.Generic.IEnumerable<IInteractable> Interactables { get { yield return this; } }
         public override int Priority => 100;
         public override float Distance => Interaction.ReachDistance;
         public override Transform Target => flushTarget != null ? flushTarget : transform;
         public override Vector3 AimPoint => flushTarget != null ? flushTarget.position : transform.position + transform.up * .55f - transform.forward * .12f; // fallback: above and behind the bowl
-        public override bool CanInteract(InteractionContext context) => Interaction.InReach(context, Target) && (!IsOccupied || Occupant == context.Player) && context.Player != Occupant && context.Player.Seat != Anchor;
-        public override string Prompt(InteractionContext context) => "E  冲水";
+        public override bool CanInteract(InteractionContext context) => Interaction.InReach(context, Target) &&
+            ((Item.FindCarriedBy(context.Player) is Plunger && IsBackflow && ConnectedPipe != null && ConnectedPipe.IsBlocked) ||
+             (RoleRegistry.IsSaboteur(context.Player) && Item.FindCarriedBy(context.Player) is PaperRoll && !IsBroken && Cooldown.Ready(context.Player, this)) ||
+             ((!IsBroken && (!IsOccupied || Occupant == context.Player) && context.Player != Occupant && context.Player.Seat != Anchor)));
+        public override string Prompt(InteractionContext context) => RoleRegistry.IsSaboteur(context.Player) && Item.FindCarriedBy(context.Player) is PaperRoll ? "E  塞纸" : "E  冲水";
         public override bool Perform(InteractionContext context)
         {
+            if (RoleRegistry.IsSaboteur(context.Player) && Item.FindCarriedBy(context.Player) is PaperRoll paper)
+            {
+                if (context.Online) return context.Requests != null && context.Requests.RequestInteract(this);
+                if (!Cooldown.Claim(context.Player, this, 20f) || pipe == null) return false;
+                pipe.AddSabotagePaper(); paper.gameObject.SetActive(false); return true;
+            }
+            if (Item.FindCarriedBy(context.Player) is Plunger && pipe != null && pipe.IsBlocked)
+            { if (context.Online) return context.Requests != null && context.Requests.RequestInteract(this); return pipe.ClearAndReport(); }
             if (context.Online) return context.Requests != null && context.Requests.RequestInteract(this);
             if (pipe != null && pipe.IsBlocked) pipe.TriggerBackflow(this); return true;
         }

@@ -56,7 +56,9 @@ namespace NatureCalls.Editor
         public static void Toileting() => ToiletingSetup.Configure();
         public static void MapIntegration() => MapLayoutIntegration.Configure();
         public static void Map2Integration() { NatureCalls.Editor.Map2Integration.Apply(); Validate(); }
+        public static void Map3Integration() { NatureCalls.Editor.Map3Integration.Apply(); Validate(); }
         public static void Plumbing() { NatureCalls.Editor.PlumbingIntegration.Apply(); Validate(); }
+        public static void MessArt() { NatureCalls.Editor.MessArtSetup.Apply(); Validate(); }
 
         public static void Facilities()
         {

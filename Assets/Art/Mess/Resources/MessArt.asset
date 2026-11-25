@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8953fcc7f3f9448cfaad96adf1a6e93f, type: 3}
+  m_Name: MessArt
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.MessArt
+  SoftSwirl: {fileID: 8751223698934531740, guid: 214545ebd9f9f48ff9ce90125ee483d0, type: 3}
+  SoftSquashed: {fileID: -6051547563838322221, guid: da0b8eb354eba48129dfb5c33252fa84, type: 3}
+  HardLog: {fileID: 3792200939896540545, guid: dc9e678723221460f8abfb535cecb2e1, type: 3}
+  HardPellets: {fileID: -9126198814596608710, guid: ef54e4f4be30a47c08996952b40cd6c8, type: 3}
+  LooseSplat: {fileID: 6011516569495368836, guid: ca19ab5c370e94cd491ba76b56363aeb, type: 3}
+  Vomit: {fileID: 5326375361769706373, guid: d2db81c4e1528430ca85969d4618ba86, type: 3}
+  UrinePuddle: {fileID: 2194757198338282180, guid: a2a51c7de747e41c2ba6649cd53e636f, type: 3}
+  ToiletSmear: {fileID: 9016934774309237750, guid: 87d047ebe91b84e05b8872bafefe6ac6, type: 3}
+  Stool: {fileID: 2100000, guid: 0201b09e4c75e408cafed1c4715b02b4, type: 2}
+  StoolDry: {fileID: 2100000, guid: 54a1206ef1ede4980b5956cca6ec9bc8, type: 2}
+  Loose: {fileID: 2100000, guid: 674d6ba94a49c421fb7a95e791cf623a, type: 2}
+  Bubble: {fileID: 2100000, guid: 785b2f8e10384442cb17265a12d4fd74, type: 2}
+  VomitBase: {fileID: 2100000, guid: b848f8835da3f4070b6120973a341eee, type: 2}
+  VomitChunk: {fileID: 2100000, guid: afc54fee02a3c4c7c849f2cb93987059, type: 2}
+  Urine: {fileID: 2100000, guid: dd011dc1427e94af4b70ef46af9bcf74, type: 2}
+  Smear: {fileID: 2100000, guid: 8d62e207af4054a7b8d10dfbe6b048d7, type: 2}
+  Backflow: {fileID: 2100000, guid: 648c617803bf14730b4aa560fb94056a, type: 2}
+  BackflowBubble: {fileID: 2100000, guid: b2d1cb04d5db9422f9b80929c32aff9b, type: 2}
+  Stink: {fileID: 2100000, guid: ea7f7882804494487be1da9d51a45074, type: 2}
+  Sparkle: {fileID: 2100000, guid: 86736d2c95d8648e2b3c1e1cc83f8dc3, type: 2}
+  Splash: {fileID: 2100000, guid: 8d022d027b00b4bb9a69fd3d6843400f, type: 2}

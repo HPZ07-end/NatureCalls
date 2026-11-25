@@ -84,13 +84,13 @@ namespace NatureCalls.Tests
             Align();
             yield return null;
             Assert.That(Find("ToiletingPanel").activeSelf, Is.True);
-            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("保持"));
-            Assert.That(Find("AccuracyLabel").activeSelf, Is.True);
-            Assert.That(Find("TargetOverlay").activeSelf, Is.True, "The target circle is drawn while holding.");
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("用力中"));
+            Assert.That(Find("AccuracyLabel").activeSelf, Is.False, "Defecation is blind: no live accuracy (GLOSSARY 统一如厕过程).");
+            Assert.That(Find("TargetOverlay").activeSelf, Is.False, "No target circle while holding; only the timed look-down marker.");
             Assert.That(Find("LandingMarker").activeSelf, Is.True);
             Score(5, 5);
             yield return null;
-            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Not.Contain("保持"), "The toileting prompt hides when the toileting ends.");
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Not.Contain("用力中"), "The toileting prompt hides when the toileting ends.");
             Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("F  用手擦拭"), "Unwiped without paper, the F wipe prompt is offered.");
             Assert.That(Find("AccuracyLabel").activeSelf, Is.False);
             Assert.That(Find("TargetOverlay").activeSelf, Is.False);
@@ -254,15 +254,17 @@ namespace NatureCalls.Tests
             Assert.That(world.DroppingCount, Is.EqualTo(1)); Assert.That(input.CleaningProgress, Is.Zero);
             Place(mess.transform.position - Vector3.forward * .5f, Vector3.forward);
             input.BeginCleaning(mess); input.ContinueCleaning(true, 3);
-            Assert.That(world.DroppingCount, Is.Zero); Assert.That(needs.Disgust, Is.EqualTo(5));
+            Assert.That(world.DroppingCount, Is.Zero); Assert.That(needs.Composure, Is.EqualTo(NeedsRules.ComposureMax - NeedsRules.CleaningDisgust).Within(.001f));
         }
         [UnityTest] public IEnumerator PuddleAddsDisgustOnlyNearby()
         {
             world.AddMess(MessKind.Puddle, player.transform.position);
+            player.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            float before = needs.Composure;
             yield return new WaitForSeconds(1);
-            Assert.That(needs.Disgust, Is.EqualTo(2).Within(.5));
-            Place(player.transform.position + Vector3.right * 3, Vector3.forward); float before = needs.Disgust;
-            yield return new WaitForSeconds(.3f); Assert.That(needs.Disgust, Is.EqualTo(before));
+            Assert.That(before - needs.Composure, Is.EqualTo(NeedsRules.PuddleDisgustPerSecond).Within(.02f));
+            Place(player.transform.position + Vector3.right * 3, Vector3.forward); before = needs.Composure;
+            yield return new WaitForSeconds(.3f); Assert.That(needs.Composure, Is.GreaterThanOrEqualTo(before), "Outside the puddle there is no puddle deduction.");
         }
         [UnityTest] public IEnumerator HostValidatesUrinalResultBeforeApplyingIt()
         {
@@ -298,7 +300,7 @@ namespace NatureCalls.Tests
             float deadline = Time.time + 5;
             while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
             player = session.Manager.LocalClient.PlayerObject.GetComponent<Movement>();
-            input = player.GetComponent<PlayerInput>(); input.enabled = false; needs = player.GetComponent<PlayerNeeds>(); needs.BeginRound(0);
+            input = player.GetComponent<PlayerInput>(); input.enabled = false; needs = player.GetComponent<PlayerNeeds>(); needs.BeginRound(0); needs.VisionSuppressedForTests = true;
             var sync = player.GetComponent<FacilitySync>(); var box = Object.FindFirstObjectByType<Toolbox>();
             Place(box.transform.position, Vector3.forward); Assert.That(sync.RequestToolbox(box), Is.True);
             yield return null; Assert.That(Enumerable.Range(0, Facilities.Current.SharedItems.Count).Any(i => Facilities.Current.SharedItems[i].Mode == ItemSnapshot.Carried), Is.True);
@@ -308,7 +310,7 @@ namespace NatureCalls.Tests
             float end = Time.time + 3.4f;
             while (Time.time < end) { input.ContinueCleaning(true, Time.deltaTime); yield return null; }
             Assert.That(Facilities.Current.SharedMesses[mess.Index].Kind, Is.EqualTo(MessKind.None));
-            Assert.That(world.DroppingCount, Is.Zero); Assert.That(needs.Disgust, Is.EqualTo(5));
+            Assert.That(world.DroppingCount, Is.Zero); Assert.That(needs.Composure, Is.EqualTo(NeedsRules.ComposureMax - NeedsRules.CleaningDisgust).Within(.001f));
             Assert.That(sync.RequestToolbox(box), Is.True); yield return null;
             Assert.That(Enumerable.Range(0, Facilities.Current.SharedItems.Count).Any(i => Facilities.Current.SharedItems[i].Mode == ItemSnapshot.Stored), Is.True);
         }

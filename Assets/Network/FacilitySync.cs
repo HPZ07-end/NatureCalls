@@ -126,6 +126,41 @@ namespace NatureCalls.Network
             return true;
         }
 
+        /// <summary>A walker's machine kicks a resting hard stool: it simulates the flight like a throw and the host relays it.</summary>
+        public bool RequestKick(Item roll, Vector3 velocity)
+        {
+            if (!IsSpawned || !IsOwner || items == null) return false;
+            var index = Array.IndexOf(items, roll);
+            if (index < 0 || roll.IsPickedUp || roll.Stored) return false;
+            roll.ApplySharedThrow(roll.transform.position + Vector3.up * .03f, roll.transform.rotation, velocity, true);
+            KickItemRpc(index, roll.transform.position, roll.transform.rotation, velocity);
+            return true;
+        }
+
+        [Rpc(SendTo.Server)]
+        private void KickItemRpc(int index, Vector3 position, Quaternion rotation, Vector3 velocity, RpcParams rpc = default)
+        {
+            var host = ServerFacilities();
+            if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.items.Length ||
+                index >= host.SharedItems.Count) return;
+            var state = host.SharedItems[index];
+            if (state.Mode != ItemSnapshot.OnMap && state.Mode != ItemSnapshot.Landed) return;
+            if (!IsOwnedByServer) host.items[index].FollowShared(position, rotation, velocity);
+            var flying = Moving(ItemSnapshot.Flying, OwnerClientId + 1, position, rotation, velocity);
+            flying.Uses = state.Uses;
+            host.SharedItems[index] = flying;
+        }
+
+        /// <summary>The owner's urine rebounded onto them; the server applies it where needs tick.</summary>
+        public void ReportSplash() { if (IsSpawned && IsOwner) SplashRpc(); }
+
+        [Rpc(SendTo.Server)]
+        private void SplashRpc(RpcParams rpc = default)
+        {
+            if (rpc.Receive.SenderClientId != OwnerClientId) return;
+            BodyEvents.Splash(movement, BodyEvents.SplashKind.OwnRebound);
+        }
+
         public bool RequestSeat(Toilet toilet)
         {
             if (!IsSpawned || !IsOwner || toilets == null) return false;
@@ -372,7 +407,7 @@ namespace NatureCalls.Network
             var box = host.toolboxes[index];
             if (!box.Interact(movement)) return;
             int item = Array.IndexOf(host.items, box.Mop);
-            host.SharedItems[item] = Facilities.Snapshot(box.Mop, box.Mop.Stored ? ItemSnapshot.Stored : ItemSnapshot.Carried, OwnerClientId);
+            if (item >= 0) host.SharedItems[item] = Facilities.Snapshot(box.Mop, box.Mop.Stored ? ItemSnapshot.Stored : ItemSnapshot.Carried, OwnerClientId);
         }
         public void RequestClean(int index, bool held)
         {

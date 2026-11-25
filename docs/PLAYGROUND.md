@@ -1,5 +1,9 @@
 # M1 Multiplayer Playground
 
+## 对抗模式 C：离线验收
+
+捣蛋者由测试直接调用 `RoleRegistry.Set(player, PlayerRole.Saboteur)`。手持卷纸对准马桶长按 E 约 2 秒后塞纸，管路增加 40；手持扳手对准损坏设施长按 F 3 秒修复，手持疏通器对准堵塞马桶长按 F 4 秒清空管路。捣蛋者对准洗手台按 E 接水，再按 E 洒出，积水出现在前方 1.5 米；对准关着且有人使用的隔间门按 E 触发 `BodyEvents.Knock`。各动作的冷却在服务器 `Perform` 重新检查。运行 `python3 scripts/unity.py plumbing` 会通过 Editor API 在 Playground 和 Map2 接上 Breakable，并在工具箱生成 Wrench、Plunger；接线完成后应在两张地图各检查一次。
+
 本次语义授权：2026-10-19 用户「Multiplayer Playground Initialization」，见根 [GLOSSARY](../GLOSSARY.md)。本文件描述技术实现与验证方式，不重新定义游戏规则。工程仍用 Unity **6000.3.26f1**，游戏版本不提升（`0.1.0-alpha.1`）。
 
 ## 环境与依赖
@@ -36,6 +40,9 @@ E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取
 - `Input/PlayerInput`：Input System 将本地键鼠转化为移动、跳跃、观察、姿态与交互调用。
 - `Camera/CameraController`：唯一实际 Camera + CinemachineBrain，两个 CinemachineCamera 的优先级和 Blend；仅绑定本地角色。
 - `Player/PlayerNeeds`：急迫值与恶心值。规则在 Core `NeedsRules`：急迫值上限 100、从 0 涨满 60 秒、开局初值随机 0–40、如厕中不涨、大便结束清零、小便减半；隔间外如厕 +10 恶心值；任一项到阈值（100）全队失败。离线由 Playground 驱动，联机由房主驱动并经 `NeedsSync` 的 `SharedUrgency`/`SharedDisgust`/`SharedUnwiped`/`SharedHandsDirty` 同步；地图 HUD 的 `NeedsView` 显示本地玩家的两项数值。三种污物由 `Playground` 从同一对象池取出，联机时类型、位置和马桶索引经服务器拥有的 `Facilities` 的 `SharedMesses` 同步。
+- 粪便种类（GLOSSARY `Mess/StoolKind`，2026-11-26 起，数值暂定）：大便结算时由服务器或离线 `Facility/StoolOutput` 按 Core `StoolRules` 抽取软便/硬便/拉稀（基础 0.6/0.25/0.15；捣蛋者硬 +0.35；急迫值 ≥ 90% 或失控时稀 +0.35；舒爽度时软 +0.2×舒爽度，舒爽度待 PlayerNeeds 发布后接入）。落地：软便是 `Dropping`（螺旋堆或压扁堆），拉稀是新的 `MessKind.LooseStool`（薄片带气泡，站上去与 WetZone 相同的惯性 8），二者仍走 `IMessSink.AddMess`（带来源）与 `SharedMesses`；硬便是 `Facility/HardStool` 物品（干裂长条或一串小球），走过会被踢飞，E 拾取扣 8 点镇定值，R 丢掷，落进马桶开口时加 45 堵塞并回到存放池，同步沿用 `SharedItems`（每个地图场景运行时生成 6 个存放态硬便，用完时退回软便堆）。进马桶：堵塞值软 +25、硬 +45、稀 +10；管路已堵时拉稀立即倒灌。气味权重软 1.5、稀 1.0、硬 0.4，决定污物上方绿色臭气精灵的数量和大小；脏度权重建议软 1.0、硬 0.6、稀 1.2（`StoolRules.DirtWeight`，由对局的脏度规则取用）。
+- 正式污物模型：`scripts/blender/mess_models.py` 用 Blender 后台生成（每个 < 2000 三角面，原点在底部中心），导入 `Assets/Art/Mess/`；`python3 scripts/unity.py mess-art` 配置导入设置、URP 材质与 `Assets/Art/Mess/Resources/MessArt.asset`。运行时 `Mess.Configure` 调用 `MessLook.Apply`，按种类显示软便堆、拉稀、失禁（大摊稀便加压扁堆）、呕吐物、尿迹、倒灌和马桶内壁抹痕；模型挂在单独的 `… look` 对象上，Mess 本身的位置、缩放和清洁判定不变。
+- 如厕视觉交互（GLOSSARY `Squatting/统一如厕过程`，2026-11-26，数值暂定）：坐在马桶上大便时把鼠标往下移即低头（`Input/ToiletGaze`），镜头从头顶看向臀部下方，地面出现落点（绿色在马桶开口内，红色在外）；每次坐下约 3 秒的「看」额度，用完视线被拉回、不能再低头。低头时 `Movement.Pitch` > 45°，由 `PlayerNeeds` 按 +1/秒 计入舒爽度，落点漂移 ×0.6。结束前约 1.2 秒大便从臀部挤出并按重力下落：落进马桶有水花，并有 50% 溅到屁股（全屏水滴与「噗通！屁股一凉」字幕，不扣镇定值，是否扣待定）；落在外面溅出棕色小点。小便时视角转为正对小便池，尿流是一条从胯部出发、落在鼠标瞄准点上的抛物线；打在目标区外的池壁上按入射角反弹出飞溅，入射接近正面（余弦 ≥ 0.8）持续 0.35 秒时溅到自己，扣 15 镇定值（`BodyEvents.Splash(OwnRebound)`，每次小便最多一次，联机经服务器）。舒爽增益开始时头顶出现金色闪光。均为本机表现，其他玩家看不到尿流和下落；目前没有声音资源。
 - `Facility/Toilet`：姿态 Anchor、内部可见目标与占用（同一时间一人，站起释放；联机时由房主判定并经服务器拥有的 `Facilities` 的 `SharedFacilityState` 同步）；`TargetCenter`/`TargetRadius` 表示目标区；Anchor 只识别设施，坐下不再吸附。没有冲水状态。使用哪个马桶由 `StallDoor.Containing`（隔间门后方且在隔间范围内）决定。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
 - `Map/Playground` 出生点：`Spawns[i]` 对应房间槽位 i（房主为 Spawn 1）。由 `python3 scripts/unity.py spawn-points`（菜单 `NatureCalls/Place Playground Spawn Points`）以 Spawn 1 为起点在场景中实测放置：脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 之间无遮挡，间距至少 1.2m。修改房间布局后重新运行。
 - `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
@@ -51,6 +58,14 @@ E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取
 - `Editor/Playground`：用 Unity API 创建场景、材质、URP 设置和 Prefab。
 
 保留原逻辑目录，不建立同义的 Networking/Environment 体系。新增一个 `NatureCalls.Runtime` 总程序集是为了让 Editor 和测试能引用实际组件；没有逐模块拆程序集；Core 已包含本次准度与需求规则。
+
+## 对抗模式施工版
+
+从大厅开始一局后，服务器先发布 4 秒 Reveal，再进入 Playing；默认局长 480 秒，最后一波后保留 45 秒收尾。离线直接播放 Playground 时可在命令行加入 `-saboteur`，或设置 `MatchDirector.ForceSaboteur = true` 做捣蛋者路径测试。每局身份通过 `LobbyRoom.Roles` 同步，客户端角色由 `RoleRegistry` 读取；`MatchContext.Phase`、`Elapsed`、`Tidiness` 和 `Schedule` 是 UI/身体逻辑的只读入口。
+
+污物统一经过 `Playground.AddMess`/`Facilities.SharedMesses`，`Mess.SaboteurSource` 表示来源，`DirtField.Total()` 经 `MatchRules.Tidiness` 计算共享干净值。结算条件是干净值归零（捣蛋者胜）或最后收尾结束时仍大于零（保洁队胜）；急迫值和镇定值不再直接结束对局。 `MatchContext.Winner`、`EndReason`、`Settlement` 提供结算快照；Ended 阶段默认停留 8 秒。随机事件通过 `MatchDirector.LastEventText`、`EventSerial`、`BlackoutRemaining` 暴露给 UI，服务器同步事件造成的 Pipe、售纸机和高峰变化。
+
+验证顺序：先关闭同工程 Unity GUI，再运行 `python3 scripts/unity.py test-editmode`、`python3 scripts/unity.py test-playmode`、`python3 scripts/unity.py build-server`，最后运行 `python3 -m unittest discover -s scripts/tests` 与 `python3 scripts/check.py`。
 
 ## Lobby 流程
 
@@ -139,6 +154,12 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 ## 验证状态与限制
 
+## 对抗身体规则（feat/versus-body）
+
+离线 Playground 中由 `PlayerNeeds` 驱动两条急迫值：`Bladder`、`Bowel`，`Urgency` 是两者最大值的兼容读数。UI 可读取 `Composure`、`InEndurance`、`EnduranceIntensity`、`Vomiting`、`VomitProgress`、`ComfortIntensity` 和 `ComfortBoostRemaining`；事件 `OnAccident`、`OnRelieved`、`OnVomit` 可用于统计与表现。移动限制通过 `IMovementEffectSource` 自动合并。网络模式由 `NeedsSync` 发布相同状态，极限忍耐只发布布尔值。
+
+对抗身体回归使用 `python3 scripts/unity.py test-playmode --test-filter NatureCalls.Tests.VersusBodyTests`；该组覆盖分段限制、极限忍耐、溅射/敲门、呕吐暂停与溅射、捣蛋者便意速率。完整回归仍使用不带筛选器的 `test-playmode`。
+
 实际日志及测试结果见 [M1 验收记录](records/m1-2026-10-20.md)，2026-10-30 居中镜头回归见 [开发记录](records/status-log.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。
 
 原型以可调镜头验证为目标；马桶有一人占用和准度结算，但没有排队或冲水，不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，设施与需求结算以 IsServer 为准，兼容 Host 与专用服务器；Tidiness 尚未实现。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。隔间外 C 原地如厕不保证有马桶构图；马桶 Anchor 是可复现的可见性测试位置。
@@ -159,6 +180,8 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 Owner 本地累计落点在圈内的时间；结束经 `FacilitySync` 上报准度与玩家位置。服务器验证请求者、开始记录、最低时长、设施占用、所在位置以及数值范围后应用需求和污物。此模式不验证客户端每一帧轨迹，不是反作弊方案。清洁服务器记录开始时间，并要求持续心跳、距离、朝向及持有拖把；松开时主动取消，缺失心跳也取消。
 ## 联机大厅补充
+
+Map3（后室）接入：运行 `python3 scripts/unity.py map3-integration`。两段可走区通过 `Map/Portal` 循环连接，缓冲段只保留静态外观；本版本不做缓冲段真实状态同步、不加入恐怖元素，也不做小便池。
 
 「创建服务器房间」向 broker 请求随机三位房间号；加入时输入三位数字，或继续输入 `IP:端口` 直连。大厅监听 UDP 47777，自动列出同一局域网的直连 Host；信标 4 秒未刷新就移除，满员或已进入选图的房间显示但不可点击。
 

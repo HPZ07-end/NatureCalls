@@ -28,6 +28,9 @@ namespace NatureCalls.Camera
         public LayerMask CameraCollisionLayers = 1;
         [Range(.05f, .4f)] public float CameraRadius = .15f;
         public Movement Target { get; private set; }
+        /// <summary>Toileting look-down (0–1, set by Input/ToiletGaze): the seated view bows over <see cref="GazePoint"/>.</summary>
+        public float Gaze { get; set; }
+        public Vector3 GazePoint { get; set; }
         private Posture posture;
         private Renderer[] body;
         private Dictionary<GameObject, int> originalBodyLayers;
@@ -86,7 +89,7 @@ namespace NatureCalls.Camera
             SetPosture(posture.State);
             UpdateTargets();
             // Hide only from the local first-person output. Mirror cameras still render this layer.
-            bool hidden = (!posture.IsSquatting && !Target.Aiming) || Vector3.Distance(Output.transform.position, Eye.position) < .65f;
+            bool hidden = (!posture.IsSquatting && !Target.Aiming) || Gaze > .3f || Vector3.Distance(Output.transform.position, Eye.position) < .65f;
             Output.cullingMask = hidden ? outputCullingMask & ~(1 << LocalBodyLayer) : outputCullingMask;
             foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
         }
@@ -101,6 +104,14 @@ namespace NatureCalls.Camera
                 Shoulder.SetPositionAndRotation(Target.transform.position + Vector3.up * ThirdPersonHeight,
                     Quaternion.Euler(seated ? SeatedPitch : ThirdPersonPitch, Target.transform.eulerAngles.y, 0));
             follow.CameraDistance = seated ? SeatedDistance : ThirdPersonDistance;
+            if (seated && Gaze > 0)
+            {
+                // Head bowed between the knees: from just above the body, straight down at the landing point.
+                var head = Target.transform.position + Vector3.up * 1.05f + Target.transform.forward * .12f;
+                var down = Quaternion.LookRotation(GazePoint - head, Target.transform.forward);
+                Shoulder.SetPositionAndRotation(Vector3.Lerp(Shoulder.position, head, Gaze), Quaternion.Slerp(Shoulder.rotation, down, Gaze));
+                follow.CameraDistance = Mathf.Lerp(SeatedDistance, .02f, Gaze);
+            }
             follow.ShoulderOffset = new Vector3(ShoulderOffset, 0, 0);
             follow.VerticalArmLength = 0;
             follow.CameraSide = 1;
