@@ -1,6 +1,6 @@
+using System.Linq;
 using UnityEngine;
 using NatureCalls.Player;
-using Unity.Netcode;
 
 namespace NatureCalls.Facility
 {
@@ -17,8 +17,8 @@ namespace NatureCalls.Facility
         public int SharedEntryCount => 1;
         public SharedFacilityValue ReadShared(int index)
         {
-            var network = Occupant != null ? Occupant.GetComponentInParent<NetworkObject>() : null;
-            return new SharedFacilityValue(0, network != null ? network.OwnerClientId + 1 : 0);
+            var owner = Occupant != null ? Occupant.GetComponentsInParent<MonoBehaviour>(true).OfType<IClientOwner>().FirstOrDefault() : null;
+            return new SharedFacilityValue(0, owner != null ? owner.ClientId + 1 : 0);
         }
         public void ApplyShared(int index, SharedFacilityValue value) => Occupant = FindMovement(value.Owner);
         public void ReleaseOwner(ulong clientId) { if (OwnerId() == clientId + 1) Occupant = null; }
@@ -50,8 +50,8 @@ namespace NatureCalls.Facility
             if (owner == 0) return null;
             foreach (var player in FindObjectsByType<Movement>(FindObjectsSortMode.None))
             {
-                var network = player.GetComponentInParent<NetworkObject>();
-                if (network != null && network.OwnerClientId + 1 == owner) return player;
+                var identity = player.GetComponentsInParent<MonoBehaviour>(true).OfType<IClientOwner>().FirstOrDefault();
+                if (identity != null && identity.ClientId + 1 == owner) return player;
             }
             return null;
         }

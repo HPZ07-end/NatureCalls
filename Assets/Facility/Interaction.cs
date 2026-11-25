@@ -73,6 +73,9 @@ namespace NatureCalls.Facility
         void ReleaseOwner(ulong clientId);
     }
 
+    /// <summary>Network adapters expose an owner id without making Facility depend on Network.</summary>
+    public interface IClientOwner { ulong ClientId { get; } }
+
     public interface IInteractableProvider
     {
         IEnumerable<IInteractable> Interactables { get; }
