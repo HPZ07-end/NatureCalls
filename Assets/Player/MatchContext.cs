@@ -16,11 +16,24 @@ namespace NatureCalls.Player
         public static double Elapsed { get; set; }
         /// <summary>Tidiness 0–100, published by the match.</summary>
         public static float Tidiness { get; set; } = 100f;
+        public static float BlackoutRemaining { get; internal set; }
+        public static string LastEventText { get; internal set; } = "";
+        public static int EventSerial { get; internal set; }
+        public static MatchWinner Winner { get; internal set; }
+        public static string EndReason { get; internal set; } = "";
+        public static MatchSettlement Settlement { get; internal set; }
         public static bool Versus => Phase == MatchPhase.Reveal || Phase == MatchPhase.Playing;
         public static float OffsetFor(Movement player) => player != null && offsets.TryGetValue(player, out var offset) ? offset : 0f;
         public static void SetOffset(Movement player, float offset) { if (player != null) offsets[player] = offset; }
         public static float BowelMultiplier(Movement player) => Phase == MatchPhase.Playing ? Schedule.Multiplier(Elapsed, OffsetFor(player)) : 1f;
-        public static void Reset() { offsets.Clear(); Phase = MatchPhase.None; Schedule = UrgeSchedule.None; Elapsed = 0; Tidiness = 100f; }
+        public static void Reset() { offsets.Clear(); Phase = MatchPhase.None; Schedule = UrgeSchedule.None; Elapsed = 0; Tidiness = 100f; BlackoutRemaining = 0; LastEventText = ""; EventSerial = 0; Winner = MatchWinner.None; EndReason = ""; Settlement = default; }
+    }
+
+    public readonly struct MatchSettlement
+    {
+        public readonly MatchWinner Winner; public readonly string Reason;
+        public readonly int Produced, Cleaned, Accidents, Vomits, ToiletingSuccesses, Backflows;
+        public MatchSettlement(MatchWinner winner, string reason, int produced, int cleaned, int accidents, int vomits, int toiletingSuccesses, int backflows) { Winner = winner; Reason = reason ?? ""; Produced = produced; Cleaned = cleaned; Accidents = accidents; Vomits = vomits; ToiletingSuccesses = toiletingSuccesses; Backflows = backflows; }
     }
 
     /// <summary>Shared contract: body events raised by facilities and other players, consumed by needs.</summary>

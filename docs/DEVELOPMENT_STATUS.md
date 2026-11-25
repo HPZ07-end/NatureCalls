@@ -1,4 +1,4 @@
-2026-11-26：对抗模式任务 A 已接入 Reveal→Playing→收尾、角色同步、DirtField 干净值与带来源污物；Unity EditMode 45/45 通过，PlayMode/服务器构建待本分支继续验证。
+2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
 2026-11-25 服务器房间号与局域网自动发现（分支 `feat/server-room-codes`，尚未合入 dev）：broker（TCP 8100）分配随机三位房间号，按需启动 UDP 8001–8099 动态房间，空置 300 秒后房间自行退出；8000 常驻房间保留。局域网直连房间经 UDP 47777 广播，大厅自动列出，IP:端口直连与 Relay 保留。EditMode 41/41、PlayMode 42/43（1 个既有 Relay Ignored）、macOS 与 Linux Server 构建通过；本机 broker 生命周期、两客户端房间号加入、局域网列表点击加入通过。已部署到课程服务器：版本目录 `/opt/naturecalls/releases/9dd8172-20261125T165824Z-f3ed9a`，8000 与 broker active；从公网用两个 macOS 客户端经 UI 创建并以房间号 328 加入同一房间通过，离开后房间 300 秒自行退出（退出码 0）、房间号查询返回 404。记录 `Artifacts/20261125T172149Z-deploy-server/summary.json`、`Artifacts/20261125T172222Z-2730b3-room-e2e/`。未执行：真人跨公网联机、Windows 客户端、两台真实设备的局域网发现。

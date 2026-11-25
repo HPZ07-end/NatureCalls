@@ -56,7 +56,7 @@ E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取
 
 从大厅开始一局后，服务器先发布 4 秒 Reveal，再进入 Playing；默认局长 480 秒，最后一波后保留 45 秒收尾。离线直接播放 Playground 时可在命令行加入 `-saboteur`，或设置 `MatchDirector.ForceSaboteur = true` 做捣蛋者路径测试。每局身份通过 `LobbyRoom.Roles` 同步，客户端角色由 `RoleRegistry` 读取；`MatchContext.Phase`、`Elapsed`、`Tidiness` 和 `Schedule` 是 UI/身体逻辑的只读入口。
 
-污物统一经过 `Playground.AddMess`/`Facilities.SharedMesses`，`Mess.SaboteurSource` 表示来源，`DirtField.Total()` 经 `MatchRules.Tidiness` 计算共享干净值。结算条件是干净值归零（捣蛋者胜）或最后收尾结束时仍大于零（保洁队胜）；急迫值和镇定值不再直接结束对局。
+污物统一经过 `Playground.AddMess`/`Facilities.SharedMesses`，`Mess.SaboteurSource` 表示来源，`DirtField.Total()` 经 `MatchRules.Tidiness` 计算共享干净值。结算条件是干净值归零（捣蛋者胜）或最后收尾结束时仍大于零（保洁队胜）；急迫值和镇定值不再直接结束对局。 `MatchContext.Winner`、`EndReason`、`Settlement` 提供结算快照；Ended 阶段默认停留 8 秒。随机事件通过 `MatchDirector.LastEventText`、`EventSerial`、`BlackoutRemaining` 暴露给 UI，服务器同步事件造成的 Pipe、售纸机和高峰变化。
 
 验证顺序：先关闭同工程 Unity GUI，再运行 `python3 scripts/unity.py test-editmode`、`python3 scripts/unity.py test-playmode`、`python3 scripts/unity.py build-server`，最后运行 `python3 -m unittest discover -s scripts/tests` 与 `python3 scripts/check.py`。
 

@@ -45,7 +45,15 @@ namespace NatureCalls.Network
         public NetworkList<MatchRoleEntry> Roles;
         public NetworkVariable<int> EventKind = new(-1);
         public NetworkVariable<int> EventSerial = new(0);
+        public NetworkVariable<MatchWinner> VersusWinner = new(MatchWinner.None);
+        public NetworkVariable<int> VersusReason = new(0);
+        public NetworkVariable<MatchSettlementNet> Settlement = new();
         private double nextRandomEvent = -1;
+        private double settlementUntil = -1;
+        private bool settlementPending;
+        public static float SettlementDurationSeconds { get; set; } = MatchRules.SettlementSeconds;
+        public static float CleanupDurationSeconds { get; set; } = MatchRules.CleanupSeconds;
+        public static float RevealDurationSeconds { get; set; } = MatchRules.RevealSeconds;
         public const string RoundOverMessage = "时间到，本局结束，回到房间。";
         private readonly HashSet<ulong> loaded = new();
         private bool spawnedPlayers;
@@ -109,6 +117,7 @@ namespace NatureCalls.Network
         public void RequestStart() => RequestStartRpc();
         public void CancelMapSelection() => CancelMapSelectionRpc();
         public void ChooseMap(int choice) => ChooseMapRpc(choice);
+        public void EndForTests(MatchWinner winner = MatchWinner.Keepers) { if (IsServer) BeginSettlement(winner, ReasonFor(winner)); }
 
         private void AddMember(ulong clientId)
         {
@@ -123,7 +132,7 @@ namespace NatureCalls.Network
             loaded.Remove(clientId);
             if (Members.Count == 0)
             {
-                if (Phase.Value == LobbyPhase.InGame) EndRound("");
+                if (Phase.Value == LobbyPhase.InGame) EndRoundNow();
                 else Phase.Value = LobbyPhase.Waiting;
                 loaded.Clear();
                 serverLoaded = false;
@@ -228,7 +237,7 @@ namespace NatureCalls.Network
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(member.ClientId, true);
             }
             // The global round clock and everyone's needs start once everyone is on the map.
-            RoundEndTime.Value = NetworkManager.ServerTime.Time + MatchRules.RevealSeconds + Match.RoundSeconds + MatchRules.CleanupSeconds;
+            RoundEndTime.Value = NetworkManager.ServerTime.Time + RevealDurationSeconds + Match.RoundSeconds + CleanupDurationSeconds;
             VersusPhase.Value = MatchPhase.Reveal; VersusElapsed.Value = 0; VersusTidiness.Value = 100; nextRandomEvent = NetworkManager.ServerTime.Time + UnityEngine.Random.Range(MatchRules.RandomEventMinSeconds, MatchRules.RandomEventMaxSeconds);
             Roles.Clear();
             var saboteur = (MatchDirector.ForceSaboteur || MatchDirector.CommandLineSaboteur) ? Members[0].ClientId : Members[UnityEngine.Random.Range(0, Members.Count)].ClientId;
@@ -240,34 +249,47 @@ namespace NatureCalls.Network
         {
             if (Phase.Value != LobbyPhase.InGame) return;
             ApplyPublishedMatch();
-            if (!IsServer || RoundEndTime.Value < 0) return;
+            if (!IsServer) return;
+            if (settlementPending) { if (NetworkManager.ServerTime.Time >= settlementUntil) EndRoundNow(); return; }
+            if (RoundEndTime.Value < 0) return;
             var now = NetworkManager.ServerTime.Time;
-            var elapsed = now - (RoundEndTime.Value - (MatchRules.RevealSeconds + Match.RoundSeconds + MatchRules.CleanupSeconds));
-            VersusElapsed.Value = System.Math.Max(0, elapsed - MatchRules.RevealSeconds);
-            if (VersusPhase.Value == MatchPhase.Reveal && elapsed >= MatchRules.RevealSeconds) VersusPhase.Value = MatchPhase.Playing;
+            var elapsed = now - (RoundEndTime.Value - (RevealDurationSeconds + Match.RoundSeconds + CleanupDurationSeconds));
+            VersusElapsed.Value = System.Math.Max(0, elapsed - RevealDurationSeconds);
+            if (VersusPhase.Value == MatchPhase.Reveal && elapsed >= RevealDurationSeconds) VersusPhase.Value = MatchPhase.Playing;
             if (nextRandomEvent > 0 && now >= nextRandomEvent) { PublishRandomEvent(); nextRandomEvent = now + UnityEngine.Random.Range(MatchRules.RandomEventMinSeconds, MatchRules.RandomEventMaxSeconds); }
             var dirt = NatureCalls.Facility.DirtField.Total();
             VersusTidiness.Value = MatchRules.Tidiness(dirt);
-            if (VersusPhase.Value == MatchPhase.Playing && VersusTidiness.Value <= 0) { EndRound("干净值归零，捣蛋者获胜。"); return; }
-            if (VersusPhase.Value != MatchPhase.Ended && RoundClock.IsOver(RoundEndTime.Value, now)) { VersusPhase.Value = MatchPhase.Ended; EndRound("收尾完成，保洁队获胜。"); }
+            if (VersusPhase.Value == MatchPhase.Playing && VersusTidiness.Value <= 0) { BeginSettlement(MatchWinner.Saboteur, "干净值归零，捣蛋者获胜。"); return; }
+            if (VersusPhase.Value != MatchPhase.Ended && RoundClock.IsOver(RoundEndTime.Value, now)) BeginSettlement(MatchWinner.Keepers, "收尾完成，保洁队获胜。");
         }
 
         private void PublishRandomEvent()
         {
-            var kind = (RandomEventKind)UnityEngine.Random.Range(0, 5);
+            var kind = MatchDirector.NextEvent();
+            MatchDirector.TriggerEvent(kind, FindFirstObjectByType<Playground>());
+            Facilities.Current?.PublishShared();
             EventKind.Value = (int)kind; EventSerial.Value++;
         }
 
+        private static string ReasonFor(MatchWinner winner) => winner == MatchWinner.Saboteur ? "干净值归零，捣蛋者获胜。" : winner == MatchWinner.Keepers ? "收尾完成，保洁队获胜。" : "";
+        private void BeginSettlement(MatchWinner winner, string reason)
+        {
+            VersusPhase.Value = MatchPhase.Ended; VersusWinner.Value = winner; VersusReason.Value = winner == MatchWinner.Saboteur ? 1 : 2; settlementPending = true; settlementUntil = NetworkManager.ServerTime.Time + SettlementDurationSeconds;
+            MatchContext.Winner = winner; MatchContext.EndReason = reason; MatchContext.Settlement = MatchStats.Snapshot(winner, reason); var stats = MatchContext.Settlement; Settlement.Value = new MatchSettlementNet { Winner = winner, Produced = stats.Produced, Cleaned = stats.Cleaned, Accidents = stats.Accidents, Vomits = stats.Vomits, ToiletingSuccesses = stats.ToiletingSuccesses, Backflows = stats.Backflows };
+        }
         private void ApplyPublishedMatch()
         {
-            MatchContext.Phase = VersusPhase.Value; MatchContext.Elapsed = VersusElapsed.Value; MatchContext.Tidiness = VersusTidiness.Value; MatchContext.Schedule = MatchRules.Schedule(Match.RoundSeconds);
+            MatchContext.Phase = VersusPhase.Value; MatchContext.Elapsed = VersusElapsed.Value; MatchContext.Tidiness = VersusTidiness.Value; if (MatchContext.Schedule.Length <= 0) MatchContext.Schedule = MatchRules.Schedule(Match.RoundSeconds); MatchContext.Winner = VersusWinner.Value; MatchContext.EndReason = ReasonFor(VersusWinner.Value); var stats = Settlement.Value; MatchContext.Settlement = new MatchSettlement(winner: stats.Winner, reason: MatchContext.EndReason, produced: stats.Produced, cleaned: stats.Cleaned, accidents: stats.Accidents, vomits: stats.Vomits, toiletingSuccesses: stats.ToiletingSuccesses, backflows: stats.Backflows);
+            if (EventSerial.Value != MatchContext.EventSerial && EventKind.Value >= 0) MatchDirector.ReceiveEvent((RandomEventKind)EventKind.Value, EventSerial.Value);
+            MatchContext.BlackoutRemaining = MatchDirector.BlackoutRemaining;
             foreach (var role in Roles) MatchDirector.ApplyRole(role.ClientId, role.Role);
         }
 
         // The round is over: everyone goes back to the DressingRoom and stays in the room for another round.
-        private void EndRound(string message)
+        private void EndRoundNow()
         {
             RoundEndTime.Value = -1;
+            settlementPending = false; SettlementDurationSeconds = MatchRules.SettlementSeconds; CleanupDurationSeconds = MatchRules.CleanupSeconds; settlementUntil = -1;
             VersusPhase.Value = MatchPhase.Ended;
             Phase.Value = LobbyPhase.Waiting;
             for (int index = 0; index < Members.Count; index++)
@@ -279,7 +301,7 @@ namespace NatureCalls.Network
             foreach (var client in NetworkManager.ConnectedClientsList)
                 if (client.PlayerObject != null && client.PlayerObject.IsSpawned) client.PlayerObject.Despawn(true);
             if (Facilities.Current != null && Facilities.Current.IsSpawned) Facilities.Current.NetworkObject.Despawn(true);
-            ReturnToRoomRpc(message);
+            ReturnToRoomRpc(MatchContext.EndReason);
         }
 
         [Rpc(SendTo.Everyone)]

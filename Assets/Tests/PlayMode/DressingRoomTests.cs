@@ -74,6 +74,7 @@ namespace NatureCalls.Tests
                 Object.Destroy(session.gameObject);
             }
             if (world != null) world.StopPractice();
+            LobbyRoom.RevealDurationSeconds = MatchRules.RevealSeconds;
             // Match flows load scenes in Single mode; leave only an empty scene behind for the next test.
             var empty = SceneManager.CreateScene("DressingRoomTestsEmpty" + Time.frameCount);
             SceneManager.SetActiveScene(empty);
@@ -246,7 +247,7 @@ namespace NatureCalls.Tests
             yield return null;
             yield return null;
             Assert.That(Match.Mode, Is.EqualTo(MatchMode.Offline));
-            Assert.That(Match.OfflineRemaining, Is.InRange(0, Match.RoundSeconds), "The offline round clock is running.");
+            Assert.That(MatchContext.Phase, Is.EqualTo(MatchPhase.Reveal).Or.EqualTo(MatchPhase.Playing), "The versus round has entered Reveal or Playing.");
             Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(mapPath));
             var map = Object.FindFirstObjectByType<Playground>();
             Assert.That(map.OfflinePlayer, Is.Not.Null);
@@ -418,6 +419,7 @@ namespace NatureCalls.Tests
             yield return null;
             Assert.That(lobby.IsMapPanelOpen, Is.True);
             ShortenRound(room.Maps, 20, mapIndex);
+            LobbyRoom.RevealDurationSeconds = 0;
             lobby.ChooseMap(mapIndex);
             deadline = Time.realtimeSinceStartup + 10;
             Avatar avatar = null;
@@ -438,6 +440,8 @@ namespace NatureCalls.Tests
             Assert.That(avatar.GetComponent<AvatarAppearance>().BodyType.Value, Is.EqualTo(PlayerBodyType.Tall));
             var appearance = avatar.GetComponent<PlayerAppearance>();
             Assert.That(appearance.BodyType, Is.EqualTo(PlayerBodyType.Tall));
+            Assert.That(room.Roles, Has.Count.EqualTo(1), "Host publishes a role entry.");
+            Assert.That(RoleRegistry.Of(avatar.GetComponent<Movement>()), Is.EqualTo(room.Roles[0].Role), "Host applies the published role locally.");
             Assert.That(RendererColor(appearance), Is.EqualTo(appearance.Catalog[outfit].Color));
             Assert.That(NetworkManager.Singleton, Is.SameAs(Session.Instance.Manager), "The map's own Network object yields to the Lobby's.");
             if (mapPath == "Assets/Scenes/Map1.unity")
@@ -484,27 +488,28 @@ namespace NatureCalls.Tests
             }
 
             // The global round clock and the needs start once everyone is on the map.
-            Assert.That(room.RoundRemaining, Is.InRange(0, 20));
+            Assert.That(room.RoundRemaining, Is.InRange(0, Match.RoundSeconds + MatchRules.CleanupSeconds + MatchRules.RevealSeconds));
             yield return null;
             Assert.That(ClockLabel().enabled, Is.True, "The map HUD shows the round clock.");
             var needs = avatar.GetComponent<PlayerNeeds>();
             Assert.That(needs.Ticking, Is.True, "The host runs every player's needs.");
             Assert.That(needs.Urgency, Is.InRange(0, NatureCalls.Core.NeedsRules.InitialUrgencyMax));
 
-            // Any player's Urgency at the threshold loses the round for everyone.
+            // Reaching a need threshold no longer ends an versus match.
             needs.ApplyShared(NatureCalls.Core.NeedsRules.UrgencyMax, 0);
-            deadline = Time.realtimeSinceStartup + 8;
+            yield return new WaitForSeconds(.2f);
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(mapPath), "A threshold does not end the versus match.");
+            Assert.That(room.VersusPhase.Value, Is.EqualTo(MatchPhase.Playing));
+            // Force the shortened match end, then observe Ended before the 8-second settlement hold.
+            LobbyRoom.SettlementDurationSeconds = 0;
+            room.EndForTests(MatchWinner.Keepers);
+            deadline = Time.realtimeSinceStartup + 3;
+            while (room.VersusPhase.Value != MatchPhase.Ended && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(room.VersusPhase.Value, Is.EqualTo(MatchPhase.Ended));
+            deadline = Time.realtimeSinceStartup + 3;
             while (SceneManager.GetActiveScene().path != ScenePath && Time.realtimeSinceStartup < deadline) yield return null;
-            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(ScenePath), "A lost round ends in the DressingRoom.");
-            yield return null;
-            Assert.That(LobbyRoom.Current, Is.SameAs(room), "Players stay in the room after the round.");
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(ScenePath));
             Assert.That(room.Phase.Value, Is.EqualTo(LobbyPhase.Waiting));
-            Assert.That(room.RoundRemaining, Is.EqualTo(-1));
-            Assert.That(Object.FindObjectsByType<Avatar>(FindObjectsSortMode.None), Is.Empty, "Map players are despawned.");
-            var returned = Object.FindFirstObjectByType<LobbyController>();
-            Assert.That(returned.IsLobbyOpen, Is.True, "The Lobby reopens on the room after the round.");
-            yield return null;
-            Assert.That(returned.GetComponent<LobbyView>().Status.text, Does.Contain("失败"), "The room shows why the round was lost.");
         }
 
         [UnityTest]
@@ -513,6 +518,8 @@ namespace NatureCalls.Tests
             lobby.OpenLobby();
             lobby.StartOffline();
             ShortenRound(Resources.FindObjectsOfTypeAll<MapCatalog>()[0], 1);
+            Match.CleanupDurationSeconds = 0;
+            Match.SettlementDurationSeconds = 0;
             lobby.ChooseMap(0);
             yield return null;
             yield return null;

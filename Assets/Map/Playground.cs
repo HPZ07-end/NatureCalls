@@ -61,6 +61,7 @@ namespace NatureCalls.Map
         private void Update()
         {
             var needs = Match.Mode == MatchMode.Offline && OfflinePlayer != null ? OfflinePlayer.GetComponent<PlayerNeeds>() : null;
+            if (Match.Mode == MatchMode.Offline) Match.SetTidiness(MatchRules.Tidiness(DirtField.Total()));
             Match.TickOfflineRound();
         }
 
