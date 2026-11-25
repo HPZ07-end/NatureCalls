@@ -14,9 +14,9 @@
 
 平台安装、VS Code 和命令行入口见 [development](docs/DEVELOPMENT.md)。
 
-在准备房镜子前按 E 对准设施；按 F 擦拭或清洁，可分别选择矮快、均衡、高伸三款角色模型和服装颜色。预览立即更新，确认后保存两项选择并用于离线地图和联机对局，取消会恢复上一次确认的外观。三款模型共享玩家操作与玩法能力。
+在准备房镜子前按 E 换装；可分别选择矮快、均衡、高伸三款角色模型和服装颜色。预览立即更新，确认后保存两项选择并用于离线地图和联机对局，取消会恢复上一次确认的外观。三款模型共享玩家操作与玩法能力。
 
-按键改版已批准、尚未实现（见 [GLOSSARY](GLOSSARY.md) Input）：E 只作用于准星指向的对象，F 作用于手上物品或自己（擦拭、清洁、倒水），C、R、Space 不变。
+地图中 E 只对准星指向的设施执行交互；视线未命中时按约 15° 窄锥选择，非第一人称镜头按距离和优先级选择。F 只作用于手持物品或自身，用于卷纸/徒手擦拭和拖把清洁；C、R、Space 不变。
 
 ## 工程概览
 
@@ -154,5 +154,3 @@ Foundation 每条风道按风口框、斜段、会车段、斜段、地下出口
 - **男性角色（Male Character）** · `Characters-Male.blend`：高 1.80 m 的 A 字站姿模型，可作为对局及准备房的男性玩家外观；上衣保留独立换色材质。
 - **女性角色（Female Character）** · `Characters-Female.blend`：高 1.74 m 的 A 字站姿模型，可作为对局及准备房的女性玩家外观；上衣保留独立换色材质。
 
-
-2026-11-24 controls refactor: E resolves a registered facility through the camera centre ray (with cone/proximity fallback); F handles wiping and mop cleaning. Movement uses registered continuous effects and shared map state uses FacilityStateEntry.

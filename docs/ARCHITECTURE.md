@@ -10,7 +10,7 @@
 | --- | --- |
 | `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非领队全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）、`NeedsRules`（需求、准度阈值与清洁数值）、`Accuracy`（按时间累计准度）。未完成 Stage 2 |
 | `Assets/Player` | Movement：CharacterController、朝向、跳跃与对位坐下与站起位置恢复；Posture：姿态状态与通知；PlayerAppearance：身份颜色与外观（按 `OutfitCatalog` 编号）；PlayerOutfitController：DressingRoom 换装流程；OutfitCatalog：可选外观资源；LocalProfile：本地已确认外观（PlayerPrefs）；PlayerNeeds：急迫值与恶心值（由离线 Playground 或服务器驱动） |
-| `Assets/Input` | PlayerInput：本地键鼠操作请求，只为 Owner 启用；C 负责全部如厕，E 按固定顺序分派其他交互 |
+| `Assets/Input` | PlayerInput：本地键鼠操作请求，只为 Owner 启用；C 负责全部如厕，E 按准星目标分派，F 处理手持物品或自身 |
 | `Assets/Camera` | CameraController：本地 Cinemachine 目标、优先级、Blend 与渲染 |
 | `Assets/Facility` | Toilet：测试 Anchor 和可见目标；StallDoor：隔间门开/关/锁；Item：卷纸/拖把共用携带与丢掷；PaperRoll：消耗；Urinal：小便池占用；Toolbox：唯一拖把取放；Mess：污物表现与清洁目标；PlanarMirror：镜面渲染。门、卷纸与马桶占用由 Network/FacilitySync 接入服务器权威同步，尚无冲水、堵塞等正式玩法 |
 | `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生、联机对局全局计时与全体判负；Avatar：所有权、控制与镜头绑定、姿态同步；AvatarAppearance：身份颜色与外观编号；NeedsSync：需求、未擦拭与手脏状态同步；FacilitySync：玩家设施请求与服务器校验；Facilities：服务器拥有的地图设施共享状态；Probe：显式启动的 Development 验证程序 |
@@ -116,4 +116,8 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 2026-11-13 技术名称：沿用 `NeedsRules` 集中参数；新增 `Accuracy` 表示时间积分；`Item` 抽取唯一携带职责，`PaperRoll` 与 `Mop` 复用。移除仅适用于卷纸的快照名（由 `ItemSnapshot`/`SharedItems` 替代）和单一黑球列表（由 `MessSnapshot`/`SharedMesses` 替代），移除固定 `SeatPose` 吸附接口。未增加兼容层。`Facilities` 继续是唯一服务器共享设施对象；客户端表现从列表恢复，污物用相同对象池。离线与服务器调用同一结算入口，入口拒绝非服务器联网调用。
 
 
-2026-11-24 controls refactor: E resolves a registered facility through the camera centre ray (with cone/proximity fallback); F handles wiping and mop cleaning. Movement uses registered continuous effects and shared map state uses FacilityStateEntry.
+### 当前交互与共享状态接口
+
+`InteractionContext` 携带玩家、客户端、联机状态和 Busy 状态。`IInteractable` 暴露 `Target`、`AimPoint`、`Distance`、提示和执行方法；`InteractionRegistry` 只收集设施自身注册的对象。E 的选择顺序是物理射线命中、约 15° 窄锥内按 AimPoint 最近、再按 Priority；非第一人称镜头使用距离加 Priority。Busy 时不允许穿越或操作 Map2 站点。
+
+移动分三层：接管层（穿越、坐厕等完全接管移动），姿态约束层（风道强制爬行），持续修正层（湿地惯性及未来环境效果）。共享设施状态使用 `FacilityStateEntry`；门、物品、马桶、小便池和污物列表暂保留，标记为 `legacy: migrate to FacilityStateEntry`，计划在下一阶段统一迁移。Core 规则包含 `MovementRules`、`RepairRules` 和售纸容量规则。

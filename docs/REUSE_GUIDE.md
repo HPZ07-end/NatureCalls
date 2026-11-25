@@ -309,4 +309,6 @@ NGO Scene Management 当前关闭，Scene 由本地加载加 RPC 协调。当前
 本次只新增技术复用说明和开发状态入口，不增删改领域语义、代码、资源或既有命名。工作区原有 Glossary/角色修改属于此前工作，不纳入本次 none；以后如果将它们一并提交，PR 必须按实际 Glossary 与实现变化重新声明，不能沿用本次声明掩盖已有变化。
 
 
-2026-11-24 controls refactor: E resolves a registered facility through the camera centre ray (with cone/proximity fallback); F handles wiping and mop cleaning. Movement uses registered continuous effects and shared map state uses FacilityStateEntry.
+### 新增设施或地图
+
+新设施实现 `IInteractable` 或 `IInteractableProvider`，需要时实现 `IMovementEffectSource` 或 `ISharedFacilityState`，并在组件生命周期中注册。地图只负责摆放组件和提供目标引用；Input、Movement、Network、UI 不需要为新设施增加分支。新共享状态由组件声明本地键、初始状态和应用方法，Facilities 负责稳定排序、同步和断线释放。

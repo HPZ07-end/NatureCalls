@@ -1,12 +1,12 @@
 # 实际开发状态
 
-2026-11-24 语义批准（未实现）：冲水与堵塞、倒灌、洗手台、维修工具、统一如厕过程、滑倒与 E/F 按键方案已写入 GLOSSARY 并标注「尚未实现」，实施顺序见 [ROADMAP](ROADMAP.md)。当前代码行为不变。课程服务器仍运行 #30 之前的版本，需重新部署才能与当前客户端（三款体型外观字段）联机。
+2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器仍运行 #30 之前的版本，需重新部署才能与当前客户端（三款体型外观字段）联机。
 
 2026-11-24 Map2 井口及卷纸修复：A 井使用井口周边的站立范围，遮挡检查略过井口自身构件，提示与 E 键共享目标判定。应急卷纸移到出生点旁的柜台，拾取距离从角色躯干附近计算。售纸仍按一枚金币换一卷纸，并在手中有物品时显示限制。Unity 6000.3.26f1 PlayMode 42 项通过，1 项 Relay 跳过。从真实出生点步行拾纸并从 A 井侧边到达 −3.20 m 落脚台通过，离线购纸和本机房主进井通过。`Semantic-Diff: none`。
 
 2026-11-24 DressingRoom 与 Map2 接入（工作基线 `fbf02bb`，已同步 `origin/dev` `036f15f`）：Player、换装镜和房间共享矮快、均衡、高伸三款油画角色。服装色只覆盖可换色衣料。独立 Generic 骨架接入步态、跳跃、如厕、爬行及伸手。旧版性别型 PlayerPrefs 只在新字段缺失时用于迁移，保留至下一次存档版本升级。
 
-Map2 进入单人、联机和随机选图目录，复用设施、HUD、计时和回房流程。地图交互包括 A 井下滑与 B 井爬梯、短暂湿地惯性、金币购纸及 A 支路五步维修。短阶视觉保留，通行碰撞改为连续坡面。Unity 6000.3.26f1 EditMode 31 项通过，PlayMode 41 项通过、1 项 Relay 云测试跳过。单人用例实际走通地下高差，房主用例验证了购纸、竖井授予及维修状态。未执行双设备联机。Semantic Diff 为 `changed`，覆盖 `Content/Map/DressingRoom`、`Content/Map/MapSelection`、`Content/Map/Map2`、`Gameplay/Facility/Pipe`、`Gameplay/Facility/PaperVendingMachine`，用户批准来源记录在 Glossary。
+Map2 进入单人、联机和随机选图目录，复用设施、HUD、计时和回房流程。地图交互包括 A 井下滑与 B 井爬梯、短暂湿地惯性、金币购纸及 A 支路五步维修。短阶视觉保留，通行碰撞改为连续坡面。Unity 6000.3.26f1 EditMode 35 项通过，PlayMode 42 项通过、1 项 Relay 云测试跳过。单人用例实际走通地下高差，房主用例验证了购纸、竖井授予及维修状态。未执行双设备联机。Semantic Diff 为 `changed`，覆盖 `Content/Map/DressingRoom`、`Content/Map/MapSelection`、`Content/Map/Map2`、`Gameplay/Facility/Pipe`、`Gameplay/Facility/PaperVendingMachine`，用户批准来源记录在 Glossary。
 
 2026-11-24 油画风角色资产：矮快、均衡、高伸三款角色各用独立 15 骨 Generic 绑定、专属油画贴图、Animator 与 Prefab。每款含站立、走路、跑步、伸手四段原地动画，各自的走跑周期已调整。Unity 6000.3.26f1 标准 `validate` 通过，逐一采样 12 段动画并渲染检查贴图和朝向。尚未替换 Player 或接入换装、角色属性与物品交互。`Semantic-Diff: none`。
 
