@@ -157,11 +157,11 @@ None → 其它位置 C、获准使用 → Holding（原地）→ 计时结束 �
 - FinishToileting 是 private；完成时**先 ReportResult，再恢复 Standing**，避免释放占用后服务器无法核对结果。
 - `static ApplyResult(Movement, Toilet, Urinal, float, Vector3, int)` 直接耦合需求、污物和隔间来源；它不是通用交互事件。没有 PlayerNeeds 或 Ticking 为 false 时提前返回。
 
-### 5.3 E 的实际优先级
+### 5.3 E 与 F 的分派
 
-以源码分支为准：未擦拭且持卷纸时擦拭 → 持拖把时尝试最近可清污物 → 最近可拾 Item → 工具箱 → 镜子 → 最近可交互隔间门 → 大厅门。
+E：`PlayerInput.RefreshFocus` 每帧用 `InteractionRegistry.Resolve` 选出一个 `IInteractable`（`Focus`，提示为 `FocusPrompt`），按 E 调用它的 `Perform`。第一人称时用 `Movement.ViewRay`（眼睛位置与身体朝向、俯仰，不依赖本帧摄像机）：先取物理射线命中的对象（命中 `Target` 或其子物体），否则取约 15° 窄锥内离视线最近的 `AimPoint`，再按 `Priority`；坐下、蹲下、爬行或瞄准时按到 `AimPoint` 的距离和 `Priority`。每个对象只在自身 `CanInteract`（距离、状态）为真时参与。`InteractionContext.Busy` 表示如厕或清洁中：门、拾取、工具箱仍可用，井口和 Map2 站点不可用。
 
-这不是准星射线交互，也没有统一 IInteractable 注册表。Item 在自身类别内选最近；门在自身类别内选最近；镜子/工具箱遍历顺序不等于全类别最近。如果新玩法改为准星选择或交互菜单，应明确替换目标选择和分派，不能只更换提示文字。
+F：`TryAction` 只看手持物品或自身：未擦拭时用卷纸或用手擦（`FPrompt`）；持拖把时开始对准的污物的长按清洁。PlayerInput 中没有任何设施专用分支。
 
 清洁公开入口：`bool BeginCleaning(Mess)`、`void ContinueCleaning(bool held, float seconds)`、`void CancelCleaning()`。联机持续约每 0.1 秒发送清洁保持消息，服务器用时间与条件结算；松键或离开中断。不要用 UI 动画计时直接授予清洁结果。
 
@@ -311,4 +311,8 @@ NGO Scene Management 当前关闭，Scene 由本地加载加 RPC 协调。当前
 
 ### 新增设施或地图
 
-新设施实现 `IInteractable` 或 `IInteractableProvider`，需要时实现 `IMovementEffectSource` 或 `ISharedFacilityState`，并在组件生命周期中注册。地图只负责摆放组件和提供目标引用；Input、Movement、Network、UI 不需要为新设施增加分支。新共享状态由组件声明本地键、初始状态和应用方法，Facilities 负责稳定排序、同步和断线释放。
+新设施或地图只在自己的组件里实现接口，Input、Player、Network、UI 不需要改：
+
+- **可交互**：继承 `InteractableComponent`（自动在 OnEnable/OnDisable 注册）并实现 `CanInteract`、`Prompt`、`Perform`；`Target` 是准星要命中的物体，`AimPoint` 默认为其碰撞体包围盒中心。一个组件有多个入口时实现 `IInteractableProvider` 并自行注册各入口（参照 `Map2Interactions` 的 Station）。联机时 `Perform` 调用 `context.Sync.RequestInteract(this)`：服务器按 `Facilities.SharedInteractables` 中的序号找到同一对象，用服务器端上下文重新检查 `CanInteract` 后执行。
+- **移动效果**：实现 `IMovementEffectSource`（`AppliesTo` + 返回 Core `MovementModifier`），在 OnEnable/OnDisable 调用 `MovementEffectRegistry.Register/Unregister`。多个来源由 `MovementRules.Combine` 合并：速度相乘、取最小的非零加速度、强制爬行与禁跳取或。
+- **共享状态**：实现 `ISharedFacilityState`：声明条目数，`ReadShared`/`ApplyShared` 读写每个条目的 `SharedFacilityValue`（State + Owner，含义由设施自己定义），`ReleaseOwner` 释放断线玩家占有的条目。`Facilities` 按地图层级顺序给条目分配连续编号，服务器在开局和每次通用交互、穿越、断线后发布变化，所有客户端（含中途加入）按列表应用。

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NatureCalls.Facility;
 using NatureCalls.Player;
 using NatureCalls.Core;
@@ -34,20 +35,31 @@ namespace NatureCalls.Map
         private const int Vending = 0, Upstream = 1, ValveAction = 2, Inspection = 3, Downstream = 4, FirstCoin = 5;
 
         public SewerRepairProgress RepairProgress { get; private set; }
-        public int EntryCount => Coins.Length;
-        public byte Progress => (byte)RepairProgress;
-        public void ApplyProgress(byte progress) => ApplyProgressVisual((SewerRepairProgress)progress);
+        // Shared entries: one per coin (Owner = client id + 1, or Spent), then the repair progress (State).
+        public int SharedEntryCount => Coins.Length + 1;
+        public SharedFacilityValue ReadShared(int index) =>
+            index < Coins.Length ? new SharedFacilityValue(0, coinOwners[index]) : new SharedFacilityValue((byte)RepairProgress);
+        public void ApplyShared(int index, SharedFacilityValue value)
+        {
+            if (index < Coins.Length) ApplyCoin(index, value.Owner);
+            else ApplyRepairProgress((SewerRepairProgress)value.State);
+        }
+        public void ReleaseOwner(ulong clientId)
+        {
+            for (int i = 0; i < coinOwners.Length; i++) if (coinOwners[i] == clientId + 1) ApplyCoin(i, 0);
+        }
         private readonly List<IInteractable> interactables = new();
         public IEnumerable<IInteractable> Interactables => interactables;
         private sealed class Station : IInteractable
         {
             private readonly Map2Interactions owner; private readonly Transform target; private readonly int action;
             public Station(Map2Interactions owner, Transform target, int action) { this.owner = owner; this.target = target; this.action = action; }
+            public int Action => action;
             public int Priority => action; public Transform Target => target; public float Distance => Reach + .55f;
             public Vector3 AimPoint => target != null ? target.position : Vector3.zero;
             public bool CanInteract(InteractionContext context) => !context.Busy && target != null && context.Player != null && InReach(context.Player, target) && owner.CanUse(action, context.Player, context.ClientId);
             public string Prompt(InteractionContext context) => owner.Prompt(action, context.ClientId, context.Player);
-            public bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestInteract(action) : owner.Interact(action, context.Player, context.ClientId, out _, out _);
+            public bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestInteract(this) : owner.Interact(action, context.Player, context.ClientId);
         }
 
         private void OnEnable() => MovementEffectRegistry.Register(this);
@@ -63,7 +75,7 @@ namespace NatureCalls.Map
             downstreamRest = DownstreamWater.localPosition;
             foreach (var roll in VendingStock) roll.Store(VendingMachine.position);
             if (EmergencyPaper != null) EmergencyPaper.PromptLabel = "拾取应急卷纸";
-            ApplyProgress((byte)SewerRepairProgress.Blocked);
+            ApplyRepairProgress(SewerRepairProgress.Blocked);
             interactables.Clear();
             interactables.Add(new Station(this, VendingMachine, Vending));
             interactables.Add(new Station(this, UpstreamWindow, Upstream));
@@ -162,28 +174,24 @@ namespace NatureCalls.Map
             };
         }
 
-        public bool Interact(int action, Movement player, ulong clientId, out int changedCoin, out PaperRoll dispensed)
+        /// <summary>Offline player or room authority performs one station. Online clients request it through the generic FacilitySync.RequestInteract.</summary>
+        public bool Interact(int action, Movement player, ulong clientId)
         {
-            changedCoin = -1;
-            dispensed = null;
-            if (action != Nearby(player) || !CanUse(action, player, clientId)) return false;
+            var station = interactables.OfType<Station>().FirstOrDefault(value => value.Action == action);
+            if (station == null || player == null || !InReach(player, station.Target) || !CanUse(action, player, clientId)) return false;
             if (action >= FirstCoin)
             {
-                changedCoin = action - FirstCoin;
-                ApplyAt(changedCoin, clientId + 1);
+                ApplyCoin(action - FirstCoin, clientId + 1);
                 return true;
             }
             if (action == Vending)
             {
                 int coin = Array.IndexOf(coinOwners, clientId + 1);
-                var roll = VendingStock[coin];
-                roll.Take(player);
-                dispensed = roll;
-                changedCoin = coin;
-                ApplyAt(coin, Spent);
+                VendingStock[coin].Take(player);
+                ApplyCoin(coin, Spent);
                 return true;
             }
-            ApplyProgress((byte)NextRepairStep(action));
+            ApplyRepairProgress(NextRepairStep(action));
             return true;
         }
 
@@ -210,16 +218,14 @@ namespace NatureCalls.Map
                 _ => RepairProgress
             };
 
-        public ulong OwnerAt(int index) => coinOwners[index];
-
-        public void ApplyAt(int index, ulong owner)
+        private void ApplyCoin(int index, ulong owner)
         {
             if (index < 0 || index >= coinOwners.Length) return;
             coinOwners[index] = owner;
             Coins[index].gameObject.SetActive(owner == 0);
         }
 
-        private void ApplyProgressVisual(SewerRepairProgress progress)
+        private void ApplyRepairProgress(SewerRepairProgress progress)
         {
             RepairProgress = progress;
             UpstreamWater.localPosition = upstreamRest + Vector3.up * (progress < SewerRepairProgress.Cleared ? .1f : 0);

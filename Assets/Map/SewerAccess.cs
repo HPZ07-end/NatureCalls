@@ -5,7 +5,7 @@ using UnityEngine;
 namespace NatureCalls.Map
 {
     /// <summary>Map2 descent at A and ladder return at B.</summary>
-    public sealed class SewerAccess : InteractableComponent, ITraversalFacility
+    public sealed class SewerAccess : InteractableComponent, ITraversalFacility, ISharedFacilityState
     {
         public bool Ascending;
         public Transform Top;
@@ -55,6 +55,12 @@ namespace NatureCalls.Map
                 if (!hit.transform.IsChildOf(Top.parent)) return false;
             return true;
         }
+
+        // Shared entry: whether the cover is open (State 1).
+        public int SharedEntryCount => 1;
+        public SharedFacilityValue ReadShared(int index) => new SharedFacilityValue(open ? (byte)1 : (byte)0);
+        public void ApplyShared(int index, SharedFacilityValue value) => SetOpen(value.State != 0);
+        public void ReleaseOwner(ulong clientId) { }
 
         public void SetOpen(bool value)
         {

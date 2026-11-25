@@ -51,30 +51,19 @@ namespace NatureCalls.Network
 
         private Facilities ServerFacilities() => IsServer ? Facilities.Current : null;
 
-        public bool RequestInteractLegacy(int action)
+        /// <summary>Generic online request for a provider interactable (see Facilities.SharedInteractables). The server re-checks CanInteract.</summary>
+        public bool RequestInteract(IInteractable interactable)
         {
             if (!IsSpawned || !IsOwner || Facilities.Current == null) return false;
-            InteractLegacyRpc(action);
-            return true;
-        }
-
-        public bool RequestInteract(int stableId)
-        {
-            if (!IsSpawned || !IsOwner || Facilities.Current == null) return false;
-            InteractFacilityRpc(stableId); return true;
+            int id = Facilities.Current.SharedInteractables.IndexOf(interactable);
+            if (id < 0) return false;
+            InteractFacilityRpc(id); return true;
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        private void InteractFacilityRpc(int stableId)
+        private void InteractFacilityRpc(int id)
         {
-            if (activeMode == 0 && cleaningIndex < 0) ServerFacilities()?.PerformShared(stableId, movement, OwnerClientId);
-        }
-
-        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        private void InteractLegacyRpc(int action)
-        {
-            if (activeMode == 0 && cleaningIndex < 0)
-                ServerFacilities()?.PerformShared(action, movement, OwnerClientId);
+            if (cleaningIndex < 0) ServerFacilities()?.PerformShared(id, movement, OwnerClientId, activeMode != 0);
         }
 
         public bool RequestTraversal(ITraversalFacility access)
@@ -93,7 +82,8 @@ namespace NatureCalls.Network
             if (host == null || index < 0 || index >= host.TraversalSources.Length || Time.time < nextTraversal ||
                 activeMode != 0 || !host.TraversalSources[index].CanTraverse(movement)) return;
             nextTraversal = Time.time + 1.7f;
-            host.OpenTraversal(index);
+            host.TraversalSources[index].SetOpen(true);
+            host.PublishShared();
             GrantTraversalRpc(index);
         }
 

@@ -33,17 +33,31 @@ namespace NatureCalls.Facility
     public interface ITraversalFacility
     {
         bool CanTraverse(Movement player);
+        /// <summary>Owner side, after the server granted the traversal: move the player.</summary>
         bool TraverseGranted(Movement player);
+        /// <summary>Opens or closes the passage (a cover). Shared through ISharedFacilityState when the facility implements it.</summary>
         void SetOpen(bool value);
     }
+    /// <summary>One shared value of a facility: a small state code and an owner (0 = nobody; the meaning is the facility's own).</summary>
+    public readonly struct SharedFacilityValue
+    {
+        public readonly byte State;
+        public readonly ulong Owner;
+        public SharedFacilityValue(byte state, ulong owner = 0) { State = state; Owner = owner; }
+    }
+
+    /// <summary>
+    /// A facility whose state is shared online. It declares a fixed number of entries; Network/Facilities gives them
+    /// stable ids (map hierarchy order), seeds them on the server, publishes what the server changes and applies them on
+    /// every peer, including late joiners. The facility never talks to the network itself.
+    /// </summary>
     public interface ISharedFacilityState
     {
-        int EntryCount { get; }
-        ulong OwnerAt(int index);
-        void ApplyAt(int index, ulong owner);
-        byte Progress { get; }
-        void ApplyProgress(byte progress);
-        bool Interact(int action, Movement player, ulong clientId, out int changedEntry, out PaperRoll dispensed);
+        int SharedEntryCount { get; }
+        SharedFacilityValue ReadShared(int index);
+        void ApplyShared(int index, SharedFacilityValue value);
+        /// <summary>Server: drop whatever a disconnected client held. The change is published afterwards.</summary>
+        void ReleaseOwner(ulong clientId);
     }
 
     public interface IInteractableProvider

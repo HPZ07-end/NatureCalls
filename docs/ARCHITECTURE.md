@@ -120,4 +120,4 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 
 `InteractionContext` 携带玩家、客户端、联机状态和 Busy 状态。`IInteractable` 暴露 `Target`、`AimPoint`、`Distance`、提示和执行方法；`InteractionRegistry` 只收集设施自身注册的对象。E 的选择顺序是物理射线命中、约 15° 窄锥内按 AimPoint 最近、再按 Priority；非第一人称镜头使用距离加 Priority。Busy 时不允许穿越或操作 Map2 站点。
 
-移动分三层：接管层（穿越、坐厕等完全接管移动），姿态约束层（风道强制爬行），持续修正层（湿地惯性及未来环境效果）。共享设施状态使用 `FacilityStateEntry`；门、物品、马桶、小便池和污物列表暂保留，标记为 `legacy: migrate to FacilityStateEntry`，计划在下一阶段统一迁移。Core 规则包含 `MovementRules`、`RepairRules` 和售纸容量规则。
+移动分三层：接管层（穿越、坐厕等完全接管移动），姿态约束层（风道强制爬行），持续修正层（湿地惯性及未来环境效果）。共享设施状态：`Facilities.SharedFacilityState`（`NetworkList<FacilityStateEntry { Id, State, Owner }>`）承载所有实现 `ISharedFacilityState` 的组件（目前 Map2 的金币归属与维修进度、两个井盖的开合）。编号按地图层级顺序在各端一致推导，Network 层不含任何具体设施的名称或编号。门（`SharedDoors`）、物品（`SharedItems`）、马桶（`SharedToilets`）、小便池（`SharedUrinals`）和污物（`SharedMesses`）仍用各自的专用列表，代码中标记 `legacy: migrate to FacilityStateEntry`，计划在管路与统一如厕实现时迁移。Core 规则包含 `MovementRules`、`RepairRules` 和售纸容量规则。
