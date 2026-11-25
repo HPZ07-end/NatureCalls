@@ -60,8 +60,8 @@ E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取
 
 `python3 scripts/unity.py map2-integration`（菜单 `NatureCalls/Connect Map2 To Lobby`）通过 Unity API 为 Map2 接线：出生点、隔间、工具箱、井口、`PaperVendingMachine`（售纸机与金币）、`WetZone`（每块湿地一个）和 `Map2Repair`（A 支路维修原型），并删除失效的脚本引用。修改这些组件的字段后重跑。
 
-1. 打开 `DressingRoom` 并 Play。走到镜子前按 E 打开换装面板，点选外观预览，「确认」保存（写入本机 PlayerPrefs），「取消」恢复。
-2. 走到镜子左侧的门按 E：背景虚化，出现联机大厅。
+1. 打开 `DressingRoom` 并 Play。走到镜子前、准星对准镜子按 E 打开换装面板，点选外观预览，「确认」保存（写入本机 PlayerPrefs），「取消」恢复。
+2. 走到镜子左侧的门、对准门按 E：背景虚化，出现联机大厅。
    - **单人离线测试**：直接进入地图选择，选地图或「随机地图」后加载该地图，本地玩家穿着所选外观。
    - **创建房间**：已关联 Unity Cloud 时创建 Relay 房间并显示 Join Code；未关联时开启局域网房间，房间号即房主局域网地址（端口 7777）。
    - **加入房间**：输入 Join Code，或 IP:端口；裸 IP 默认 7777，同机可用 `127.0.0.1`，课程专用服务器入口为 `49.233.132.244:8000`（部署状态见 DEVELOPMENT_STATUS）。

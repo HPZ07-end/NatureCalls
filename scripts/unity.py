@@ -59,13 +59,17 @@ def unity_lock_holders(lockfile: Path) -> list[str]:
     return holders
 
 
+def can_check_lock_holders() -> bool:
+    return sys.platform != "win32" and shutil.which("lsof") is not None and shutil.which("pgrep") is not None
+
+
 def clear_stale_unity_lock():
     # A Unity lock is only stale when no Unity process for this project runs and nobody has the file open
     # (Unity leaves it behind when it aborts, e.g. on compile errors). Anything else stops the run.
     lockfile = ROOT / "Temp/UnityLockfile"
     if not lockfile.exists():
         return
-    if sys.platform == "win32" or shutil.which("lsof") is None or shutil.which("pgrep") is None:
+    if not can_check_lock_holders():
         raise RuntimeError("UnityLockfile exists and holders cannot be checked on this platform. Close Unity and inspect it manually.")
     holders = unity_lock_holders(lockfile)
     if holders:
