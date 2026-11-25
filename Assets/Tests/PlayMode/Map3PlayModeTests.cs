@@ -28,6 +28,8 @@ namespace NatureCalls.Tests
             yield return null;
             world = Object.FindFirstObjectByType<Playground>();
             Assert.That(world, Is.Not.Null);
+            world.Practice();
+            yield return null;
             player = world.OfflinePlayer;
             Assert.That(player, Is.Not.Null);
             player.GetComponent<NatureCalls.Input.PlayerInput>().enabled = false;
