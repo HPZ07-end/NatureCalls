@@ -1,3 +1,4 @@
+using NatureCalls.Core;
 using System.Linq;
 using NatureCalls.Camera;
 using UnityEngine;
@@ -15,7 +16,7 @@ namespace NatureCalls.Facility
 
         private void Awake()
         {
-            if (Network.Session.Dedicated)
+            if (RuntimeMode.Dedicated)
             {
                 foreach (var camera in GetComponentsInChildren<UnityEngine.Camera>(true)) camera.enabled = false;
                 enabled = false;

@@ -74,6 +74,7 @@ namespace NatureCalls.Network
         public override void OnNetworkSpawn()
         {
             Current = this;
+            Map.Playground.MessAuthority = AddMess;
             world = FindFirstObjectByType<Map.Playground>();
             if (world != null)
             {
@@ -249,9 +250,7 @@ namespace NatureCalls.Network
         private void ShowMesses()
         {
             if (world == null) return;
-            var states = new List<MessSnapshot>();
-            foreach (var state in SharedMesses) states.Add(state);
-            world.ShowMesses(states);
+            for (int i = 0; i < SharedMesses.Count; i++) world.ShowMess(i, SharedMesses[i].Kind, SharedMesses[i].Position, SharedMesses[i].ToiletIndex);
         }
         public int AddMess(MessKind kind, Vector3 position, int toiletIndex = -1)
         {
@@ -267,6 +266,7 @@ namespace NatureCalls.Network
         }
         public override void OnNetworkDespawn()
         {
+            if (Map.Playground.MessAuthority == (Func<MessKind, Vector3, int, int>)AddMess) Map.Playground.MessAuthority = null;
             SharedFacilityState.OnListChanged -= FacilityStateChanged;
             SharedDoors.OnListChanged -= DoorChanged;
             SharedItems.OnListChanged -= ItemChanged;

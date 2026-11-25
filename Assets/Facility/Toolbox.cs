@@ -16,7 +16,7 @@ namespace NatureCalls.Facility
         public override float Distance => NeedsRules.InteractionDistance;
         public override bool CanInteract(InteractionContext context) => CanInteract(context.Player);
         public override string Prompt(InteractionContext context) => "E  取放拖把";
-        public override bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestToolbox(this) : Interact(context.Player);
+        public override bool Perform(InteractionContext context) => context.Online ? context.Requests != null && context.Requests.RequestToolbox(this) : Interact(context.Player);
 
         public bool Interact(Movement player)
         {

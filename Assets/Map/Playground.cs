@@ -7,7 +7,6 @@ using System.Linq;
 using UnityEngine.Pool;
 using NatureCalls.Core;
 using NatureCalls.Facility;
-using NatureCalls.Network;
 
 namespace NatureCalls.Map
 {
@@ -25,7 +24,7 @@ namespace NatureCalls.Map
         private void Awake()
         {
             droppingPool = CreateDroppingPool();
-            if (Network.Session.Dedicated)
+            if (RuntimeMode.Dedicated)
             {
                 foreach (var camera in FindObjectsByType<UnityEngine.Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None)) camera.enabled = false;
                 if (Camera != null) Camera.gameObject.SetActive(false);
@@ -34,7 +33,7 @@ namespace NatureCalls.Map
 
         private void Start()
         {
-            if (Network.Session.Dedicated) return;
+            if (RuntimeMode.Dedicated) return;
             if (StartOffline && Match.Mode != MatchMode.Networked)
             {
                 if (startOfflineRoundOnDirectPlay) Match.BeginOfflineInCurrentScene();
@@ -54,13 +53,14 @@ namespace NatureCalls.Map
         public int DroppingCount => messes.Count(mess => mess != null && mess.Kind == MessKind.Dropping);
         private readonly List<Mess> messes = new();
         public IReadOnlyList<Mess> Messes => messes;
+        /// <summary>Online: the server-owned mess list (set by Network/Facilities while spawned). Offline: null, messes are local.</summary>
+        public static System.Func<MessKind, Vector3, int, int> MessAuthority;
         public void Drop(Vector3 position) => AddMess(MessKind.Dropping, position);
         public int AddMess(MessKind kind, Vector3 position, int toiletIndex = -1)
         {
             if (kind == MessKind.None) return -1;
             if (kind == MessKind.DirtyToilet && messes.Any(m => m != null && m.Kind == kind && m.ToiletIndex == toiletIndex)) return -1;
-            if (Facilities.Current != null && Facilities.Current.IsSpawned)
-                return Facilities.Current.AddMess(kind, position, toiletIndex);
+            if (MessAuthority != null) return MessAuthority(kind, position, toiletIndex);
             int index = messes.Count;
             var mess = droppingPool.Get().GetComponent<Mess>();
             mess.Configure(index, kind, position, toiletIndex);
@@ -68,16 +68,13 @@ namespace NatureCalls.Map
             return index;
         }
         public bool IsDirty(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.DirtyToilet && m.ToiletIndex == toiletIndex);
-        public void ShowMesses(IReadOnlyList<MessSnapshot> states)
+        /// <summary>Shows the shared mess at <paramref name="index"/> (MessKind.None removes it). Called by Network/Facilities for every list entry.</summary>
+        public void ShowMess(int index, MessKind kind, Vector3 position, int toiletIndex)
         {
-            while (messes.Count < states.Count) messes.Add(null);
-            for (int i = 0; i < states.Count; i++)
-            {
-                var state = states[i];
-                if (state.Kind == MessKind.None) { RemoveMess(i); continue; }
-                if (messes[i] == null) messes[i] = droppingPool.Get().GetComponent<Mess>();
-                messes[i].Configure(i, state.Kind, state.Position, state.ToiletIndex);
-            }
+            while (messes.Count <= index) messes.Add(null);
+            if (kind == MessKind.None) { RemoveMess(index); return; }
+            if (messes[index] == null) messes[index] = droppingPool.Get().GetComponent<Mess>();
+            messes[index].Configure(index, kind, position, toiletIndex);
         }
         public void RemoveDropping(int index) => RemoveMess(index);
         public void RemoveMess(int index)
@@ -102,7 +99,7 @@ namespace NatureCalls.Map
             defaultCapacity: 8);
         public void Practice()
         {
-            if (Network.Session.Dedicated) return;
+            if (RuntimeMode.Dedicated) return;
             StopPractice();
             var instance = Instantiate(PlayerPrefab, Spawns[0].position, Spawns[0].rotation);
             instance.name = "Local practice player";

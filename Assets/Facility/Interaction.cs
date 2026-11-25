@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using NatureCalls.Network;
 using NatureCalls.Player;
 using UnityEngine;
 
@@ -12,11 +11,25 @@ namespace NatureCalls.Facility
         public readonly Movement Player;
         public readonly ulong ClientId;
         public readonly bool Online;
-        public readonly FacilitySync Sync;
+        /// <summary>Online: the local player's request channel to the server (implemented by Network/FacilitySync).</summary>
+        public readonly IFacilityRequests Requests;
         /// <summary>The player is mid-toileting or cleaning. Doors, pickups and the toolbox still work (a seated player can lock the stall); map traversal and Map2 stations do not.</summary>
         public readonly bool Busy;
-        public InteractionContext(Movement player, ulong clientId, bool online, FacilitySync sync, bool busy = false)
-        { Player = player; ClientId = clientId; Online = online; Sync = sync; Busy = busy; }
+        public InteractionContext(Movement player, ulong clientId, bool online, IFacilityRequests requests, bool busy = false)
+        { Player = player; ClientId = clientId; Online = online; Requests = requests; Busy = busy; }
+    }
+
+    /// <summary>
+    /// Requests a facility sends to the server when online. Declared here so Facility and Map never reference Network;
+    /// Network/FacilitySync implements it and the server re-validates every request.
+    /// </summary>
+    public interface IFacilityRequests
+    {
+        bool RequestPickup(Item item);
+        bool RequestDoor(StallDoor door);
+        bool RequestToolbox(Toolbox toolbox);
+        bool RequestTraversal(ITraversalFacility access);
+        bool RequestInteract(IInteractable interactable);
     }
 
     public interface IInteractable

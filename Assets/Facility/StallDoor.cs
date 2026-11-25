@@ -110,7 +110,7 @@ namespace NatureCalls.Facility
         public override string Prompt(InteractionContext context) => State == StallDoorState.Open ? "E  关门" : State == StallDoorState.Locked ? "E  开门" : "E  开门";
         public override bool Perform(InteractionContext context)
         {
-            if (context.Online) return context.Sync != null && context.Sync.RequestDoor(this);
+            if (context.Online) return context.Requests != null && context.Requests.RequestDoor(this);
             return Interact(context.Player);
         }
 

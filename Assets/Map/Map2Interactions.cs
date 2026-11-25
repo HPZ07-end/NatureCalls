@@ -59,7 +59,7 @@ namespace NatureCalls.Map
             public Vector3 AimPoint => target != null ? target.position : Vector3.zero;
             public bool CanInteract(InteractionContext context) => !context.Busy && target != null && context.Player != null && InReach(context.Player, target) && owner.CanUse(action, context.Player, context.ClientId);
             public string Prompt(InteractionContext context) => owner.Prompt(action, context.ClientId, context.Player);
-            public bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestInteract(this) : owner.Interact(action, context.Player, context.ClientId);
+            public bool Perform(InteractionContext context) => context.Online ? context.Requests != null && context.Requests.RequestInteract(this) : owner.Interact(action, context.Player, context.ClientId);
         }
 
         private void OnEnable() => MovementEffectRegistry.Register(this);
@@ -174,7 +174,7 @@ namespace NatureCalls.Map
             };
         }
 
-        /// <summary>Offline player or room authority performs one station. Online clients request it through the generic FacilitySync.RequestInteract.</summary>
+        /// <summary>Offline player or room authority performs one station. Online clients request it through the generic IFacilityRequests.RequestInteract.</summary>
         public bool Interact(int action, Movement player, ulong clientId)
         {
             var station = interactables.OfType<Station>().FirstOrDefault(value => value.Action == action);

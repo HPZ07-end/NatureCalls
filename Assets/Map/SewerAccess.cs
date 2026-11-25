@@ -33,7 +33,7 @@ namespace NatureCalls.Map
         public override float Distance => 1.85f;
         public override bool CanInteract(InteractionContext context) => !context.Busy && CanTraverse(context.Player);
         public override string Prompt(InteractionContext context) => ActionPrompt;
-        public override bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestTraversal(this) : Traverse(context.Player);
+        public override bool Perform(InteractionContext context) => context.Online ? context.Requests != null && context.Requests.RequestTraversal(this) : Traverse(context.Player);
 
         public bool CanTraverse(Movement player)
         {

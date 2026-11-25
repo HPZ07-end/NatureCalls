@@ -64,7 +64,7 @@ namespace NatureCalls.Facility
         public override float Distance => InteractionDistance;
         public override bool CanInteract(InteractionContext context) => CanPickup(context.Player);
         public override string Prompt(InteractionContext context) => string.IsNullOrEmpty(PromptLabel) ? (this is PaperRoll ? "E  拾取卷纸" : "E  拾取") : "E  " + PromptLabel;
-        public override bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestPickup(this) : Pickup(context.Player);
+        public override bool Perform(InteractionContext context) => context.Online ? context.Requests != null && context.Requests.RequestPickup(this) : Pickup(context.Player);
 
         public bool Pickup(Movement player)
         {

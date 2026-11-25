@@ -42,7 +42,7 @@ namespace NatureCalls.UI
 
         private void Awake()
         {
-            if (Session.Dedicated) { EnsureSession(); gameObject.SetActive(false); return; }
+            if (RuntimeMode.Dedicated) { EnsureSession(); gameObject.SetActive(false); return; }
             view = GetComponent<LobbyView>();
             view.OutfitOptionTemplate.gameObject.SetActive(false);
             view.MapOptionTemplate.gameObject.SetActive(false);

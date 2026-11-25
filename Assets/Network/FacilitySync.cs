@@ -32,7 +32,7 @@ namespace NatureCalls.Network
     /// Player-owned requests; the server validates them and publishes results through Facilities.
     /// </summary>
     [RequireComponent(typeof(NetworkObject), typeof(Movement), typeof(Posture))]
-    public sealed class FacilitySync : NetworkBehaviour
+    public sealed class FacilitySync : NetworkBehaviour, IFacilityRequests
     {
         private Movement movement;
         private Posture posture;
