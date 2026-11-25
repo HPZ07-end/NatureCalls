@@ -52,6 +52,7 @@ namespace NatureCalls.Editor
             }
             foreach (var repair in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Map2Repair>(true))) repair.SetPipes(new[] { pipe });
             ApplyVersus(world, scene, map2);
+            foreach (var root in scene.GetRootGameObjects()) GameObjectUtility.RemoveMonoBehavioursWithMissingScript(root);
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException($"Could not save {path}");
             Debug.Log($"PLUMBING_INTEGRATION_OK|scene={path}|fixtures={fixtures.Length}|sinks={sinks.Count}");
@@ -75,8 +76,19 @@ namespace NatureCalls.Editor
             var box = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Toolbox>(true)).FirstOrDefault();
             if (box != null)
             {
-                box.Wrench = EnsureTool<Wrench>(box.transform, "Wrench");
-                box.Plunger = EnsureTool<Plunger>(box.transform, "Plunger");
+                var oldObjects = box.GetComponentsInChildren<Item>(true).Where(item => item is Wrench || item is Plunger)
+                    .Select(item => item.gameObject).Distinct().ToArray();
+                foreach (var oldObject in oldObjects)
+                    if (oldObject != box.gameObject) UnityEngine.Object.DestroyImmediate(oldObject);
+                box.Wrench = EnsureTool<Wrench>(world.transform, "Toolbox Wrench");
+                box.Plunger = EnsureTool<Plunger>(world.transform, "Toolbox Plunger");
+                box.Wrench.transform.position = box.transform.position + Vector3.up * .2f;
+                box.Plunger.transform.position = box.transform.position + Vector3.up * .2f;
+                // Prefab-instance fields cannot safely serialize references to added scene objects.
+                // Toolbox resolves the nearest named tools at runtime; leaving these null avoids dangling references.
+                box.Wrench = null;
+                box.Plunger = null;
+                PrefabUtility.RecordPrefabInstancePropertyModifications(box);
                 EditorUtility.SetDirty(box);
             }
             if (map2)

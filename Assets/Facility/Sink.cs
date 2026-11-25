@@ -21,8 +21,12 @@ namespace NatureCalls.Facility
             if (RoleRegistry.IsSaboteur(context.Player))
             {
                 if (context.Online) return context.Requests != null && context.Requests.RequestInteract(this);
-                if (!Cooldown.Claim(context.Player, this, 15f)) return false;
-                if (HasWater(context.Player)) { water.Remove(context.Player); MessSinkRegistry.Current?.AddMess(Core.MessKind.Puddle, context.Player.transform.position + context.Player.transform.forward * 1.5f, -1, context.Player); }
+                if (HasWater(context.Player))
+                {
+                    if (!Cooldown.Claim(context.Player, this, 15f)) return false;
+                    water.Remove(context.Player);
+                    MessSinkRegistry.Current?.AddMess(Core.MessKind.Puddle, context.Player.transform.position + context.Player.transform.forward * 1.5f, -1, context.Player);
+                }
                 else water.Add(context.Player);
                 return true;
             }

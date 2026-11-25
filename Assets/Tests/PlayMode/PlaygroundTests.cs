@@ -105,7 +105,9 @@ namespace NatureCalls.Tests
             Assert.That(doors.Length, Is.EqualTo(3));
             Assert.That(rolls.Length, Is.EqualTo(3));
             foreach (var door in doors) Assert.That(NatureCalls.Network.Facilities.Current.TryGetShared(door, 0, out _), Is.True, "Every door has a published entry.");
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedItems.Count, Is.EqualTo(rolls.Length + 1));
+            var tools = Object.FindObjectsByType<Item>(FindObjectsSortMode.None).Count(item => item is Mop || item is Wrench || item is Plunger);
+            Assert.That(NatureCalls.Network.Facilities.Current.SharedItems.Count, Is.EqualTo(rolls.Length + tools),
+                "Shared items include the mop, wrench and plunger introduced by versus sabotage.");
 
             controller.enabled = false;
             player.transform.position = doors[0].DoorColliderPivot.position + doors[0].transform.forward * .4f;

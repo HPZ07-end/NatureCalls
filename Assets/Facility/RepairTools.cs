@@ -3,8 +3,6 @@ using UnityEngine;
 
 namespace NatureCalls.Facility
 {
-    public sealed class Wrench : Item { }
-    public sealed class Plunger : Item { }
     public static class ToolSpeed { public static float Multiplier(Movement player) => 1f; }
     public static class RepairTools
     {
