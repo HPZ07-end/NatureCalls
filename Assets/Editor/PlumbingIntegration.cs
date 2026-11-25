@@ -51,9 +51,47 @@ namespace NatureCalls.Editor
                 else if (fixture is Sink sink) sink.SetPipe(pipe);
             }
             foreach (var repair in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Map2Repair>(true))) repair.SetPipes(new[] { pipe });
+            ApplyVersus(world, scene, map2);
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException($"Could not save {path}");
             Debug.Log($"PLUMBING_INTEGRATION_OK|scene={path}|fixtures={fixtures.Length}|sinks={sinks.Count}");
+        }
+
+        private static void ApplyVersus(NatureCalls.Map.Playground world, Scene scene, bool map2)
+        {
+            foreach (var toilet in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Toilet>(true)))
+            {
+                var target = toilet.Target.gameObject;
+                var broken = target.GetComponent<Breakable>() ?? target.AddComponent<Breakable>();
+                broken.TargetComponent = toilet;
+                EditorUtility.SetDirty(broken);
+            }
+            foreach (var sink in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Sink>(true)))
+            {
+                var broken = sink.gameObject.GetComponent<Breakable>() ?? sink.gameObject.AddComponent<Breakable>();
+                broken.TargetComponent = sink;
+                EditorUtility.SetDirty(broken);
+            }
+            var box = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Toolbox>(true)).FirstOrDefault();
+            if (box != null)
+            {
+                box.Wrench = EnsureTool<Wrench>(box.transform, "Wrench");
+                box.Plunger = EnsureTool<Plunger>(box.transform, "Plunger");
+                EditorUtility.SetDirty(box);
+            }
+            if (map2)
+                foreach (var valve in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Transform>(true)).Where(t => t.name.IndexOf("valve", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    var broken = valve.GetComponent<Breakable>() ?? valve.gameObject.AddComponent<Breakable>();
+                    EditorUtility.SetDirty(broken);
+                }
+        }
+
+        private static T EnsureTool<T>(Transform parent, string name) where T : Item
+        {
+            var child = parent.Find(name);
+            if (child == null) { child = new GameObject(name).transform; child.SetParent(parent, false); child.localPosition = Vector3.up * .2f; child.gameObject.AddComponent<BoxCollider>().size = Vector3.one * .2f; }
+            return child.GetComponent<T>() ?? child.gameObject.AddComponent<T>();
         }
     }
 }

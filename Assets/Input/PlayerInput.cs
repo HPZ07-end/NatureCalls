@@ -52,6 +52,10 @@ namespace NatureCalls.Input
         private Vector2 noiseSeed;
         private Vector3 initialLanding;
         private float requested = -1, cleanElapsed, nextCleanReport;
+        private IHoldInteractable heldInteract;
+        private float heldInteractSeconds;
+        private bool heldInteractDone;
+        private float heldToolSeconds;
         private Mess cleaning;
         private bool Online => facilities != null && facilities.IsSpawned;
         public bool CaptureMouse = true;
@@ -106,8 +110,16 @@ namespace NatureCalls.Input
                 if (!IsToileting) movement.Look(look.ReadValue<Vector2>());
                 if (jump.WasPressedThisFrame()) movement.Jump();
                 if (toggle.WasPressedThisFrame()) TryToilet();
-                if (interact.WasPressedThisFrame()) TryInteract();
-                if (action.WasPressedThisFrame()) TryAction();
+                if (interact.WasPressedThisFrame()) { RefreshFocus(); if (Focus is not IHoldInteractable) TryInteract(); }
+                var hold = Focus as IHoldInteractable;
+                if (interact.IsPressed() && hold != null)
+                {
+                    if (heldInteract != hold) { heldInteract = hold; heldInteractSeconds = 0; heldInteractDone = false; }
+                    if (!heldInteractDone) { heldInteractSeconds += Time.deltaTime; if (heldInteractSeconds >= hold.HoldSeconds) { heldInteractDone = Focus.Perform(Context()); } }
+                }
+                else { heldInteract = null; heldInteractSeconds = 0; heldInteractDone = false; }
+                if (action.WasPressedThisFrame()) { RefreshFocus(); if (!(HeldItem is Wrench || HeldItem is Plunger)) TryAction(); }
+                ContinueToolAction(action.IsPressed() && (HeldItem is Wrench || HeldItem is Plunger));
                 if (throwRoll.WasPressedThisFrame()) TryThrowCarriedItem();
             }
             if (IsToileting)
@@ -287,6 +299,12 @@ namespace NatureCalls.Input
         {
             if (movement.IsTraversing) return false;
             RefreshFocus();
+            if (Focus == null)
+            {
+                var context = Context();
+                Focus = InteractionRegistry.All.Where(item => item is Item && item.CanInteract(context))
+                    .OrderBy(item => Vector3.Distance(item.AimPoint, movement.transform.position)).FirstOrDefault();
+            }
             if (Focus == null) return false;
             if (!Focus.Perform(Context())) return false;
             GetComponent<PlayerAppearance>()?.PlayReach();
@@ -318,6 +336,18 @@ namespace NatureCalls.Input
                 if (nearest != null) return BeginCleaning(nearest);
             }
             return false;
+        }
+
+        private void ContinueToolAction(bool held)
+        {
+            if (!held || Focus == null) { heldToolSeconds = 0; return; }
+            float duration = HeldItem is Wrench ? 3f : 4f; // 暂定
+            heldToolSeconds += Time.deltaTime * ToolSpeed.Multiplier(movement);
+            if (heldToolSeconds < duration) return;
+            bool done;
+            if (Online && Focus is Breakable || Online && Focus is Toilet) done = facilities.RequestInteract(Focus);
+            else done = Focus is Breakable broken ? RepairTools.Repair(movement, broken) : Focus is Toilet toilet ? RepairTools.Clear(movement, toilet) : false;
+            if (done) heldToolSeconds = 0;
         }
 
         private bool TryThrowCarriedItem()

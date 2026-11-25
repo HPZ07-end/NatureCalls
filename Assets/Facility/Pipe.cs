@@ -35,7 +35,9 @@ namespace NatureCalls.Facility
         }
         public void AddStool() { Accumulation = PlumbingRules.AddStool(Accumulation); }
         public void AddPaper(int units) { Accumulation = PlumbingRules.AddPaper(Accumulation, units); }
+        public void AddSabotagePaper() { Accumulation = PlumbingRules.Add(Accumulation, 40); }
         public void Clear() { Accumulation = PlumbingRules.Clear(); }
+        public bool ClearAndReport() { if (!IsBlocked) return false; Clear(); return true; }
         public void SetAuthority(bool value) { authority = value; }
         public void TriggerBackflow(IWaterFixture fixture = null)
         {

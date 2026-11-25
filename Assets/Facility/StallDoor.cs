@@ -11,7 +11,7 @@ namespace NatureCalls.Facility
     }
 
     [DisallowMultipleComponent]
-    public sealed class StallDoor : InteractableComponent, ISharedFacilityState
+    public sealed class StallDoor : InteractableComponent, ISharedFacilityState, IInteractableProvider
     {
         [Min(.1f)] public float InteractionDistance = 1.5f;
         [Range(-120, 120)] public float OpenAngle = 95f;
@@ -31,6 +31,7 @@ namespace NatureCalls.Facility
 
         /// <summary>The stall's toilet, or null.</summary>
         public Toilet Toilet { get; private set; }
+        public System.Collections.Generic.IEnumerable<IInteractable> Interactables { get { yield return this; } }
 
         private void Awake()
         {
@@ -111,9 +112,15 @@ namespace NatureCalls.Facility
         public override float Distance => InteractionDistance;
         public override Vector3 AimPoint => DoorLeaf != null ? DoorLeaf.GetComponentInChildren<Collider>()?.bounds.center ?? DoorLeaf.position : transform.position;
         public override bool CanInteract(InteractionContext context) => CanInteract(context.Player);
-        public override string Prompt(InteractionContext context) => State == StallDoorState.Open ? "E  关门" : State == StallDoorState.Locked ? "E  开门" : "E  开门";
+        public override string Prompt(InteractionContext context) => RoleRegistry.IsSaboteur(context.Player) && State != StallDoorState.Open && Toilet != null && Toilet.IsOccupied ? "E  敲门" : State == StallDoorState.Open ? "E  关门" : State == StallDoorState.Locked ? "E  开门" : "E  开门";
         public override bool Perform(InteractionContext context)
         {
+            if (RoleRegistry.IsSaboteur(context.Player) && State != StallDoorState.Open && Toilet != null && Toilet.IsOccupied)
+            {
+                if (context.Online) return context.Requests != null && context.Requests.RequestInteract(this);
+                if (!Cooldown.Claim(context.Player, this, 8f)) return false;
+                BodyEvents.Knock(Toilet.Occupant); return true;
+            }
             if (context.Online) return context.Requests != null && context.Requests.RequestDoor(this);
             return Interact(context.Player);
         }

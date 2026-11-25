@@ -79,6 +79,12 @@ namespace NatureCalls.Map
             messes.Add(mess);
             return index;
         }
+        public int AddMess(MessKind kind, Vector3 position, int toiletIndex, Movement source)
+        {
+            var index = AddMess(kind, position, toiletIndex);
+            if (index >= 0 && index < messes.Count && messes[index] != null) messes[index].SetSource(source);
+            return index;
+        }
         public bool IsDirty(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.DirtyToilet && m.ToiletIndex == toiletIndex);
         public bool IsBackflow(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.Backflow && m.ToiletIndex == toiletIndex);
         /// <summary>Shows the shared mess at <paramref name="index"/> (MessKind.None removes it). Called by Network/Facilities for every list entry.</summary>

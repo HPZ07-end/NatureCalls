@@ -82,6 +82,12 @@ namespace NatureCalls.Facility
         IEnumerable<IInteractable> Interactables { get; }
     }
 
+    /// <summary>Input-side long press contract. The action is still validated by Perform on the authority.</summary>
+    public interface IHoldInteractable
+    {
+        float HoldSeconds { get; }
+    }
+
     /// <summary>Scene-local registry. Components register themselves and disappear with their scene.</summary>
     public static class InteractionRegistry
     {
