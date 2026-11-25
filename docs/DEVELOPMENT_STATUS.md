@@ -1,6 +1,9 @@
 2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
+2026-11-26 对抗身体分支：PlayerNeeds/NeedsRules 已加入 Bladder、Bowel、Composure、Endurance、Vomiting、Comfort 与移动限制接口；NeedsSync 已同步新状态。主流程联机/失控冲向马桶和完整视野射线扣除仍待合并验收。
+
+2026-11-25 服务器房间号与局域网自动发现（分支 `feat/server-room-codes`，尚未合入 dev）：broker（TCP 8100）分配随机三位房间号，按需启动 UDP 8001–8099 动态房间，空置 300 秒后房间自行退出；8000 常驻房间保留。局域网直连房间经 UDP 47777 广播，大厅自动列出，IP:端口直连与 Relay 保留。EditMode 41/41、PlayMode 42/43（1 个既有 Relay Ignored）、macOS 与 Linux Server 构建通过；本机 broker 生命周期、两客户端房间号加入、局域网列表点击加入通过。已部署到课程服务器：版本目录 `/opt/naturecalls/releases/9dd8172-20261125T165824Z-f3ed9a`，8000 与 broker active；从公网用两个 macOS 客户端经 UI 创建并以房间号 328 加入同一房间通过，离开后房间 300 秒自行退出（退出码 0）、房间号查询返回 404。记录 `Artifacts/20261125T172149Z-deploy-server/summary.json`、`Artifacts/20261125T172222Z-2730b3-room-e2e/`。未执行：真人跨公网联机、Windows 客户端、两台真实设备的局域网发现。
 2026-11-25：PR #35「服务器房间号和局域网自动发现」已在 `origin/dev` 合入。broker 负责随机三位房间号、动态房间生命周期；大厅保留 Relay、IP:端口，并增加服务器房间号输入和局域网发现列表。此次合并接入当前双隔间水面大厅，尚未在本分支完成本轮回归。
 
 2026-11-26：PR #37 `feat/art-model-import` 已整合到 `integrate/art-model-import`，基线为 `origin/docs/floor1-approval`（`0f88a44`）。美术资源、换装间和双隔间大厅按已批准定义接入；代码结构以 dev 为准，Map2 已用队友场景作底并经 Unity API 重跑。EditMode 43/43、PlayMode 59 Passed + 1 Relay Ignored、build-server 及恢复 Player 通过；未执行真实双端 LAN/Relay。
