@@ -38,16 +38,17 @@ namespace NatureCalls.Network
         public static void Reset() { blackoutUntil = 0; forcedEvent = null; LastEventText = ""; EventSerial = 0; ForceSaboteur = false; }
         public static void ForceNextEvent(RandomEventKind kind) => forcedEvent = kind;
         public static RandomEventKind NextEvent() { var kind = forcedEvent ?? (RandomEventKind)UnityEngine.Random.Range(0, 5); forcedEvent = null; return kind; }
+        private static Pipe RandomPipe() { var pipes = UnityEngine.Object.FindObjectsByType<Pipe>(FindObjectsSortMode.None); return pipes.Length == 0 ? null : pipes[UnityEngine.Random.Range(0, pipes.Length)]; }
         public static void TriggerEvent(RandomEventKind kind, Playground world = null)
         {
             world ??= UnityEngine.Object.FindFirstObjectByType<Playground>();
             switch (kind)
             {
-                case RandomEventKind.Pressure: UnityEngine.Object.FindFirstObjectByType<Pipe>()?.AddPressure(40); break;
+                case RandomEventKind.Pressure: RandomPipe()?.AddPressure(40); break;
                 case RandomEventKind.Blackout: blackoutUntil = Time.timeAsDouble + 10; break;
                 case RandomEventKind.Supply: UnityEngine.Object.FindFirstObjectByType<PaperVendingMachine>()?.RestockCoins(2); break;
                 case RandomEventKind.StomachBug: MatchContext.Schedule = MatchContext.Schedule.InsertWave((float)MatchContext.Elapsed, .8f, 10f); break;
-                case RandomEventKind.Plumber: UnityEngine.Object.FindFirstObjectByType<Pipe>()?.Clear(); break;
+                case RandomEventKind.Plumber: RandomPipe()?.Clear(); break;
             }
             LastEventText = RandomEvents.Message(kind); EventSerial++; MatchContext.LastEventText = LastEventText; MatchContext.EventSerial = EventSerial; MatchContext.BlackoutRemaining = BlackoutRemaining;
         }
