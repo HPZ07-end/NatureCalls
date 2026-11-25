@@ -50,7 +50,7 @@ macOS 构建完成后，可在本机用假的 launcher 替代 `systemctl`，启�
 python3 scripts/room_e2e.py Builds/macOS/<build-id>/NatureCalls.app --broker 127.0.0.1:18100 --local
 ```
 
-该探针使用 `-server -port <动态端口> -idle-exit 20 -logFile <日志>`，断言两个客户端进入同一房间、成员数为 2、领队顺序、外观和双方可见玩家，双方离开后轮询房间号直到 404。它不连接课程服务器。部署后可使用同一脚本但省略 `--local`，例如 `--broker 49.233.132.244:8100`；本轮不得用公网地址执行。
+该探针使用 `-server -port <动态端口> -idle-exit 20 -logFile <日志>`，断言两个客户端进入同一房间、成员数为 2、领队顺序、外观和双方可见玩家，双方离开后轮询房间号直到 404。它不连接课程服务器。部署后可使用同一脚本但省略 `--local`，例如 `--broker 49.233.132.244:8100`；线上房间空置 300 秒才关闭，远程模式默认等待 360 秒（`--close-timeout` 可调）。
 
 局域网列表点击探针：
 

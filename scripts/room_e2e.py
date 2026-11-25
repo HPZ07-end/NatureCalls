@@ -86,7 +86,7 @@ def start_client(player, directory, role, broker, extra, remote=True):
     return subprocess.Popen(args, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT), log
 
 
-def run_remote(player, broker, directory):
+def run_remote(player, broker, directory, close_timeout=60):
     leader, leader_log = start_client(player, directory, "leader", broker, ["-probe-create-server-room"])
     code_path = directory / "room-code.txt"
     deadline = time.monotonic() + 60
@@ -99,14 +99,14 @@ def run_remote(player, broker, directory):
         leader_report = wait_report(directory / "leader.json", leader)
         follower_report = wait_report(directory / "follower.json", follower)
         _, health = request(f"http://{broker[0]}:{broker[1]}/health")
-        deadline = time.monotonic() + 60
+        deadline = time.monotonic() + close_timeout
         while time.monotonic() < deadline:
             try: request(f"http://{broker[0]}:{broker[1]}/rooms/{code}")
             except urllib.error.HTTPError as error:
                 if error.code == 404: break
                 raise
             time.sleep(1)
-        else: raise RuntimeError("room code was not removed within 60 seconds")
+        else: raise RuntimeError(f"room code was not removed within {close_timeout:.0f} seconds")
         summary = {"status": "passed", "mode": "remote-room", "code": int(code),
                    "leader": leader_report, "follower": follower_report, "health": health}
         (directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
@@ -144,6 +144,7 @@ def main(argv=None):
     parser.add_argument("--broker", type=endpoint, required=True, help="broker host:port")
     parser.add_argument("--local", action="store_true", help="start local broker and fake systemctl server launcher")
     parser.add_argument("--lan", action="store_true", help="run the direct Host + LAN-list click probe")
+    parser.add_argument("--close-timeout", type=float, help="seconds to wait for the room code to expire (default 60 local, 360 remote: rooms idle-exit after 300 s)")
     args = parser.parse_args(argv)
     directory = ROOT / "Artifacts" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6] + "-room-e2e")
     directory.mkdir(parents=True); (directory / "logs").mkdir()
@@ -163,7 +164,7 @@ def main(argv=None):
                 except OSError: time.sleep(.1)
             else: raise RuntimeError("local broker did not start")
         if args.lan: run_lan(args.player, directory)
-        else: run_remote(args.player, args.broker, directory)
+        else: run_remote(args.player, args.broker, directory, args.close_timeout or (60 if args.local else 360))
         print(f"Artifacts: {directory}")
         return 0
     except Exception as error:
