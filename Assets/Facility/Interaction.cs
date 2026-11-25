@@ -13,7 +13,7 @@ namespace NatureCalls.Facility
         public readonly bool Online;
         /// <summary>Online: the local player's request channel to the server (implemented by Network/FacilitySync).</summary>
         public readonly IFacilityRequests Requests;
-        /// <summary>The player is mid-toileting or cleaning. Doors, pickups and the toolbox still work (a seated player can lock the stall); map traversal and Map2 stations do not.</summary>
+        /// <summary>The player is mid-toileting or cleaning. Doors, pickups and the toolbox still work; traversal and busy-gated stations do not.</summary>
         public readonly bool Busy;
         public InteractionContext(Movement player, ulong clientId, bool online, IFacilityRequests requests, bool busy = false)
         { Player = player; ClientId = clientId; Online = online; Requests = requests; Busy = busy; }
@@ -105,6 +105,24 @@ namespace NatureCalls.Facility
             return candidates.OrderBy(value => Vector3.Distance(context.Player.transform.position, value.AimPoint))
                 .ThenBy(value => value.Priority).FirstOrDefault();
         }
+    }
+
+    /// <summary>Shared reach contract for map stations and generic facility providers.</summary>
+    public static class Interaction
+    {
+        public const float Reach = 1.15f;
+        public const float ReachHeightBand = .95f;
+        public const float ReachDistance = Reach + .55f;
+        public static Vector3 ReachCenter(Movement player) => player.transform.position + Vector3.up * .55f;
+        public static bool InReach(Movement player, Transform target)
+        {
+            if (player == null || target == null) return false;
+            var center = ReachCenter(player);
+            return Mathf.Abs(target.position.y - center.y) <= ReachHeightBand &&
+                (target.position - center).sqrMagnitude < Reach * Reach;
+        }
+        public static bool InReach(InteractionContext context, Transform target) =>
+            !context.Busy && InReach(context.Player, target);
     }
 
     public abstract class InteractableComponent : MonoBehaviour, IInteractable
