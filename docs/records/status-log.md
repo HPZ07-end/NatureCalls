@@ -241,3 +241,11 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 分支 `feat/map-lobby-integration`，基线 `8d3800759478f461b887912093b989d3e262dabf` 加本次未提交工作树，Windows / Unity 6000.3.26f1。MapLayoutPrototype 复用原框架接入选图、角色、第一人称、出生点、HUD 与设施。首次 PlayMode 的相机总数断言失败后按用户要求暂停；获明确继续授权后改为只统计屏幕输出相机并验证其身份与本地目标，保留镜面相机。
 
 最终 PlayMode 32 Passed + 1 Relay Ignored、EditMode 30/30、Windows Development 构建及新地图服务器＋双客户端本机 UDP 全部通过，Python 31/31、仓库检查通过。详细命令、Artifacts 和 Semantic Diff 见 [本次记录](map-lobby-integration-2026-11-16.md)。未执行公网部署、Relay、跨设备或人工手感验收。
+
+## 2026-11-25 课程服务器部署 a58cf77
+
+- 提交：dev `a58cf77`（PR #32 合并：E/F 按键、交互和共享状态整理）；部署前工作区干净，没有打开本工程的 Unity GUI；`--dry-run` 显示目标 `ubuntu@49.233.132.244`，房间 [8000]。
+- `python3 scripts/deploy_server.py`：通过。构建 `Builds/LinuxServer/20261125T092630Z-ff2725/`（构建记录 `Artifacts/20261125T092630Z-ff2725-build-server/`，恢复 macOS Player 通过）；上传后切换 `current`，重启 8000，输出 `ROOM_OK 8000` 和 `DEPLOYED a58cf77-20261125T092630Z-ff2725`，未回滚；服务模板未变化。
+- 版本目录：`/opt/naturecalls/releases/a58cf77-20261125T092630Z-ff2725`；记录 `Artifacts/20261125T095101Z-deploy-server/summary.json`（status `deployed`）。
+- SSH 只读复核：`readlink /opt/naturecalls/current` → `releases/a58cf77-20261125T092630Z-ff2725`；`naturecalls@8000` active，NRestarts=0，MainPID 3501883；`ss -lun` 显示 `0.0.0.0:8000` 正在监听；journal 中有 `Server listening on UDP 8000.`（17:51:01 CST）。
+- 未执行：跨公网的真人联机验收、Windows 客户端连接。登录只用 SSH 密钥；没有改动 SSH、防火墙或系统配置。
