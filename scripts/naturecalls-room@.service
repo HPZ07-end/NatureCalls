@@ -1,0 +1,16 @@
+[Unit]
+Description=NatureCalls dynamic room on UDP %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/naturecalls/current/NatureCalls -batchmode -nographics -server -port %i -idle-exit 300
+WorkingDirectory=/opt/naturecalls/current
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGINT
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

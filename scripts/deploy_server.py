@@ -21,6 +21,9 @@ DEFAULT_HOST = "ubuntu@49.233.132.244"
 DEFAULT_PORTS = [8000]
 REMOTE_ROOT = "/opt/naturecalls"
 SERVICE = ROOT / "scripts/naturecalls@.service"
+ROOM_SERVICE = ROOT / "scripts/naturecalls-room@.service"
+BROKER_SERVICE = ROOT / "scripts/naturecalls-broker.service"
+BROKER_SCRIPT = ROOT / "scripts/room_broker.py"
 
 
 def run(command, **kwargs):
@@ -49,7 +52,7 @@ def release_name(commit, build):
     return f"{commit}-{build.parent.name}"
 
 
-def remote_script(release, archive, ports, keep, service_changed):
+def remote_script(release, archive, ports, keep, service_changed, broker_changed=False):
     """Bash run on the server with sudo. Switches `current` atomically and rolls back if a room fails."""
     rooms = " ".join(str(port) for port in ports)
     return f"""set -euo pipefail
@@ -57,13 +60,19 @@ ROOT={REMOTE_ROOT}
 NEW=$ROOT/releases/{release}
 PREV=$(readlink "$ROOT/current" || true)
 mkdir -p "$NEW"
+mkdir -p "$NEW/scripts"
 tar -xzf {archive} -C "$NEW"
 chmod +x "$NEW/NatureCalls"
 chown -R root:root "$NEW"
-{"install -m 644 /tmp/naturecalls@.service /etc/systemd/system/naturecalls@.service && systemctl daemon-reload" if service_changed else ":"}
+{"install -m 644 /tmp/naturecalls@.service /etc/systemd/system/naturecalls@.service" if service_changed else ":"}
+{"install -m 644 /tmp/naturecalls-room@.service /etc/systemd/system/naturecalls-room@.service" if service_changed else ":"}
+{"install -m 644 /tmp/naturecalls-broker.service /etc/systemd/system/naturecalls-broker.service && install -m 755 /tmp/room_broker.py $ROOT/releases/{release}/scripts/room_broker.py" if broker_changed else ":"}
+systemctl daemon-reload
 ln -sfn "releases/{release}" "$ROOT/current.next" && mv -T "$ROOT/current.next" "$ROOT/current"
 STARTED=$(date '+%Y-%m-%d %H:%M:%S')
-for port in {rooms}; do systemctl enable naturecalls@$port >/dev/null 2>&1 || true; systemctl restart naturecalls@$port; done
+for port in {rooms}; do if [ "$port" = 8000 ]; then systemctl enable naturecalls@$port >/dev/null 2>&1 || true; systemctl restart naturecalls@$port; fi; done
+systemctl enable --now naturecalls-broker.service
+curl --fail --silent --show-error http://127.0.0.1:8100/health >/dev/null
 ok=1
 for port in {rooms}; do
   for i in $(seq 1 20); do
@@ -138,12 +147,14 @@ def main():
     if build is not None and not build.is_file():
         parser.error(f"Server executable not found: {build}")
 
-    ports = args.ports or remote_ports(args.host)
+    # A dry run is intentionally offline: it must not probe or mutate the course server.
+    ports = args.ports or (DEFAULT_PORTS if args.dry_run else remote_ports(args.host))
     release = release_name(commit, build) if build else f"{commit}-<build-id>"
     archive = f"/tmp/naturecalls-{release}.tar.gz"
-    service_changed = remote_service_differs(args.host)
-    script = remote_script(release, archive, ports, args.keep, service_changed)
-    print(f"Release {release} -> {args.host}:{REMOTE_ROOT}/releases, rooms {ports}, service template changed: {service_changed}")
+    service_changed = True if args.dry_run else remote_service_differs(args.host)
+    broker_changed = True
+    script = remote_script(release, archive, ports, args.keep, service_changed, broker_changed)
+    print(f"Release {release} -> {args.host}:{REMOTE_ROOT}/releases, rooms {ports}, dynamic rooms are left running, broker update: {broker_changed}")
     if args.dry_run:
         print(script)
         return 0
@@ -156,6 +167,9 @@ def main():
         run(["scp", "-q", "-o", "BatchMode=yes", str(package), f"{args.host}:{archive}"])
         if service_changed:
             run(["scp", "-q", "-o", "BatchMode=yes", str(SERVICE), f"{args.host}:/tmp/naturecalls@.service"])
+        run(["scp", "-q", "-o", "BatchMode=yes", str(ROOM_SERVICE), f"{args.host}:/tmp/naturecalls-room@.service"])
+        run(["scp", "-q", "-o", "BatchMode=yes", str(BROKER_SERVICE), f"{args.host}:/tmp/naturecalls-broker.service"])
+        run(["scp", "-q", "-o", "BatchMode=yes", str(BROKER_SCRIPT), f"{args.host}:/tmp/room_broker.py"])
     deploy = subprocess.run(["ssh", "-o", "BatchMode=yes", args.host, "sudo -n bash -s"], input=script,
                             capture_output=True, text=True)
     print(deploy.stdout + deploy.stderr, end="")

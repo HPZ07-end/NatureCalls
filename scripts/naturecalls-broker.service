@@ -1,0 +1,21 @@
+[Unit]
+Description=NatureCalls dynamic room broker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/naturecalls/current/scripts/room_broker.py --state /var/lib/naturecalls-broker/rooms.json --port 8100 --max-rooms 12
+User=root
+Group=root
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+StateDirectory=naturecalls-broker
+ReadWritePaths=/var/lib/naturecalls-broker
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

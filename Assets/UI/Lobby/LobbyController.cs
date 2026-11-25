@@ -4,6 +4,7 @@ using System.Net;
 using NatureCalls.Core;
 using NatureCalls.Map;
 using NatureCalls.Network;
+using NatureCalls.Core;
 using NatureCalls.Player;
 using UnityEngine;
 using UnityEngine.UI;
@@ -30,6 +31,8 @@ namespace NatureCalls.UI
         private string message = "";
         // How the last round ended; shown above the room status until the next round starts.
         private string roundResult = "";
+        private LanBeaconListener lanListener;
+        private readonly Dictionary<string, Button> lanButtons = new();
 
         /// <summary>Create LAN rooms even when Unity Cloud is linked (tests, or a network without Relay access).</summary>
         public bool PreferLan;
@@ -53,11 +56,14 @@ namespace NatureCalls.UI
             view.OutfitSwift.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Swift));
             view.OfflineButton.onClick.AddListener(StartOffline);
             view.CreateButton.onClick.AddListener(CreateRoom);
+            if (view.CreateServerButton != null) view.CreateServerButton.onClick.AddListener(CreateServerRoom);
             view.JoinButton.onClick.AddListener(JoinRoom);
             view.CloseButton.onClick.AddListener(CloseLobby);
             view.PrimaryButton.onClick.AddListener(PressPrimary);
             view.LeaveButton.onClick.AddListener(LeaveRoom);
             view.MapBack.onClick.AddListener(BackFromMap);
+            if (view.LanRoomTemplate != null) view.LanRoomTemplate.gameObject.SetActive(false);
+            try { lanListener = new LanBeaconListener(); } catch (System.Net.Sockets.SocketException) { lanListener = null; }
             BuildMapButtons();
             HideAll();
         }
@@ -179,6 +185,15 @@ namespace NatureCalls.UI
             var code = view.CodeInput.text.Trim();
             if (string.IsNullOrEmpty(code)) { message = "请输入房间号或 IP:端口。"; return; }
             var isAddress = Session.TryAddress(code, 7777, out _, out _);
+            if (code.Length == 3 && int.TryParse(code, out var roomCode))
+            {
+                var sessionByCode = EnsureSession();
+                sessionByCode.LobbyMode = true;
+                awaitingConnection = true;
+                message = "正在查询服务器房间…";
+                _ = sessionByCode.JoinServerRoomAsync(roomCode);
+                return;
+            }
             if (!isAddress && (code.Contains(":") || code.Contains("."))) { message = "地址无效，请输入 IP:端口（1–65535）。"; return; }
             if (!isAddress && !Session.CloudLinked) { message = "未关联 Unity Cloud：请输入服务器 IP:端口。"; return; }
             var session = EnsureSession();
@@ -187,6 +202,15 @@ namespace NatureCalls.UI
             message = "正在加入房间…";
             if (isAddress) { if (!session.StartDirect(false, code)) message = session.Status; }
             else _ = session.ConnectRelayAsync(false, code);
+        }
+
+        public void CreateServerRoom()
+        {
+            if (InRoom || Busy) return;
+            var session = EnsureSession();
+            awaitingConnection = true;
+            message = "正在创建服务器房间…";
+            _ = session.CreateServerRoomAsync();
         }
 
         public void PressPrimary()
@@ -246,6 +270,7 @@ namespace NatureCalls.UI
 
             bool busy = Busy;
             view.OfflineButton.interactable = view.CreateButton.interactable = view.JoinButton.interactable = !busy;
+            if (view.CreateServerButton != null) view.CreateServerButton.interactable = !busy;
             if (inRoom) { awaitingConnection = false; RefreshRoom(room, session); }
             else if (session != null && !busy && !session.Active && (awaitingConnection || wasInRoom))
             {
@@ -257,11 +282,45 @@ namespace NatureCalls.UI
             if (inRoom && room.Phase.Value != LobbyPhase.Waiting) roundResult = "";
             var status = busy && session != null ? session.Status : message;
             view.Status.text = string.IsNullOrEmpty(roundResult) || status == roundResult ? status : roundResult + "\n" + status;
+            RefreshLanRooms();
         }
+
+        private void RefreshLanRooms()
+        {
+            if (lanListener == null || view.LanRooms == null || view.LanRoomTemplate == null) return;
+            var seen = new HashSet<string>();
+            foreach (var entry in lanListener.Snapshot(Time.unscaledTime))
+            {
+                seen.Add(entry.Address);
+                if (!lanButtons.TryGetValue(entry.Address, out var button))
+                {
+                    button = Instantiate(view.LanRoomTemplate, view.LanRooms);
+                    button.gameObject.SetActive(true);
+                    lanButtons[entry.Address] = button;
+                }
+                button.interactable = entry.Beacon.Joinable && !InRoom && !Busy;
+                var text = button.GetComponentInChildren<Text>(true);
+                if (text != null) text.text = $"{entry.Beacon.HostName}  {entry.Address}:{entry.Beacon.GamePort}  {entry.Beacon.Players}/{entry.Beacon.MaxPlayers}" + (entry.Beacon.Joinable ? "" : "（不可加入）");
+                var address = entry.Address + ":" + entry.Beacon.GamePort;
+                button.onClick.RemoveAllListeners();
+                button.onClick.AddListener(() => JoinLan(address));
+            }
+            foreach (var pair in new Dictionary<string, Button>(lanButtons))
+                if (!seen.Contains(pair.Key)) { Destroy(pair.Value.gameObject); lanButtons.Remove(pair.Key); }
+        }
+
+        private void JoinLan(string address)
+        {
+            if (InRoom || Busy) return;
+            var session = EnsureSession(); session.LobbyMode = true; awaitingConnection = true; message = "正在加入局域网房间…";
+            if (!session.StartDirect(false, address)) message = session.Status;
+        }
+
+        private void OnDestroy() { lanListener?.Dispose(); }
 
         private void RefreshRoom(LobbyRoom room, Session session)
         {
-            view.RoomCode.text = "房间号：" + (session.IsRelay ? session.JoinCode : session.Manager.IsHost ? LanRoomCode() : session.Transport.ConnectionData.Address + ":" + session.Port);
+            view.RoomCode.text = session.ServerRoomCode > 0 ? "房间号：" + session.ServerRoomCode : "房间号：" + (session.IsRelay ? session.JoinCode : session.Manager.IsHost ? LanRoomCode() : session.Transport.ConnectionData.Address + ":" + session.Port);
             var catalog = LocalCatalog;
             for (int slot = 0; slot < view.Slots.Length; slot++)
             {

@@ -101,3 +101,7 @@ Unity Editor 用于查看 Scene、Prefab、Inspector 引用及 Play Mode；VS Co
 **一键重新构建与部署**：改动服务器会运行的代码并提交后，关闭本工程的 Unity GUI，运行 `python3 scripts/deploy_server.py`。脚本依次：确认没有未提交的已跟踪改动（服务器版本必须对应一个提交，`--allow-dirty` 可跳过），运行 `unity.py build-server`，打包上传，解压到 `/opt/naturecalls/releases/<提交>-<build-id>`，原子切换 `current` 链接，重启服务器上当前在运行的房间（或用 `--ports 8000 8001` 指定），逐个确认服务 active、端口在监听、日志出现 `Server listening on UDP <端口>`；任一房间失败就切回上一个版本并重启。成功后只保留新版本和最近 3 个旧版本（`--keep` 调整）。`--build <路径>` 部署已有构建，`--dry-run` 只打印计划和服务器端脚本。需要能用 SSH 密钥登录 `ubuntu@49.233.132.244`（`--host` 可改）；systemd 模板与仓库 `scripts/naturecalls@.service` 不一致时一并更新。每次运行在 `Artifacts/<时间>-deploy-server/summary.json` 记录版本、房间和服务器输出。具体部署实绩以 DEVELOPMENT_STATUS 和 status-log 为准，配置模板本身不表示已经部署或公网已验收。
 
 Linux 首次构建时 Unity 自动添加官方 1.1.1 工具链依赖（linux-x86_64、linux-arm64 SDK、macos-arm64-linux toolchain 和 sysroot.base）；manifest 与 lock 一并保留，没有升级现有运行时包。
+
+## 服务器房间开发约定
+
+本地可运行 `python3 scripts/room_broker.py --bind 127.0.0.1 --port 8100 --state /tmp/naturecalls-rooms.json` 验证 broker；接口为 `POST /rooms`、`GET /rooms/<code>` 和 `GET /health`。生产服务是 `scripts/naturecalls-broker.service`，动态模板是 `scripts/naturecalls-room@.service`。动态服务器带 `-idle-exit 300`，常驻 UDP 8000 不带该参数。部署更新 broker 和模板并检查 `/health`，只重启 8000，动态房间自然退出后才使用新版本。

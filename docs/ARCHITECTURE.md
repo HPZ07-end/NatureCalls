@@ -123,3 +123,5 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 `InteractionContext` 携带玩家、客户端、联机状态和 Busy 状态。`IInteractable` 暴露 `Target`、`AimPoint`、`Distance`、提示和执行方法；`InteractionRegistry` 只收集设施自身注册的对象。E 的选择顺序是物理射线命中、约 15° 窄锥内按 AimPoint 最近、再按 Priority；非第一人称镜头使用距离加 Priority。Busy 时不允许穿越或操作 Map2 站点。
 
 移动分三层：接管层（穿越、坐厕等完全接管移动），姿态约束层（风道强制爬行），持续修正层（湿地惯性及未来环境效果）。共享设施状态：`Facilities.SharedFacilityState`（`NetworkList<FacilityStateEntry { Id, State, Owner }>`）承载所有实现 `ISharedFacilityState` 的组件，包括门、马桶、小便池、售纸机金币、Map2 维修进度与井盖。编号按 FacilityPath 层级顺序在各端一致推导，Network 层不含任何具体设施的名称或编号。`SharedItems` 保留为专用列表，因为它需要同步位姿、速度、使用次数和飞行模拟者；`SharedMesses` 保留为专用列表，因为污物是动态数量的追加/移除状态。其余设施状态统一走 generic list。Core 规则包含 `MovementRules`、`RepairRules` 和售纸容量规则。
+
+房间调度统一称为 broker：`scripts/room_broker.py` 持久化房间号与动态端口映射。客户端用 TCP 8100 查询三位房间号，再通过 UDP 8001–8099 连接动态服务器；UDP 8000 保留常驻旧房间。局域网 Host 通过 UDP 47777 每秒发送 JSON 信标，Lobby 以 4 秒过期，连接仍走游戏端口。
