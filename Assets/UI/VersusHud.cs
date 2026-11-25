@@ -39,7 +39,7 @@ namespace NatureCalls.UI
         private Text revealTitle, revealBody, endTitle, endBody;
         private Image bladderDot, bowelDot, composureFill;
         private Text bladderLabel, bowelLabel, composureLabel;
-        private Image pulse, tunnel, nausea, glow, blackout;
+        private Graphic pulse, tunnel, nausea, glow, blackout;
         private CanvasGroup toastGroup;
         private int lastEventSerial;
         private float toastUntil;
@@ -114,11 +114,21 @@ namespace NatureCalls.UI
             var text = rect.gameObject.AddComponent<Text>();
             text.font = font; text.fontSize = size; text.color = color; text.alignment = anchor; text.fontStyle = style;
             text.raycastTarget = false; text.horizontalOverflow = HorizontalWrapMode.Overflow; text.verticalOverflow = VerticalWrapMode.Overflow;
-            var shadow = rect.gameObject.AddComponent<Shadow>(); shadow.effectColor = new Color(0, 0, 0, .55f); shadow.effectDistance = new Vector2(2, -2);
+            var outline = rect.gameObject.AddComponent<Outline>(); outline.effectColor = new Color(0, 0, 0, .7f); outline.effectDistance = new Vector2(2, -2);
             return text;
         }
 
         private static Sprite radial, round;
+
+        private static Texture2D radialTexture;
+
+        // Edge vignette: transparent centre, opaque rim. Drawn with RawImage so the alpha comes straight from the texture.
+        private static Texture2D RadialTexture()
+        {
+            if (radialTexture != null) return radialTexture;
+            RadialSprite();
+            return radialTexture;
+        }
 
         private static Sprite RadialSprite()
         {
@@ -132,7 +142,8 @@ namespace NatureCalls.UI
                     texture.SetPixel(x, y, new Color(1, 1, 1, a));
                 }
             texture.Apply();
-            return radial = Sprite.Create(texture, new Rect(0, 0, n, n), new Vector2(.5f, .5f));
+            radialTexture = texture;
+            return radial = Sprite.Create(texture, new Rect(0, 0, n, n), new Vector2(.5f, .5f), 100, 0, SpriteMeshType.FullRect);
         }
 
         private static Sprite RoundSprite()
@@ -149,11 +160,14 @@ namespace NatureCalls.UI
             return round = Sprite.Create(texture, new Rect(0, 0, n, n), new Vector2(.5f, .5f), 100, 0, SpriteMeshType.FullRect, new Vector4(24, 24, 24, 24));
         }
 
-        private Image Overlay(string name, Color color, bool vignette)
+        private Graphic Overlay(string name, Color color, bool vignette)
         {
-            var image = Panel(Stretch(name, root), color, vignette ? RadialSprite() : null);
-            image.enabled = false;
-            return image;
+            var rect = Stretch(name, root);
+            Graphic graphic;
+            if (vignette) { var raw = rect.gameObject.AddComponent<RawImage>(); raw.texture = RadialTexture(); graphic = raw; }
+            else graphic = rect.gameObject.AddComponent<Image>();
+            graphic.color = color; graphic.raycastTarget = false; graphic.enabled = false;
+            return graphic;
         }
 
         private void BuildSignals()
@@ -172,19 +186,19 @@ namespace NatureCalls.UI
             var fillRect = Stretch("Fill", bar); fillRect.offsetMin = new Vector2(6, 6); fillRect.offsetMax = new Vector2(-6, -6);
             tidinessFill = Panel(fillRect, Clean, RoundSprite());
             tidinessFill.type = Image.Type.Filled; tidinessFill.fillMethod = Image.FillMethod.Horizontal;
-            tidinessLabel = Label(Stretch("Label", bar), 24, Paper, TextAnchor.MiddleCenter);
+            tidinessLabel = Label(Stretch("Label", bar), 30, Paper, TextAnchor.MiddleCenter);
 
-            timerLabel = Label(Rect("Timer", root, new Vector2(.5f, 1), new Vector2(0, 1), new Vector2(336, -26), new Vector2(220, 40)), 28, Paper, TextAnchor.MiddleLeft);
-            wavesLabel = Label(Rect("Waves", root, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -74), new Vector2(640, 30)), 20, Paper, TextAnchor.MiddleCenter, FontStyle.Normal);
+            timerLabel = Label(Rect("Timer", root, new Vector2(.5f, 1), new Vector2(0, 1), new Vector2(336, -26), new Vector2(220, 40)), 34, Paper, TextAnchor.MiddleLeft);
+            wavesLabel = Label(Rect("Waves", root, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -74), new Vector2(640, 30)), 23, Paper, TextAnchor.MiddleCenter);
 
             var badge = Rect("Role", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -22), new Vector2(210, 52));
             roleBadge = Panel(badge, KeeperBlue, RoundSprite()); roleBadge.type = Image.Type.Sliced;
-            roleLabel = Label(Stretch("Label", badge), 26, Color.white, TextAnchor.MiddleCenter);
-            cooldownLabel = Label(Rect("Cooldowns", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(28, -84), new Vector2(360, 120)), 19, Paper, TextAnchor.UpperLeft, FontStyle.Normal);
+            roleLabel = Label(Stretch("Label", badge), 31, Color.white, TextAnchor.MiddleCenter);
+            cooldownLabel = Label(Rect("Cooldowns", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(28, -84), new Vector2(360, 120)), 22, Paper, TextAnchor.UpperLeft, FontStyle.Normal);
 
             var toast = Rect("Toast", root, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -118), new Vector2(760, 58));
             var toastBack = Panel(toast, new Color(.98f, .86f, .30f, .95f), RoundSprite()); toastBack.type = Image.Type.Sliced;
-            toastLabel = Label(Stretch("Label", toast), 26, Ink, TextAnchor.MiddleCenter);
+            toastLabel = Label(Stretch("Label", toast), 31, Ink, TextAnchor.MiddleCenter);
             toastGroup = toast.gameObject.AddComponent<CanvasGroup>(); toastGroup.alpha = 0;
         }
 
@@ -192,15 +206,15 @@ namespace NatureCalls.UI
         {
             var panel = Rect("Body", root, Vector2.zero, Vector2.zero, new Vector2(24, 24), new Vector2(330, 120));
             var back = Panel(panel, new Color(Ink.r, Ink.g, Ink.b, .55f), RoundSprite()); back.type = Image.Type.Sliced;
-            bladderDot = Dot(panel, new Vector2(20, -18)); bladderLabel = Label(Rect("Bladder", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(78, -18), new Vector2(90, 46)), 24, Paper, TextAnchor.MiddleLeft);
-            bowelDot = Dot(panel, new Vector2(170, -18)); bowelLabel = Label(Rect("Bowel", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(228, -18), new Vector2(90, 46)), 24, Paper, TextAnchor.MiddleLeft);
+            bladderDot = Dot(panel, new Vector2(20, -18)); bladderLabel = Label(Rect("Bladder", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(78, -18), new Vector2(90, 46)), 28, Paper, TextAnchor.MiddleLeft);
+            bowelDot = Dot(panel, new Vector2(170, -18)); bowelLabel = Label(Rect("Bowel", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(228, -18), new Vector2(90, 46)), 28, Paper, TextAnchor.MiddleLeft);
             bladderLabel.text = "尿意"; bowelLabel.text = "便意";
             var compBack = Rect("Composure", panel, new Vector2(0, 0), new Vector2(0, 0), new Vector2(16, 14), new Vector2(298, 34));
             var cb = Panel(compBack, new Color(0, 0, 0, .55f), RoundSprite()); cb.type = Image.Type.Sliced;
             var compFill = Stretch("Fill", compBack); compFill.offsetMin = new Vector2(4, 4); compFill.offsetMax = new Vector2(-4, -4);
             composureFill = Panel(compFill, new Color(.40f, .85f, .45f), RoundSprite());
             composureFill.type = Image.Type.Filled; composureFill.fillMethod = Image.FillMethod.Horizontal;
-            composureLabel = Label(Stretch("Label", compBack), 19, Paper, TextAnchor.MiddleCenter);
+            composureLabel = Label(Stretch("Label", compBack), 22, Paper, TextAnchor.MiddleCenter);
         }
 
         private Image Dot(RectTransform parent, Vector2 position)
@@ -214,8 +228,8 @@ namespace NatureCalls.UI
         {
             var card = Rect(name, root, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0, 40), size);
             var back = Panel(card, new Color(Ink.r, Ink.g, Ink.b, .93f), RoundSprite()); back.type = Image.Type.Sliced;
-            title = Label(Rect("Title", card, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -26), new Vector2(size.x - 40, 90)), 60, Paper, TextAnchor.MiddleCenter);
-            body = Label(Rect("Body", card, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -130), new Vector2(size.x - 80, size.y - 150)), 26, Paper, TextAnchor.UpperCenter, FontStyle.Normal);
+            title = Label(Rect("Title", card, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -26), new Vector2(size.x - 40, 90)), 70, Paper, TextAnchor.MiddleCenter);
+            body = Label(Rect("Body", card, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(0, -130), new Vector2(size.x - 80, size.y - 150)), 30, Paper, TextAnchor.UpperCenter, FontStyle.Normal);
             body.horizontalOverflow = HorizontalWrapMode.Wrap;
             card.gameObject.SetActive(false);
             return card.gameObject;
@@ -341,7 +355,7 @@ namespace NatureCalls.UI
             SetOverlay(pulse, endurance > 0 || VersusHudFeed.LostControl(me), new Color(.85f, .05f, .05f, Mathf.Lerp(.25f, .55f, endurance) + .3f * thump), 1f + .05f * thump);
 
             var narrow = Mathf.Clamp01(Mathf.Max(VersusHudFeed.Narrow(me), endurance * .6f));
-            SetOverlay(tunnel, narrow > .01f, new Color(0, 0, 0, .85f * narrow), Mathf.Lerp(1.25f, .8f, narrow));
+            SetOverlay(tunnel, narrow > .01f, new Color(0, 0, 0, .9f * narrow), Mathf.Lerp(1.6f, 1.0f, narrow)); // never below 1: no uncovered rim
 
             var vomit = Mathf.Clamp01(VersusHudFeed.Vomit(me));
             var wobble = vomit > 0 ? .5f + .5f * Mathf.Sin(Time.unscaledTime * Mathf.Lerp(2f, 7f, vomit)) : 0;
@@ -354,7 +368,7 @@ namespace NatureCalls.UI
             SetOverlay(blackout, dark > 0, new Color(0, 0, 0, Mathf.Clamp01(dark) * .78f * (Random.value > .03f ? 1f : .4f)), 1f);
         }
 
-        private static void SetOverlay(Image image, bool on, Color color, float scale)
+        private static void SetOverlay(Graphic image, bool on, Color color, float scale)
         {
             image.enabled = on;
             if (!on) return;
@@ -403,7 +417,7 @@ namespace NatureCalls.UI
                 seen.Add(player);
                 if (!markers.TryGetValue(player, out var label) || label == null)
                 {
-                    label = Label(Rect("Saboteur marker", root, Vector2.zero, new Vector2(.5f, 0), Vector2.zero, new Vector2(160, 40)), 26, new Color(.85f, .62f, 1f), TextAnchor.LowerCenter);
+                    label = Label(Rect("Saboteur marker", root, Vector2.zero, new Vector2(.5f, 0), Vector2.zero, new Vector2(180, 44)), 30, new Color(.85f, .62f, 1f), TextAnchor.LowerCenter);
                     label.text = "▼ 捣蛋者";
                     markers[player] = label;
                 }

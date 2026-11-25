@@ -65,14 +65,18 @@ namespace NatureCalls.Tests
             VersusHudFeed.Endurance = _ => .7f; VersusHudFeed.LatestEvent = () => ("停电了！灯光暗下来 10 秒", 1);
             for (int i = 0; i < 20; i++) yield return null;
             Assert.That(Find(hud, "Tidiness").GetComponentInChildren<Text>().text, Does.Contain("34"));
-            Assert.That(Find(hud, "Endurance pulse").GetComponent<Image>().enabled, Is.True);
+            var pulse = Find(hud, "Endurance pulse").GetComponent<RawImage>();
+            Assert.That(pulse.enabled, Is.True);
+            var rim = (Texture2D)pulse.texture;
+            Assert.That(rim.GetPixel(rim.width / 2, rim.height / 2).a, Is.LessThan(.05f), "The vignette leaves the centre clear.");
+            Assert.That(rim.GetPixel(2, rim.height / 2).a, Is.GreaterThan(.8f), "The vignette darkens the rim.");
             Assert.That(Find(hud, "Toast").GetComponent<CanvasGroup>().alpha, Is.GreaterThan(.5f));
             yield return Capture("hud-playing.png");
 
             VersusHudFeed.Endurance = _ => 0f; VersusHudFeed.Vomit = _ => .6f; VersusHudFeed.Comfort = _ => .8f;
             for (int i = 0; i < 5; i++) yield return null;
-            Assert.That(Find(hud, "Nausea").GetComponent<Image>().enabled, Is.True);
-            Assert.That(Find(hud, "Comfort glow").GetComponent<Image>().enabled, Is.True);
+            Assert.That(Find(hud, "Nausea").GetComponent<Graphic>().enabled, Is.True);
+            Assert.That(Find(hud, "Comfort glow").GetComponent<Graphic>().enabled, Is.True);
             yield return Capture("hud-nausea-comfort.png");
 
             VersusHudFeed.Vomit = _ => 0f; VersusHudFeed.Comfort = _ => 0f;
