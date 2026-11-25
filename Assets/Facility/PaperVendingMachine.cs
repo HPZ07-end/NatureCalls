@@ -48,6 +48,10 @@ namespace NatureCalls.Facility
         private void OnDisable() { foreach (var value in interactables) InteractionRegistry.Unregister(value); }
 
         public int Wallet(ulong player) => coinOwners.Count(owner => owner == player + 1);
+        public int AvailableCoins => coinOwners.Count(owner => owner == 0);
+        public int LastRestockCount { get; private set; }
+        public void RestockCoins(int count) { LastRestockCount = Math.Min(Math.Max(0, count), coinOwners.Length); for (int i = 0; i < coinOwners.Length && count > 0; i++) if (coinOwners[i] != 0) { ApplyCoin(i, 0); count--; } }
+        public void InitializeForTests(Transform[] coins) { Coins = coins ?? Array.Empty<Transform>(); Awake(); }
         public string Prompt(int action, ulong player, Movement movement = null)
         {
             if (action >= FirstCoin) return "E  拾取金币";

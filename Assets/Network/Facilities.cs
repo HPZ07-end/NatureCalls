@@ -14,7 +14,8 @@ namespace NatureCalls.Network
         public MessKind Kind;
         public Vector3 Position;
         public int ToiletIndex;
-        public bool Equals(MessSnapshot other) => Kind == other.Kind && Position == other.Position && ToiletIndex == other.ToiletIndex;
+        public bool SaboteurSource;
+        public bool Equals(MessSnapshot other) => Kind == other.Kind && Position == other.Position && ToiletIndex == other.ToiletIndex && SaboteurSource == other.SaboteurSource;
     }
     public struct FacilityStateEntry : INetworkSerializeByMemcpy, IEquatable<FacilityStateEntry>
     {
@@ -63,7 +64,7 @@ namespace NatureCalls.Network
         public override void OnNetworkSpawn()
         {
             Current = this;
-            Map.Playground.MessAuthority = AddMess;
+            Map.Playground.MessAuthority = AddMessWithSource;
             world = FindFirstObjectByType<Map.Playground>();
             if (world != null)
             {
@@ -236,14 +237,18 @@ namespace NatureCalls.Network
         private void ShowMesses()
         {
             if (world == null) return;
-            for (int i = 0; i < SharedMesses.Count; i++) world.ShowMess(i, SharedMesses[i].Kind, SharedMesses[i].Position, SharedMesses[i].ToiletIndex);
+            for (int i = 0; i < SharedMesses.Count; i++) world.ShowMess(i, SharedMesses[i].Kind, SharedMesses[i].Position, SharedMesses[i].ToiletIndex, SharedMesses[i].SaboteurSource);
         }
         public int AddMess(MessKind kind, Vector3 position, int toiletIndex = -1)
+        {
+            return AddMessWithSource(kind, position, toiletIndex, null);
+        }
+        private int AddMessWithSource(MessKind kind, Vector3 position, int toiletIndex, Movement source)
         {
             if (!IsServer || kind == MessKind.None) return -1;
             if (kind == MessKind.DirtyToilet)
                 foreach (var state in SharedMesses) if (state.Kind == kind && state.ToiletIndex == toiletIndex) return -1;
-            SharedMesses.Add(new MessSnapshot { Kind = kind, Position = position, ToiletIndex = toiletIndex });
+            SharedMesses.Add(new MessSnapshot { Kind = kind, Position = position, ToiletIndex = toiletIndex, SaboteurSource = RoleRegistry.IsSaboteur(source) });
             return SharedMesses.Count - 1;
         }
         public void RemoveMess(int index)
@@ -252,7 +257,7 @@ namespace NatureCalls.Network
         }
         public override void OnNetworkDespawn()
         {
-            if (Map.Playground.MessAuthority == (Func<MessKind, Vector3, int, int>)AddMess) Map.Playground.MessAuthority = null;
+            if (Map.Playground.MessAuthority != null) Map.Playground.MessAuthority = null;
             SharedFacilityState.OnListChanged -= FacilityStateChanged;
             SharedItems.OnListChanged -= ItemChanged;
             SharedMesses.OnListChanged -= MessesChanged;

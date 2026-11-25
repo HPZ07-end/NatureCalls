@@ -1,7 +1,7 @@
 using System;
 namespace NatureCalls.Core
 {
-    public enum MessKind : byte { None, Dropping, Puddle, DirtyToilet, Backflow }
+    public enum MessKind : byte { None, Dropping, Puddle, DirtyToilet, Backflow, Accident, Vomit }
     /// <summary>Time-weighted accuracy; caps the last sample at the actual duration.</summary>
     public sealed class Accuracy
     {

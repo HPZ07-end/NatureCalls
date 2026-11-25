@@ -52,6 +52,14 @@ E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取
 
 保留原逻辑目录，不建立同义的 Networking/Environment 体系。新增一个 `NatureCalls.Runtime` 总程序集是为了让 Editor 和测试能引用实际组件；没有逐模块拆程序集；Core 已包含本次准度与需求规则。
 
+## 对抗模式施工版
+
+从大厅开始一局后，服务器先发布 4 秒 Reveal，再进入 Playing；默认局长 480 秒，最后一波后保留 45 秒收尾。离线直接播放 Playground 时可在命令行加入 `-saboteur`，或设置 `MatchDirector.ForceSaboteur = true` 做捣蛋者路径测试。每局身份通过 `LobbyRoom.Roles` 同步，客户端角色由 `RoleRegistry` 读取；`MatchContext.Phase`、`Elapsed`、`Tidiness` 和 `Schedule` 是 UI/身体逻辑的只读入口。
+
+污物统一经过 `Playground.AddMess`/`Facilities.SharedMesses`，`Mess.SaboteurSource` 表示来源，`DirtField.Total()` 经 `MatchRules.Tidiness` 计算共享干净值。结算条件是干净值归零（捣蛋者胜）或最后收尾结束时仍大于零（保洁队胜）；急迫值和镇定值不再直接结束对局。 `MatchContext.Winner`、`EndReason`、`Settlement` 提供结算快照；Ended 阶段默认停留 8 秒。随机事件通过 `MatchDirector.LastEventText`、`EventSerial`、`BlackoutRemaining` 暴露给 UI，服务器同步事件造成的 Pipe、售纸机和高峰变化。
+
+验证顺序：先关闭同工程 Unity GUI，再运行 `python3 scripts/unity.py test-editmode`、`python3 scripts/unity.py test-playmode`、`python3 scripts/unity.py build-server`，最后运行 `python3 -m unittest discover -s scripts/tests` 与 `python3 scripts/check.py`。
+
 ## Lobby 流程
 
 地图选择提供原 Playground 与「模块厕所（MapLayoutPrototype）」。后者是已存在模块布局的可玩接入，使用同一个 `Map.Playground` 组件和 Player Prefab；没有新增运行时地图框架或依赖。通过大厅进入时由 `Match` 加载，联机由 `LobbyRoom` 等待服务器及所有成员完成加载再生成玩家；只给拥有者绑定地图的本地镜头。

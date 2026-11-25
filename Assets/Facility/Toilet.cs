@@ -20,6 +20,10 @@ namespace NatureCalls.Facility
         public void SetPipe(Pipe value) => pipe = value;
         public void SetFlushTarget(Transform value) => flushTarget = value;
         public bool IsBackflow { get; private set; }
+        /// <summary>Versus: broken by the saboteur until repaired (owned by the saboteur-actions work).</summary>
+        public bool IsBroken { get; set; }
+        /// <summary>Versus: a toilet a player losing control can run to.</summary>
+        public bool IsAvailable => !IsOccupied && !IsBackflow && !IsBroken;
         public override int Priority => 100;
         public override float Distance => Interaction.ReachDistance;
         public override Transform Target => flushTarget != null ? flushTarget : transform;
