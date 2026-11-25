@@ -249,3 +249,6 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 - 版本目录：`/opt/naturecalls/releases/a58cf77-20261125T092630Z-ff2725`；记录 `Artifacts/20261125T095101Z-deploy-server/summary.json`（status `deployed`）。
 - SSH 只读复核：`readlink /opt/naturecalls/current` → `releases/a58cf77-20261125T092630Z-ff2725`；`naturecalls@8000` active，NRestarts=0，MainPID 3501883；`ss -lun` 显示 `0.0.0.0:8000` 正在监听；journal 中有 `Server listening on UDP 8000.`（17:51:01 CST）。
 - 未执行：跨公网的真人联机验收、Windows 客户端连接。登录只用 SSH 密钥；没有改动 SSH、防火墙或系统配置。
+
+2026-11-25 一层装置第一批：加入 Pipe、Sink、Toilet 冲水入口、纸量规则与 CharacterProfile 骨架；堵塞/倒灌数值均标注暂定，待用户确认。
+2026-11-26 回归修复：冲水目标改为独立把手目标并避让坐下玩家；Facility 通过 IMessSink 注册点产生污物；Pipe 权威和纸量同步边界修正；Playground/Map2 完成 Unity API 场景接线。

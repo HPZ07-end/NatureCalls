@@ -74,3 +74,5 @@ Windows Unity、真实 LAN/Relay、签名/公证尚未验收；CI 的三个 OS �
 2026-11-13 JST 如厕对准与清洁：已在 `feat/toileting-accuracy` 实现，运行时代码提交 `87cbb95`（Player 接口 `d659ad9`），尚待 PR Review/合入 dev。Mac ARM64 / Unity 6000.3.26f1：EditMode 30/30；无过滤 PlayMode 28 Passed + 1 Relay Ignored；build-macos 与扩展双 Player 探针通过；build-server（Linux x86_64）和桌面 Player 恢复通过，之后无过滤 PlayMode 再次 28 Passed + 1 Ignored；服务器+两客户端探针通过。仓库检查通过、Python 31/31、Semantic Diff changed 格式检查通过。完整命令、Artifacts、两次早期失败及后续回归见 [开发记录](records/status-log.md#2026-11-13-jst-如厕对准擦拭小便池工具箱与清洁日志-utc-2026-11-12)。一次既有脚底贴地测试的 8 cm 偏差未稳定复现，保留为测试不稳定记录。无未决定的规则阻塞；Windows、Linux 二进制执行、真实 LAN/Relay、真人手感与正式 HUD 仍未验收。本次不访问或部署课程服务器，不合并 PR。
 
 - 2026-11-24：E/F controls, facility interaction registry, movement effect rules, and generic shared facility state implemented; EditMode 31/31.
+
+当前：一层装置第一批已接入 Core 规则骨架、Pipe/Sink/Toilet 冲水入口与纸量耐久；堵塞阈值、倒灌概率及贡献值均为“暂定，待用户确认”。

@@ -8,6 +8,7 @@ namespace NatureCalls.Player
     public sealed class Movement : MonoBehaviour
     {
         [Min(.1f)] public float Speed = 3.5f;
+        public CharacterProfile Profile => CharacterProfile.For(GetComponent<PlayerAppearance>() != null ? GetComponent<PlayerAppearance>().BodyType : LocalProfile.BodyType);
         [Range(.01f, 1)] public float Sensitivity = .12f;
         [Range(10, 85)] public float PitchLimit = 75;
         [Min(.1f)] public float JumpSpeed = 6f;
@@ -107,7 +108,7 @@ namespace NatureCalls.Player
             var startPosition = transform.position;
             var effect = MovementEffectRegistry.Combine(this);
             var movement = (posture.IsSquatting || Immobile) ? Vector3.zero : transform.TransformDirection(new Vector3(direction.x, 0, direction.y));
-            var speed = (posture.IsCrawling ? CrawlingSpeed : Speed) * effect.SpeedMultiplier;
+            var speed = (posture.IsCrawling ? CrawlingSpeed : Speed) * Profile.MoveSpeedScale * effect.SpeedMultiplier;
             movement = Vector3.ClampMagnitude(movement, 1) * speed;
             planarVelocity = effect.Acceleration > 0 && !posture.IsSquatting && !Immobile
                 ? Vector3.MoveTowards(planarVelocity, movement, effect.Acceleration * deltaTime) : movement;
