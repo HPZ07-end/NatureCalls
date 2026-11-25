@@ -27,7 +27,8 @@ namespace NatureCalls.Input
         public int PaperRemainingUses => HeldItem is PaperRoll roll ? roll.RemainingUses : 0;
         public IInteractable Focus { get; private set; }
         public string FocusPrompt { get; private set; } = "";
-        public string FPrompt => Unwiped ? (HeldItem is PaperRoll ? "F  擦拭" : "F  用手擦拭") : HeldItem is Mop ? "F  长按清理" : "";
+        public string FPrompt => DressingRoomStool.CarriedBy(movement) != null ? "F  放下凳子" :
+            Unwiped ? (HeldItem is PaperRoll ? "F  擦拭" : "F  用手擦拭") : HeldItem is Mop ? "F  长按清理" : "";
         public Vector3 TargetCenter => toilet != null ? toilet.TargetCenter : urinal != null ? urinal.TargetCenter : CurrentLanding;
         public float TargetRadius => NeedsRules.TargetRadius;
         /// <summary>The two axes the target circle lies in: the floor for a toilet, the wall for a urinal.</summary>
@@ -297,6 +298,8 @@ namespace NatureCalls.Input
 
         public bool TryAction()
         {
+            var stool = DressingRoomStool.CarriedBy(movement);
+            if (stool != null) return stool.Place(movement);
             if (Unwiped)
             {
                 if (HeldItem is PaperRoll paper)

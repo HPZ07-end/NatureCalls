@@ -22,9 +22,15 @@ namespace NatureCalls.UI
         [SerializeField] private GameObject networkPrefab;
 
         private LobbyView view;
+        private FloatingOutfitMenu outfitText;
+        private ToiletLobby toiletLobby;
         private readonly List<Button> outfitButtons = new();
         private readonly List<Button> mapButtons = new();
         private bool offlineMapSelection;
+        private int pendingOfflineMap = -1;
+        public bool AwaitingMapConfirmation => offlineMapSelection ? pendingOfflineMap >= 0 :
+            Room != null && Room.Phase.Value == LobbyPhase.ConfirmingMap;
+        public bool CanConfirmMap => AwaitingMapConfirmation && (offlineMapSelection || Room.IsLeader);
         private bool awaitingConnection;
         private bool wasInRoom;
         private string message = "";
@@ -44,6 +50,8 @@ namespace NatureCalls.UI
         {
             if (RuntimeMode.Dedicated) { EnsureSession(); gameObject.SetActive(false); return; }
             view = GetComponent<LobbyView>();
+            outfitText = view.OutfitPanel.GetComponent<FloatingOutfitMenu>();
+            toiletLobby = FindFirstObjectByType<ToiletLobby>();
             view.OutfitOptionTemplate.gameObject.SetActive(false);
             view.MapOptionTemplate.gameObject.SetActive(false);
             view.OutfitConfirm.onClick.AddListener(ConfirmOutfit);
@@ -52,8 +60,8 @@ namespace NatureCalls.UI
             view.OutfitTall.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Tall));
             view.OutfitSwift.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Swift));
             view.OfflineButton.onClick.AddListener(StartOffline);
-            view.CreateButton.onClick.AddListener(CreateRoom);
-            view.JoinButton.onClick.AddListener(JoinRoom);
+            view.CreateButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.SelectCreate(); else CreateRoom(); });
+            view.JoinButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.SelectJoin(); else JoinRoom(); });
             view.CloseButton.onClick.AddListener(CloseLobby);
             view.PrimaryButton.onClick.AddListener(PressPrimary);
             view.LeaveButton.onClick.AddListener(LeaveRoom);
@@ -85,6 +93,7 @@ namespace NatureCalls.UI
             view.OutfitPanel.SetActive(true);
             SetPlayerControl(false);
             RefreshOutfit();
+            outfitText.Show(transform, LocalPlayer);
         }
 
         public void PreviewOutfit(int index)
@@ -121,10 +130,17 @@ namespace NatureCalls.UI
         private void RefreshOutfit()
         {
             var outfits = LocalOutfits;
-            view.OutfitBalanced.interactable = outfits.PreviewBodyType != PlayerBodyType.Balanced;
-            view.OutfitTall.interactable = outfits.PreviewBodyType != PlayerBodyType.Tall;
-            view.OutfitSwift.interactable = outfits.PreviewBodyType != PlayerBodyType.Swift;
-            view.OutfitCurrent.text = $"当前预览：{BodyTypeName(outfits.PreviewBodyType)} · {outfits.PreviewName}";
+            view.OutfitBalanced.GetComponent<OutfitChoice>().SetSelected(outfits.PreviewBodyType == PlayerBodyType.Balanced);
+            view.OutfitTall.GetComponent<OutfitChoice>().SetSelected(outfits.PreviewBodyType == PlayerBodyType.Tall);
+            view.OutfitSwift.GetComponent<OutfitChoice>().SetSelected(outfits.PreviewBodyType == PlayerBodyType.Swift);
+            for (int index = 0; index < outfitButtons.Count; index++)
+                outfitButtons[index].GetComponent<OutfitChoice>().SetSelected(index == outfits.PreviewIndex);
+            view.OutfitCurrent.text = $"{BodyTypeName(outfits.PreviewBodyType)} · {outfits.PreviewName}";
+        }
+
+        private void OnDestroy()
+        {
+            if (outfitText != null && outfitText.transform.parent == null) Destroy(outfitText.gameObject);
         }
 
         private static string BodyTypeName(PlayerBodyType bodyType) => bodyType switch
@@ -138,28 +154,46 @@ namespace NatureCalls.UI
 
         public void OpenLobby()
         {
+            if (toiletLobby != null && !toiletLobby.Focused) toiletLobby.OpenDefault();
             HidePrompts();
-            view.Blur.Set(true);
+            view.Blur.Set(toiletLobby == null);
             view.LobbyPanel.SetActive(true);
             SetPlayerControl(false);
         }
 
         public void CloseLobby()
         {
-            if (InRoom) return;
+            if (toiletLobby != null && toiletLobby.Departing) return;
+            pendingOfflineMap = -1;
             offlineMapSelection = false;
             roundResult = "";
             view.LobbyPanel.SetActive(false);
             view.MapPanel.SetActive(false);
             view.Blur.Set(false);
             SetPlayerControl(true);
+            if (toiletLobby != null) toiletLobby.CloseView();
         }
 
         public void StartOffline()
         {
             if (InRoom || Busy) return;
+            pendingOfflineMap = -1;
             offlineMapSelection = true;
             message = "单人离线测试：请选择地图。";
+        }
+
+        public void SubmitConnection(bool creating, bool lan)
+        {
+            if (InRoom || Busy) return;
+            PreferLan = lan;
+            if (!lan && !Session.CloudLinked) { message = "Relay 需要关联 Unity Cloud，当前不能连接。"; return; }
+            if (!creating)
+            {
+                var code = view.CodeInput.text.Trim();
+                if (code.Length == 0) { message = lan ? "请输入房主 IP 或 IP:端口。" : "请输入 Relay 房间号。"; return; }
+                if (Session.TryAddress(code, 7777, out _, out _) != lan) { message = lan ? "局域网入口需要有效 IP 地址。" : "此入口需要 Relay 房间号，请到 LAN 隔间输入 IP。"; return; }
+            }
+            if (creating) CreateRoom(); else JoinRoom();
         }
 
         public void CreateRoom()
@@ -211,8 +245,7 @@ namespace NatureCalls.UI
             if (offlineMapSelection)
             {
                 var index = MapSelection.Resolve(choice, maps.Count, count => Random.Range(0, count));
-                offlineMapSelection = false;
-                Match.Begin(MatchMode.Offline, maps, index);
+                pendingOfflineMap = index;
                 return;
             }
             var room = Room;
@@ -221,12 +254,24 @@ namespace NatureCalls.UI
 
         public void BackFromMap()
         {
+            if (offlineMapSelection && pendingOfflineMap >= 0) { pendingOfflineMap = -1; return; }
             if (offlineMapSelection) { offlineMapSelection = false; message = ""; return; }
             var room = Room;
             if (room != null && room.IsLeader) room.CancelMapSelection();
         }
 
         // ---- View refresh ----
+        public void ConfirmMapSelection()
+        {
+            if (!CanConfirmMap) return;
+            if (offlineMapSelection)
+            {
+                int index = pendingOfflineMap; pendingOfflineMap = -1; offlineMapSelection = false;
+                if (toiletLobby != null) toiletLobby.PlayDeparture(() => Match.Begin(MatchMode.Offline, maps, index));
+                else Match.Begin(MatchMode.Offline, maps, index);
+            }
+            else Room.ConfirmMap();
+        }
 
         private void Update()
         {
@@ -234,15 +279,30 @@ namespace NatureCalls.UI
             var room = Room;
             var session = Session.Instance;
             bool inRoom = room != null;
-            bool selectingMap = offlineMapSelection || (inRoom && room.Phase.Value == LobbyPhase.SelectingMap);
+            bool selectingMap = offlineMapSelection || (inRoom && (room.Phase.Value == LobbyPhase.SelectingMap || room.Phase.Value == LobbyPhase.ConfirmingMap));
 
             view.EntryGroup.SetActive(!inRoom && !offlineMapSelection);
             view.RoomGroup.SetActive(inRoom && !selectingMap);
             view.MapPanel.SetActive(selectingMap);
+            view.LobbyPanel.transform.Find("Title").gameObject.SetActive(!selectingMap);
+            view.Status.gameObject.SetActive(!selectingMap);
             bool canChoose = offlineMapSelection || (inRoom && room.IsLeader);
             foreach (var button in mapButtons) button.gameObject.SetActive(canChoose);
+            view.MapOptions.gameObject.SetActive(!AwaitingMapConfirmation);
             view.MapBack.gameObject.SetActive(canChoose);
             view.MapHint.text = canChoose ? "选择本局地图" : "等待领队选择地图…";
+            if (AwaitingMapConfirmation)
+            {
+                int selected = offlineMapSelection ? pendingOfflineMap : room.SelectedMap.Value;
+                view.MapHint.text = (selected >= 0 && selected < maps.Count ? MapLabel(maps[selected].DisplayName) : "地图已选择") +
+                    (CanConfirmMap ? "\n\n<size=32>对准按钮按 E 冲水出发</size>" : "\n\n<size=32>等待领队冲水出发</size>");
+            }
+            view.MapPanel.transform.Find("Title").GetComponent<Text>().text = AwaitingMapConfirmation ? "即将前往" : "选择地图";
+            view.MapHint.supportRichText = true;
+            view.MapHint.fontSize = AwaitingMapConfirmation ? 46 : 32;
+            view.MapHint.rectTransform.anchoredPosition = new Vector2(0, AwaitingMapConfirmation ? -220 : -80);
+            view.MapHint.rectTransform.sizeDelta = new Vector2(590, AwaitingMapConfirmation ? 180 : 70);
+            view.MapBack.GetComponentInChildren<Text>().text = AwaitingMapConfirmation ? "重新选图" : "返回";
 
             bool busy = Busy;
             view.OfflineButton.interactable = view.CreateButton.interactable = view.JoinButton.interactable = !busy;
@@ -273,7 +333,7 @@ namespace NatureCalls.UI
                     var you = member.ClientId == room.LocalClientId ? "（你）" : "";
                     var outfit = catalog != null && catalog.Contains(member.Outfit) ? catalog[member.Outfit].Name : "-";
                     var state = host ? "领队" : member.Ready ? "已准备" : "未准备";
-                    view.Slots[slot].text = $"玩家 {slot + 1}{you}\n{state} · {BodyTypeName(member.BodyType)} · {outfit}";
+                    view.Slots[slot].text = $"玩家 {slot + 1}{you}\n{state}";
                 }
             }
             if (room.IsLeader)
@@ -358,8 +418,7 @@ namespace NatureCalls.UI
             {
                 var choice = index;
                 var button = CloneOption(view.OutfitOptionTemplate, view.OutfitOptions, catalog[index].Name);
-                var swatch = button.GetComponent<Image>();
-                if (swatch != null) swatch.color = catalog[index].Color;
+                button.GetComponent<OutfitChoice>().SetSwatch(catalog[index].Color);
                 button.onClick.AddListener(() => PreviewOutfit(choice));
                 outfitButtons.Add(button);
             }
@@ -370,13 +429,19 @@ namespace NatureCalls.UI
             for (int index = 0; index < maps.Count; index++)
             {
                 var choice = index;
-                var button = CloneOption(view.MapOptionTemplate, view.MapOptions, maps[index].DisplayName);
+                var button = CloneOption(view.MapOptionTemplate, view.MapOptions, MapLabel(maps[index].DisplayName));
                 button.onClick.AddListener(() => ChooseMap(choice));
                 mapButtons.Add(button);
             }
             var random = CloneOption(view.MapOptionTemplate, view.MapOptions, MapCatalog.RandomName);
             random.onClick.AddListener(() => ChooseMap(MapSelection.Random));
             mapButtons.Add(random);
+        }
+
+        private static string MapLabel(string label)
+        {
+            int suffix = label.IndexOfAny(new[] { '(', '（' });
+            return suffix < 0 ? label : label.Substring(0, suffix).Trim();
         }
 
         private static Button CloneOption(Button template, RectTransform parent, string label)

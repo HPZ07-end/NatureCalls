@@ -9,6 +9,7 @@ namespace NatureCalls.Map
     public sealed class DressingMirror : InteractableComponent
     {
         [Min(.1f)] public float InteractionDistance = 1.5f;
+        public Transform StandingPoint;
         public UnityEvent PlayerEntered = new UnityEvent();
         public UnityEvent PlayerExited = new UnityEvent();
         public UnityEvent Interacted = new UnityEvent();
@@ -46,8 +47,9 @@ namespace NatureCalls.Map
             PlayerExited.Invoke();
         }
 
-        private void OnDisable()
+        protected override void OnDisable()
         {
+            base.OnDisable();
             if (nearbyPlayer == null) return;
             nearbyPlayer = null;
             PlayerExited.Invoke();

@@ -125,6 +125,9 @@ namespace NatureCalls.Network
             yield return Await(() => Marked("leader-selecting") && Marked("follower-selecting"), "selection seen");
             if (finished) yield break;
             if (leader) lobby.ChooseMap(MapIndex);
+            yield return Await(() => room.Phase.Value == LobbyPhase.ConfirmingMap, "map pending confirmation");
+            if (finished) yield break;
+            if (leader) lobby.ConfirmMapSelection();
             yield return Await(() => Facilities.Current != null && FindObjectsByType<Avatar>(FindObjectsSortMode.None).Count(a => a.IsSpawned) == 2, "client map");
             if (finished) yield break;
             var own = FindObjectsByType<Avatar>(FindObjectsSortMode.None).Single(a => a.IsOwner);

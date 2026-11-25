@@ -1,5 +1,7 @@
 # 实际开发状态
 
+2026-11-26：正在整合 PR #37 `feat/art-model-import` 到 `integrate/art-model-import`，基线为 `origin/docs/floor1-approval`（`0f88a44`）。美术资源、换装间和双隔间大厅按已批准定义接入；代码结构以 dev 为准，Map2 将在 Unity API 重跑后复验。尚未宣称 Unity 回归或真实双端 LAN/Relay 通过。
+
 2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器已于同日更新到 dev `a58cf77`（#32），见下方课程服务器记录。
 
 2026-11-25 课程服务器部署：`scripts/deploy_server.py` 将 dev `a58cf77`（PR #32）部署到 `ubuntu@49.233.132.244`，版本目录 `/opt/naturecalls/releases/a58cf77-20261125T092630Z-ff2725`（`current` 已指向它），房间 8000。Linux 服务器构建与构建后恢复 macOS Player 均通过；脚本检查 `ROOM_OK 8000`，未触发回滚。之后 SSH 只读复核：`naturecalls@8000` active，NRestarts=0，端口 8000/UDP 处于监听，日志含 `Server listening on UDP 8000.`。记录 `Artifacts/20261125T095101Z-deploy-server/summary.json`。尚未做跨公网的真人联机验收。

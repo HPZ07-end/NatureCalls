@@ -53,7 +53,7 @@ namespace NatureCalls.Tests
                 center.y = .015f;
                 var outside = center - door.transform.forward * .55f;
                 Place(outside, door.transform.forward);
-                TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True, door.transform.parent.name);
+                Assert.That(input.TryInteract(), Is.True, door.transform.parent.name);
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
                 controller.Move(door.transform.forward * .95f);
                 var inside = player.transform.position;
@@ -64,15 +64,15 @@ namespace NatureCalls.Tests
                 Place(new Vector3(inside.x, -2.58f, inside.z), door.transform.forward);
                 Assert.That(StallDoor.Containing(player), Is.Null, "A player on another floor cannot be inside an upstairs stall.");
                 Place(inside, door.transform.forward);
-                TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+                Assert.That(input.TryInteract(), Is.True);
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Closed));
-                TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+                Assert.That(input.TryInteract(), Is.True);
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Locked));
                 Place(outside, door.transform.forward);
-                TestAim.LookAtNearest(input); input.TryInteract();
+                input.TryInteract();
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Locked));
                 Place(inside, door.transform.forward);
-                TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+                Assert.That(input.TryInteract(), Is.True);
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
             }
             yield return null;
@@ -139,7 +139,7 @@ namespace NatureCalls.Tests
             var backup = rolls.Single(roll => roll.name == "Backup Roll");
             var supply = backup.transform.position;
             Place(new Vector3(supply.x, .015f, supply.z - .55f), Vector3.forward);
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+            Assert.That(input.TryInteract(), Is.True);
             Assert.That(input.HeldItem, Is.SameAs(backup));
 
             var door = Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None)
@@ -155,7 +155,7 @@ namespace NatureCalls.Tests
             input.TickAim(NeedsRules.ToiletingSeconds, Vector2.zero);
             Assert.That(toilet.IsOccupied, Is.False);
             Assert.That(input.Unwiped, Is.True);
-            Assert.That(input.TryAction(), Is.True, "F wipes with the held roll.");
+            Assert.That(input.TryAction(), Is.True, "F wipes with the held paper roll in the unified interaction flow.");
             Assert.That(input.Unwiped, Is.False);
             Assert.That(backup.RemainingUses, Is.EqualTo(NeedsRules.PaperUses - 1));
             Place(world.Spawns[0].position, Vector3.forward);
@@ -179,19 +179,19 @@ namespace NatureCalls.Tests
             var box = Object.FindFirstObjectByType<Toolbox>();
             Assert.That(box.Mop.Stored, Is.True);
             Place(box.transform.position + Vector3.back * .55f, Vector3.forward);
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+            Assert.That(input.TryInteract(), Is.True);
             Assert.That(input.HeldItem, Is.SameAs(box.Mop));
             Assert.That(rolls.Any(roll => roll.CanPickup(player)), Is.False);
             var puddle = world.Messes.First(mess => mess != null && mess.Kind == MessKind.Puddle);
             Place(new Vector3(puddle.transform.position.x, .015f, puddle.transform.position.z), Vector3.forward);
-            player.LookAt(puddle.transform.position); Assert.That(input.TryAction(), Is.True, "Holding F with the mop starts cleaning.");
+            Assert.That(input.TryAction(), Is.True, "F starts cleaning while holding the mop.");
             input.ContinueCleaning(false, .1f);
             Assert.That(world.Messes[puddle.Index], Is.SameAs(puddle));
-            Assert.That(input.TryAction(), Is.True);
+            Assert.That(input.TryAction(), Is.True, "F resumes cleaning while holding the mop.");
             input.ContinueCleaning(true, NeedsRules.CleaningSeconds);
             Assert.That(world.Messes[puddle.Index], Is.Null);
             Place(box.transform.position + Vector3.back * .55f, Vector3.forward);
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+            Assert.That(input.TryInteract(), Is.True);
             Assert.That(box.Mop.Stored, Is.True);
             yield return null;
         }
