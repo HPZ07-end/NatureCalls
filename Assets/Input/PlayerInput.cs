@@ -187,7 +187,8 @@ namespace NatureCalls.Input
             if (!IsToileting) return;
             correction += adjustment;
             float t = accuracy.Elapsed * 2;
-            var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0);
+            var profile = CharacterProfile.For(LocalProfile.BodyType);
+            var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0) / Mathf.Max(.01f, profile.AimSteadiness);
             var offset = correction + drift;
             if (urinal != null)
             {
@@ -237,6 +238,9 @@ namespace NatureCalls.Input
             if (kind == MessKind.Dropping) playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
             world?.AddMess(kind, kind == MessKind.DirtyToilet ? targetToilet.TargetCenter : position, toiletIndex);
             playerNeeds.MarkUnwiped(targetToilet.GetComponentInParent<StallDoor>());
+            playerNeeds.SetPaperRequired(NeedsRules.PaperRequired(kind));
+            playerNeeds.SetUnwipedPipe(targetToilet.ConnectedPipe);
+            if (kind == MessKind.None) targetToilet.ConnectedPipe?.AddStool();
         }
         public bool BeginCleaning(Mess mess)
         {
@@ -290,8 +294,9 @@ namespace NatureCalls.Input
                 if (HeldItem is PaperRoll paper)
                 {
                     if (Online) return facilities.RequestWipe();
-                    if (!paper.Use()) return false;
-                    needs.Wipe(); return true;
+                    int amount = Mathf.Min(needs.PaperRequired, paper.RemainingUses);
+                    if (amount <= 0 || !paper.Use(amount)) return false;
+                    needs.ConsumePaper(amount); needs.UnwipedPipe?.AddPaper(amount); return true;
                 }
                 if (Online) return facilities.RequestWipe();
                 needs?.WipeByHand();

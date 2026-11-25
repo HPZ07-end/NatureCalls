@@ -68,6 +68,7 @@ namespace NatureCalls.Map
             return index;
         }
         public bool IsDirty(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.DirtyToilet && m.ToiletIndex == toiletIndex);
+        public bool IsBackflow(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.Backflow && m.ToiletIndex == toiletIndex);
         /// <summary>Shows the shared mess at <paramref name="index"/> (MessKind.None removes it). Called by Network/Facilities for every list entry.</summary>
         public void ShowMess(int index, MessKind kind, Vector3 position, int toiletIndex)
         {
@@ -80,6 +81,11 @@ namespace NatureCalls.Map
         public void RemoveMess(int index)
         {
             if (index < 0 || index >= messes.Count || messes[index] == null) return;
+            if (messes[index].Kind == MessKind.Backflow && messes[index].ToiletIndex >= 0)
+            {
+                var toilets = FindObjectsByType<Toilet>(FindObjectsSortMode.InstanceID);
+                if (messes[index].ToiletIndex < toilets.Length) toilets[messes[index].ToiletIndex].ClearBackflow();
+            }
             droppingPool.Release(messes[index].gameObject);
             messes[index] = null;
         }

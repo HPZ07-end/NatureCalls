@@ -20,7 +20,8 @@ namespace NatureCalls.Core
         public const float ToiletingSeconds = 5f;
         public const float UrinatingSeconds = 3f;
         public const float PerfectAccuracy = .8f, FloorAccuracy = .4f, UrinalAccuracy = .7f;
-        public const int PaperUses = 3;
+        public const int PaperRollUnits = 6;
+        [Obsolete("Use PaperRollUnits and PaperRequired instead.")] public const int PaperUses = PaperRollUnits;
         public const float UnwipedDisgust = 15f, DirtyToiletDisgust = 10f, CleaningDisgust = 5f;
         public const float PuddleRadius = 1f, PuddleDisgustPerSecond = 2f, CleaningSeconds = 3f;
         public const float TargetRadius = .25f, InteractionDistance = 1.5f, UrinalDistance = .8f, ButtOffset = .4f;
@@ -31,6 +32,13 @@ namespace NatureCalls.Core
         public static MessKind Defecation(float accuracy) => accuracy >= PerfectAccuracy ? MessKind.None : accuracy >= FloorAccuracy ? MessKind.DirtyToilet : MessKind.Dropping;
         public static MessKind Urination(float accuracy) => accuracy >= UrinalAccuracy ? MessKind.None : MessKind.Puddle;
         public static int UsePaper(int remaining) => Math.Max(0, remaining - 1);
+        public static int PaperRequired(MessKind result) => result switch
+        {
+            MessKind.None => 1,
+            MessKind.DirtyToilet => 2,
+            MessKind.Dropping => 3,
+            _ => 1
+        };
         public static float TickCleaning(float elapsed, float seconds, bool valid) => valid ? Math.Min(CleaningSeconds, elapsed + Math.Max(0, seconds)) : 0;
         public static float PuddleDisgust(float distance, float seconds) => distance <= PuddleRadius ? PuddleDisgustPerSecond * Math.Max(0, seconds) : 0;
 
@@ -38,6 +46,8 @@ namespace NatureCalls.Core
 
         public static float TickUrgency(float urgency, float deltaSeconds, bool toileting) =>
             toileting ? urgency : Math.Min(UrgencyMax, urgency + UrgencyPerSecond * Math.Max(0f, deltaSeconds));
+        public static float TickUrgency(float urgency, float deltaSeconds, bool toileting, float rateScale) =>
+            toileting ? urgency : Math.Min(UrgencyMax, urgency + UrgencyPerSecond * Math.Max(0f, deltaSeconds) * Math.Max(0f, rateScale));
 
         public static float DisgustAfterToileting(float disgust, bool insideStall) =>
             insideStall ? disgust : disgust + OutsideStallDisgust;

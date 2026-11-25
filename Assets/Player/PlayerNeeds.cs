@@ -21,10 +21,16 @@ namespace NatureCalls.Player
         private StallDoor unwipedStall;
         public bool Unwiped { get; private set; }
         public bool HandsDirty { get; private set; }
+        public int PaperRequired { get; private set; }
+        public Pipe UnwipedPipe { get; private set; }
         public bool Toileting { get; set; }
         public void MarkUnwiped(StallDoor stall) { unwipedStall = stall; Unwiped = true; }
         public void Wipe() { Unwiped = false; unwipedStall = null; }
         public void WipeByHand() { if (!Unwiped) return; Wipe(); HandsDirty = true; }
+        public void SetPaperRequired(int units) { PaperRequired = System.Math.Max(0, units); }
+        public void SetUnwipedPipe(Pipe pipe) { UnwipedPipe = pipe; }
+        public void ConsumePaper(int units) { PaperRequired = System.Math.Max(0, PaperRequired - System.Math.Max(0, units)); if (PaperRequired == 0) Wipe(); }
+        public void WashHands() { HandsDirty = false; }
         public void LeaveUnwiped() { if (!Unwiped) return; AddDisgust(NeedsRules.UnwipedDisgust); Wipe(); }
         public void AddDisgust(float value) { if (Ticking) Disgust += value; }
         public void CompleteUrination() { if (Ticking) Urgency = NeedsRules.UrgencyAfterUrination(Urgency); }
@@ -38,6 +44,7 @@ namespace NatureCalls.Player
             Urgency = NeedsRules.InitialUrgency(random01);
             Disgust = 0;
             HandsDirty = false;
+            PaperRequired = 0;
             Ticking = true;
         }
 
@@ -45,7 +52,7 @@ namespace NatureCalls.Player
 
         private void Update()
         {
-            if (Ticking) Urgency = NeedsRules.TickUrgency(Urgency, Time.deltaTime, posture.IsSquatting || Toileting);
+            if (Ticking) Urgency = NeedsRules.TickUrgency(Urgency, Time.deltaTime, posture.IsSquatting || Toileting, CharacterProfile.For(LocalProfile.BodyType).UrgencyRateScale);
             if (!Ticking) return;
             if (Unwiped && unwipedStall != null && !unwipedStall.Contains(GetComponent<Movement>())) LeaveUnwiped();
             var world = FindFirstObjectByType<Map.Playground>();

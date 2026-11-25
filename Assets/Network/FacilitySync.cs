@@ -351,8 +351,10 @@ namespace NatureCalls.Network
             if (host == null || rpc.Receive.SenderClientId != OwnerClientId || !needs.Unwiped) return;
             // F without paper wipes by hand (approved 2026-11-24); the server decides which, like offline.
             if (Item.FindCarriedBy(movement) is not PaperRoll roll) { needs.WipeByHand(); return; }
-            if (!roll.Use()) return;
-            needs.Wipe();
+            int amount = Math.Min(needs.PaperRequired, roll.RemainingUses);
+            if (amount <= 0 || !roll.Use(amount)) return;
+            needs.ConsumePaper(amount);
+            needs.UnwipedPipe?.AddPaper(amount);
             int index = Array.IndexOf(host.items, roll);
             host.SharedItems[index] = Facilities.Snapshot(roll, ItemSnapshot.Carried, OwnerClientId);
         }

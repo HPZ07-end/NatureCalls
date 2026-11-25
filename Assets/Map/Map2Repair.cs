@@ -13,6 +13,7 @@ namespace NatureCalls.Map
     public sealed class Map2Repair : MonoBehaviour, ISharedFacilityState, IInteractableProvider
     {
         public Transform UpstreamWindow, Valve, InspectionPort, DownstreamWindow, Handwheel, InspectionLid, AugerCrank, UpstreamWater, DownstreamWater;
+        [SerializeField] private Pipe[] pipes;
         public SewerRepairProgress RepairProgress { get; private set; }
         private Quaternion handwheelRest, lidRest, crankRest; private Vector3 upstreamRest, downstreamRest;
         private readonly List<IInteractable> interactables = new();
@@ -60,7 +61,7 @@ namespace NatureCalls.Map
             (Downstream, SewerRepairProgress.Running) => SewerRepairProgress.Confirmed, _ => RepairProgress
         };
         private void ApplyRepairProgress(SewerRepairProgress progress)
-        { RepairProgress = progress; UpstreamWater.localPosition = upstreamRest + Vector3.up * (progress < SewerRepairProgress.Cleared ? .1f : 0); DownstreamWater.localPosition = downstreamRest - Vector3.up * (progress < SewerRepairProgress.Running ? .09f : 0); }
+        { RepairProgress = progress; if (progress == SewerRepairProgress.Confirmed && pipes != null) foreach (var pipe in pipes) pipe?.Clear(); UpstreamWater.localPosition = upstreamRest + Vector3.up * (progress < SewerRepairProgress.Cleared ? .1f : 0); DownstreamWater.localPosition = downstreamRest - Vector3.up * (progress < SewerRepairProgress.Running ? .09f : 0); }
         private void Update()
         { bool isolated = RepairProgress is SewerRepairProgress.Isolated or SewerRepairProgress.Cleared; Handwheel.localRotation = Quaternion.RotateTowards(Handwheel.localRotation, handwheelRest * Quaternion.AngleAxis(isolated ? 105 : 0, Vector3.forward), Time.deltaTime * 260); InspectionLid.localRotation = Quaternion.RotateTowards(InspectionLid.localRotation, lidRest * Quaternion.AngleAxis(RepairProgress == SewerRepairProgress.Cleared ? 100 : 0, Vector3.right), Time.deltaTime * 250); AugerCrank.localRotation = RepairProgress == SewerRepairProgress.Cleared ? AugerCrank.localRotation * Quaternion.AngleAxis(Time.deltaTime * 360, Vector3.forward) : crankRest; }
     }

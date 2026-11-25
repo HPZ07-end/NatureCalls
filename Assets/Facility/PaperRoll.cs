@@ -7,10 +7,9 @@ namespace NatureCalls.Facility
         public override int RemainingUses => remainingUses;
         public bool Use()
         {
-            if (remainingUses <= 0) return false;
-            ApplyUses(NeedsRules.UsePaper(remainingUses));
-            return true;
+            return Use(1);
         }
+        public bool Use(int units) { if (remainingUses <= 0 || units <= 0) return false; ApplyUses(System.Math.Max(0, remainingUses - units)); return true; }
         public void ApplyUses(int uses)
         {
             remainingUses = uses;
