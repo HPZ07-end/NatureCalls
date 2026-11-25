@@ -208,7 +208,7 @@ void RequestClean(int index, bool held)
 
 离线入口调用设施本地方法；联机入口走 FacilitySync，由服务器调用本地方法校验并发布 Facilities 列表。`ApplyShared*` 是接收后的应用端。客户端不能绕过 Request 直接开门、消费卷纸或改占用，否则会出现仅自己看到的状态。
 
-Facilities 维护 SharedDoors、SharedItems、SharedToilets、SharedUrinals、SharedMesses。马桶/小便池占用用 0 表示空，其他值是 clientId + 1；ItemSnapshot.Carrier 使用原始 clientId，Simulator 用 clientId + 1。不要混用。
+Facilities 维护一个 generic `SharedFacilityState`，由门、马桶、小便池及其他 `ISharedFacilityState` 设施声明固定条目；Owner 为 0 表示空，其他值是 clientId + 1。`SharedItems` 专用于位姿、速度、使用次数和飞行模拟，`SharedMesses` 专用于动态污物数量。ItemSnapshot.Carrier 使用原始 clientId，Simulator 用 clientId + 1。不要混用。
 
 设施索引在生成 Facilities 时建立，主要按层级名字和 sibling index 排序；门、Item、马桶还按地图 Scene 过滤，小便池/工具箱当前使用全局查找。所有端必须有一致地图版本和层级。它不是持久设施 ID；运行中动态加入设施、多地图 Additive 或各端独立改层级，不能直接依赖当前索引机制。
 
@@ -311,8 +311,10 @@ NGO Scene Management 当前关闭，Scene 由本地加载加 RPC 协调。当前
 
 ### 新增设施或地图
 
+设施和地图的归属按 Glossary：通用设施放在 `Assets/Facility`，由地图在 Inspector 提供布局和参数；只描述某张地图的井道、湿地或维修原型放在 `Assets/Map`。例如 `PaperVendingMachine` 是 Facility，`WetZone`、`SewerAccess`、`VentPassage` 和 `Map2Repair` 是 Map。新增组件后必须由对应 Editor 集成脚本通过 Unity API 接线并保存场景，不能用文本直接改序列化资产。
+
 新设施或地图只在自己的组件里实现接口，Input、Player、Network、UI 不需要改：
 
-- **可交互**：继承 `InteractableComponent`（自动在 OnEnable/OnDisable 注册）并实现 `CanInteract`、`Prompt`、`Perform`；`Target` 是准星要命中的物体，`AimPoint` 默认为其碰撞体包围盒中心。一个组件有多个入口时实现 `IInteractableProvider` 并自行注册各入口（参照 `Map2Interactions` 的 Station）。联机时 `Perform` 调用 `context.Sync.RequestInteract(this)`：服务器按 `Facilities.SharedInteractables` 中的序号找到同一对象，用服务器端上下文重新检查 `CanInteract` 后执行。
+- **可交互**：继承 `InteractableComponent`（自动在 OnEnable/OnDisable 注册）并实现 `CanInteract`、`Prompt`、`Perform`；`Target` 是准星要命中的物体，`AimPoint` 默认为其碰撞体包围盒中心。一个组件有多个入口时实现 `IInteractableProvider` 并自行注册各入口（参照 `PaperVendingMachine` 或 `Map2Repair` 的 Station）。联机时 `Perform` 调用 `context.Sync.RequestInteract(this)`：服务器按 `Facilities.SharedInteractables` 中的序号找到同一对象，用服务器端上下文重新检查 `CanInteract` 后执行。
 - **移动效果**：实现 `IMovementEffectSource`（`AppliesTo` + 返回 Core `MovementModifier`），在 OnEnable/OnDisable 调用 `MovementEffectRegistry.Register/Unregister`。多个来源由 `MovementRules.Combine` 合并：速度相乘、取最小的非零加速度、强制爬行与禁跳取或。
 - **共享状态**：实现 `ISharedFacilityState`：声明条目数，`ReadShared`/`ApplyShared` 读写每个条目的 `SharedFacilityValue`（State + Owner，含义由设施自己定义），`ReleaseOwner` 释放断线玩家占有的条目。`Facilities` 按地图层级顺序给条目分配连续编号，服务器在开局和每次通用交互、穿越、断线后发布变化，所有客户端（含中途加入）按列表应用。
