@@ -7,6 +7,9 @@ namespace NatureCalls.Map
     /// <summary>A low passage with two sloped sections and a level passing bay.</summary>
     public sealed class VentPassage : MonoBehaviour, IMovementEffectSource
     {
+        private void OnEnable() => MovementEffectRegistry.Register(this);
+        private void OnDisable() => MovementEffectRegistry.Unregister(this);
+
         public Transform PassingBay;
         public Transform LowerSlope;
         public Transform Exit;
