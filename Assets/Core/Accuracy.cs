@@ -1,7 +1,8 @@
 using System;
 namespace NatureCalls.Core
 {
-    public enum MessKind : byte { None, Dropping, Puddle, DirtyToilet, Backflow, Accident, Vomit }
+    /// <summary>Dropping is the soft stool heap; LooseStool is the slippery splat (GLOSSARY Mess/StoolKind). Hard stools are Items, not list entries.</summary>
+    public enum MessKind : byte { None, Dropping, Puddle, DirtyToilet, Backflow, Accident, Vomit, LooseStool }
     /// <summary>Time-weighted accuracy; caps the last sample at the actual duration.</summary>
     public sealed class Accuracy
     {

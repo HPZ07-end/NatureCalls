@@ -20,6 +20,7 @@ namespace NatureCalls.Facility
             transform.localScale = kind == MessKind.Puddle || kind == MessKind.Backflow ? new Vector3(.8f, .025f, .8f) : Vector3.one * .22f;
             GetComponent<Renderer>().material.color = kind == MessKind.Dropping ? Color.black : kind == MessKind.Puddle ? Color.yellow : kind == MessKind.Backflow ? Color.magenta : new Color(.4f, .2f, .02f);
             DirtField.Register(this);
+            MessLook.Apply(this, kind, position); // formal model, odour and slip by kind
         }
         private void OnEnable() => DirtField.Register(this);
         private void OnDisable() => DirtField.Unregister(this);

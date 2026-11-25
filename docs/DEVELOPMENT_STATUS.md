@@ -1,6 +1,10 @@
 2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
+2026-11-26 如厕视觉交互（第二阶段，同一分支，已合入 `feat/versus-body` 20ac426）：`Input/ToiletingView` 实现限时低头（约 3 秒额度、落点显示、镜头低头、漂移 ×0.6，与 PlayerNeeds 的低头舒爽度对接）、大便下落与水花和溅屁股画面、小便正对小便池的抛物线尿流与按入射角反弹、溅到自己扣镇定值、舒爽金色闪光；粪便种类抽取改读 PlayerNeeds 的便意、舒爽度、极限忍耐与失控。修正 PlayerNeeds 低头判断的符号（原 `Pitch < -45` 是抬头）。新 PlayMode `ToiletingViewTests` 6/6。未做：低头舒爽度在联机时只在本机有效（服务器看不到客户端的 Pitch）；尿流与下落只在本机显示；没有音效；HUD 在保持阶段仍画目标圈（盲拉需由 HUD 改成只在低头时显示落点）。
+
+2026-11-26 污物与粪便种类第一阶段（分支 `claude/versus-mess-0b373a`，基于 `feat/versus-base`，尚未合入）：实现 GLOSSARY `Mess/StoolKind`。Core `StoolRules`（概率、堵塞量、气味、脏度权重，均为暂定）；`StoolOutput` 在大便结算时抽取种类；软便落地为 `Dropping`，拉稀为新的 `MessKind.LooseStool`（湿滑，惯性同 WetZone），硬便为 `HardStool` 物品（可踢、拾取扣镇定值、可丢、进马桶加堵塞，联机沿用 SharedItems，踢飞新增 `FacilitySync.KickItemRpc`）；管路已堵时拉稀进马桶触发倒灌。Blender 后台生成 8 个正式模型和 3 张精灵图（`scripts/blender/mess_models.py` → `Assets/Art/Mess/`，`scripts/unity.py mess-art` 生成 URP 材质与 `MessArt` 目录），`MessLook` 替换全部污物外观（软便堆、拉稀、失禁、呕吐、尿迹、倒灌、马桶抹痕）并按气味权重放出臭气精灵。EditMode 61/61、PlayMode 58/59（1 个既有 Relay 跳过）、build-server 与 `scripts/check.py` 通过。未做：舒爽度对抽取的影响（等 PlayerNeeds 发布 Comfort）、如厕视觉交互（低头、看到落下、小便抛物线，第二阶段）、马桶抹痕在真实马桶里的位置只按模型尺寸估算、联机踢飞只做了 SharedItems 计数验证没有双端实测。`Semantic-Diff: none`（实现已批准的 StoolKind；`LooseStool` 是拉稀的实现名）。
+
 2026-11-26 对抗模式 C（捣蛋者与维修工具）施工中：新增 Breakable、Wrench、Plunger、塞纸/敲门/洒水入口，以及马桶/洗手台损坏状态和 DirtField 权重；尚未运行 Unity 导入、场景接线或 EditMode/PlayMode/build-server 验证。
 
 2026-11-25 服务器房间号与局域网自动发现（分支 `feat/server-room-codes`，尚未合入 dev）：broker（TCP 8100）分配随机三位房间号，按需启动 UDP 8001–8099 动态房间，空置 300 秒后房间自行退出；8000 常驻房间保留。局域网直连房间经 UDP 47777 广播，大厅自动列出，IP:端口直连与 Relay 保留。EditMode 41/41、PlayMode 42/43（1 个既有 Relay Ignored）、macOS 与 Linux Server 构建通过；本机 broker 生命周期、两客户端房间号加入、局域网列表点击加入通过。已部署到课程服务器：版本目录 `/opt/naturecalls/releases/9dd8172-20261125T165824Z-f3ed9a`，8000 与 broker active；从公网用两个 macOS 客户端经 UI 创建并以房间号 328 加入同一房间通过，离开后房间 300 秒自行退出（退出码 0）、房间号查询返回 404。记录 `Artifacts/20261125T172149Z-deploy-server/summary.json`、`Artifacts/20261125T172222Z-2730b3-room-e2e/`。未执行：真人跨公网联机、Windows 客户端、两台真实设备的局域网发现。

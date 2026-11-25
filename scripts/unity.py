@@ -165,12 +165,12 @@ def run(action, timeout, test_filter=None):
         if action != "build-server":
             target = {"build-macos": "osxuniversal", "build-windows": "Win64"}.get(action, player_target())
             command += ["-buildTarget", target, "-standaloneBuildSubtarget", "Player"]
-        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "dressing-room", "toilet-lobby", "server-lobby-controls", "toilet-anchors", "spawn-points", "match-flow", "facilities", "toileting", "map-integration", "map2-integration", "plumbing"):
+        if action in ("setup", "validate", "playground", "camera", "lobby-flow", "dressing-room", "toilet-lobby", "server-lobby-controls", "toilet-anchors", "spawn-points", "match-flow", "facilities", "toileting", "map-integration", "map2-integration", "plumbing", "mess-art"):
             if use_nographics():
                 command += ["-nographics"]
             command += ["-quit", "-executeMethod", "NatureCalls.Editor.Automation." +
                         {"setup": "Setup", "playground": "Playground", "camera": "Camera",
-                         "lobby-flow": "LobbyFlow", "dressing-room": "DressingRoom", "toilet-lobby": "ToiletLobby", "server-lobby-controls": "ServerLobbyControls", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "match-flow": "MatchFlow", "facilities": "Facilities", "toileting": "Toileting", "map-integration": "MapIntegration", "map2-integration": "Map2Integration", "plumbing": "Plumbing", "validate": "Validate"}[action]]
+                         "lobby-flow": "LobbyFlow", "dressing-room": "DressingRoom", "toilet-lobby": "ToiletLobby", "server-lobby-controls": "ServerLobbyControls", "toilet-anchors": "ToiletAnchors", "spawn-points": "SpawnPoints", "match-flow": "MatchFlow", "facilities": "Facilities", "toileting": "Toileting", "map-integration": "MapIntegration", "map2-integration": "Map2Integration", "plumbing": "Plumbing", "mess-art": "MessArt", "validate": "Validate"}[action]]
         elif action in ("test-editmode", "test-playmode"):
             if action == "test-editmode" and use_nographics():
                 command += ["-nographics"]
@@ -229,7 +229,7 @@ def run(action, timeout, test_filter=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "dressing-room", "toilet-lobby", "server-lobby-controls", "toilet-anchors", "spawn-points", "match-flow", "facilities", "toileting", "map-integration", "map2-integration", "plumbing", "test-editmode", "test-playmode", "build-macos", "build-windows", "build-server"])
+    parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "dressing-room", "toilet-lobby", "server-lobby-controls", "toilet-anchors", "spawn-points", "match-flow", "facilities", "toileting", "map-integration", "map2-integration", "plumbing", "mess-art", "test-editmode", "test-playmode", "build-macos", "build-windows", "build-server"])
     parser.add_argument("--timeout", type=int, default=1800, help="Editor timeout in seconds (default 1800)")
     parser.add_argument("--test-filter", help="Explicit Unity test name/regex filter; recorded in summary.json")
     arguments = parser.parse_args()

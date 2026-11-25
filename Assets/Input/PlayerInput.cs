@@ -69,6 +69,7 @@ namespace NatureCalls.Input
             needsSync = GetComponent<NeedsSync>();
             needs = GetComponent<PlayerNeeds>();
             if (needs != null) needs.AutoToiletRequested += AutoToilet;
+            ToiletingView.Attach(gameObject); // look-down, falling stool, urine arc, comfort sparkles
 
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
@@ -205,7 +206,7 @@ namespace NatureCalls.Input
             float t = accuracy.Elapsed * 2;
             var appearance = GetComponent<PlayerAppearance>();
             var profile = CharacterProfile.For(appearance != null ? appearance.BodyType : LocalProfile.BodyType);
-            var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0) * (1f + (needs != null ? needs.AimJitterIntensity : 0)) / Mathf.Max(.01f, profile.AimSteadiness);
+            var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0) * (1f + (needs != null ? needs.AimJitterIntensity : 0)) * (GetComponent<ToiletGaze>()?.DriftScale ?? 1f) / Mathf.Max(.01f, profile.AimSteadiness);
             var offset = correction + drift;
             if (urinal != null)
             {
@@ -249,22 +250,24 @@ namespace NatureCalls.Input
                 return;
             }
             bool inStall = targetToilet != null;
+            var stool = StoolOutput.Roll(player); // StoolKind, drawn before urgency clears
             playerNeeds.CompleteToileting(inStall);
-            if (!inStall) { world?.Drop(position); return; }
+            if (!inStall) { StoolOutput.Floor(player, position, stool); return; }
             if (targetToilet.IsBackflow || (world != null && world.IsBackflow(toiletIndex)))
             {
-                world?.AddMess(MessKind.Dropping, position, -1);
+                StoolOutput.Floor(player, position, stool);
                 playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
                 return; // Backflow makes this equivalent to outside defecation: no paper or pipe contribution.
             }
             if (world != null && world.IsDirty(toiletIndex)) { playerNeeds.AddDisgust(NeedsRules.DirtyToiletDisgust); playerNeeds.AddComfort(-.02f); }
             var kind = NeedsRules.Defecation(value);
             if (kind == MessKind.Dropping) playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
-            world?.AddMess(kind, kind == MessKind.DirtyToilet ? targetToilet.TargetCenter : position, toiletIndex);
+            if (kind == MessKind.Dropping) StoolOutput.Floor(player, position, stool);
+            else world?.AddMess(kind, kind == MessKind.DirtyToilet ? targetToilet.TargetCenter : position, toiletIndex);
             playerNeeds.MarkUnwiped(targetToilet.GetComponentInParent<StallDoor>());
             playerNeeds.SetPaperRequired(NeedsRules.PaperRequiredForSaboteur(kind, RoleRegistry.IsSaboteur(player)));
             playerNeeds.SetUnwipedPipe(targetToilet.ConnectedPipe);
-            if (kind == MessKind.None) targetToilet.ConnectedPipe?.AddStool();
+            if (kind != MessKind.Dropping) StoolOutput.Bowl(targetToilet, stool);
         }
         public bool BeginCleaning(Mess mess)
         {

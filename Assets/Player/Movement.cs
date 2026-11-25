@@ -96,6 +96,8 @@ namespace NatureCalls.Player
             transform.Rotate(Vector3.up, delta.x * Sensitivity, Space.World);
             Pitch = Mathf.Clamp(Pitch - delta.y * Sensitivity, -PitchLimit, PitchLimit);
         }
+        /// <summary>Head pitch only (positive looks down); used for the toileting look-down while the body stays put.</summary>
+        public void SetPitch(float pitch) => Pitch = Mathf.Clamp(pitch, -PitchLimit, PitchLimit);
         public void LookAt(Vector3 worldPoint)
         {
             var delta = worldPoint - ViewOrigin;

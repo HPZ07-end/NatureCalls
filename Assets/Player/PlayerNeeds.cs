@@ -125,7 +125,7 @@ namespace NatureCalls.Player
                 }
             if (Toileting && Bowel > 0)
             {
-                if (GetComponent<Movement>().Pitch < -45f) AddComfort(Time.deltaTime / 100f);
+                if (GetComponent<Movement>().Pitch > 45f) AddComfort(Time.deltaTime / 100f);
                 if (GetComponent<Movement>().LastInputMagnitude < .05f) AddComfort(.5f * Time.deltaTime / 100f);
             }
             if (stunRemaining > 0) { stunRemaining -= Time.deltaTime; GetComponent<Movement>().Immobile = true; if (stunRemaining <= 0 && !IsOutOfControl) GetComponent<Movement>().Immobile = false; }
