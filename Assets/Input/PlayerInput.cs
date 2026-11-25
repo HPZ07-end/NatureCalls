@@ -63,6 +63,7 @@ namespace NatureCalls.Input
             facilities = GetComponent<FacilitySync>();
             needsSync = GetComponent<NeedsSync>();
             needs = GetComponent<PlayerNeeds>();
+            if (needs != null) needs.AutoToiletRequested += AutoToilet;
 
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
@@ -82,7 +83,8 @@ namespace NatureCalls.Input
             CancelCleaning();
             Unlock();
         }
-        private void OnDestroy() { move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); interact?.Dispose(); action?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
+        private void OnDestroy() { if (needs != null) needs.AutoToiletRequested -= AutoToilet; move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); interact?.Dispose(); action?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
+        private void AutoToilet(Toilet target) { if (target != null && Phase == Stage.None) BeginGranted(target, null); }
         public static void Unlock() { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
         private void OnApplicationFocus(bool focused) { if (!focused) Unlock(); }
         private void Update()
@@ -144,6 +146,7 @@ namespace NatureCalls.Input
         }
         public bool TryToilet()
         {
+            if (needs != null && needs.Vomiting) return false;
             movement.RefreshVentPosture();
             if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             var stall = StallDoor.Containing(movement);
@@ -189,7 +192,7 @@ namespace NatureCalls.Input
             float t = accuracy.Elapsed * 2;
             var appearance = GetComponent<PlayerAppearance>();
             var profile = CharacterProfile.For(appearance != null ? appearance.BodyType : LocalProfile.BodyType);
-            var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0) / Mathf.Max(.01f, profile.AimSteadiness);
+            var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0) * (1f + (needs != null ? needs.AimJitterIntensity : 0)) / Mathf.Max(.01f, profile.AimSteadiness);
             var offset = correction + drift;
             if (urinal != null)
             {
@@ -242,13 +245,13 @@ namespace NatureCalls.Input
                 playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
                 return; // Backflow makes this equivalent to outside defecation: no paper or pipe contribution.
             }
-            if (world != null && world.IsDirty(toiletIndex)) playerNeeds.AddDisgust(NeedsRules.DirtyToiletDisgust);
+            if (world != null && world.IsDirty(toiletIndex)) { playerNeeds.AddDisgust(NeedsRules.DirtyToiletDisgust); playerNeeds.AddComfort(-.02f); }
             var kind = NeedsRules.Defecation(value);
             if (kind == MessKind.Dropping) playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
             if (kind == MessKind.Dropping) StoolOutput.Floor(player, position, stool);
             else world?.AddMess(kind, kind == MessKind.DirtyToilet ? targetToilet.TargetCenter : position, toiletIndex);
             playerNeeds.MarkUnwiped(targetToilet.GetComponentInParent<StallDoor>());
-            playerNeeds.SetPaperRequired(NeedsRules.PaperRequired(kind));
+            playerNeeds.SetPaperRequired(NeedsRules.PaperRequiredForSaboteur(kind, RoleRegistry.IsSaboteur(player)));
             playerNeeds.SetUnwipedPipe(targetToilet.ConnectedPipe);
             if (kind != MessKind.Dropping) StoolOutput.Bowl(targetToilet, stool);
         }
@@ -264,7 +267,7 @@ namespace NatureCalls.Input
         {
             if (Phase != Stage.Cleaning) return;
             if (!held || cleaning == null || !cleaning.gameObject.activeSelf || !cleaning.CanClean(movement)) { CancelCleaning(); return; }
-            cleanElapsed = NeedsRules.TickCleaning(cleanElapsed, seconds, true);
+            cleanElapsed = NeedsRules.TickCleaning(cleanElapsed, seconds * (needs != null ? needs.CleaningSpeedMultiplier : 1f), true);
             if (Online)
             {
                 if (Time.time >= nextCleanReport) { facilities.RequestClean(cleaning.Index, true); nextCleanReport = Time.time + .1f; }
@@ -290,6 +293,7 @@ namespace NatureCalls.Input
             if (movement.IsTraversing) return false;
             RefreshFocus();
             if (Focus == null) return false;
+            if (needs != null && needs.Vomiting && Focus is not StallDoor && Focus is not Toilet) return false;
             if (!Focus.Perform(Context())) return false;
             GetComponent<PlayerAppearance>()?.PlayReach();
             var avatar = GetComponent<Network.Avatar>();
@@ -299,6 +303,7 @@ namespace NatureCalls.Input
 
         public bool TryAction()
         {
+            if (needs != null && needs.Vomiting) return false;
             if (Unwiped)
             {
                 if (HeldItem is PaperRoll paper)
@@ -324,6 +329,7 @@ namespace NatureCalls.Input
 
         private bool TryThrowCarriedItem()
         {
+            if (needs != null && needs.Vomiting) return false;
             var carried = Item.FindCarriedBy(movement);
             return carried != null && (facilities != null && facilities.IsSpawned
                 ? facilities.RequestThrow(carried, movement.transform.forward) : carried.Throw(movement, movement.transform.forward));
