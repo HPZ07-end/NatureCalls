@@ -65,14 +65,18 @@ namespace NatureCalls.Tests
             VersusHudFeed.Endurance = _ => .7f; VersusHudFeed.LatestEvent = () => ("停电了！灯光暗下来 10 秒", 1);
             for (int i = 0; i < 20; i++) yield return null;
             Assert.That(Find(hud, "Tidiness").GetComponentInChildren<Text>().text, Does.Contain("34"));
-            Assert.That(Find(hud, "Endurance pulse").GetComponent<Image>().enabled, Is.True);
+            var pulse = Find(hud, "Endurance pulse").GetComponent<RawImage>();
+            Assert.That(pulse.enabled, Is.True);
+            var rim = (Texture2D)pulse.texture;
+            Assert.That(rim.GetPixel(rim.width / 2, rim.height / 2).a, Is.LessThan(.05f), "The vignette leaves the centre clear.");
+            Assert.That(rim.GetPixel(2, rim.height / 2).a, Is.GreaterThan(.8f), "The vignette darkens the rim.");
             Assert.That(Find(hud, "Toast").GetComponent<CanvasGroup>().alpha, Is.GreaterThan(.5f));
             yield return Capture("hud-playing.png");
 
             VersusHudFeed.Endurance = _ => 0f; VersusHudFeed.Vomit = _ => .6f; VersusHudFeed.Comfort = _ => .8f;
             for (int i = 0; i < 5; i++) yield return null;
-            Assert.That(Find(hud, "Nausea").GetComponent<Image>().enabled, Is.True);
-            Assert.That(Find(hud, "Comfort glow").GetComponent<Image>().enabled, Is.True);
+            Assert.That(Find(hud, "Nausea").GetComponent<Graphic>().enabled, Is.True);
+            Assert.That(Find(hud, "Comfort glow").GetComponent<Graphic>().enabled, Is.True);
             yield return Capture("hud-nausea-comfort.png");
 
             VersusHudFeed.Vomit = _ => 0f; VersusHudFeed.Comfort = _ => 0f;
@@ -91,14 +95,29 @@ namespace NatureCalls.Tests
             return null;
         }
 
-        private static IEnumerator Capture(string name)
+        // Batch-mode runs have no window, so WaitForEndOfFrame never fires and ScreenCapture is empty: render the
+        // map camera with the HUD canvas temporarily attached to it instead.
+        private IEnumerator Capture(string name)
         {
-            yield return new WaitForEndOfFrame();
+            yield return null;
             var directory = Environment.GetEnvironmentVariable("NATURECALLS_RUN_PATH");
-            if (string.IsNullOrEmpty(directory)) yield break;
-            var texture = ScreenCapture.CaptureScreenshotAsTexture();
-            try { File.WriteAllBytes(Path.Combine(directory, name), texture.EncodeToPNG()); }
-            finally { Object.Destroy(texture); }
+            var camera = UnityEngine.Camera.main;
+            if (string.IsNullOrEmpty(directory) || camera == null) yield break;
+            var canvas = Object.FindFirstObjectByType<VersusHud>().GetComponent<Canvas>();
+            var mode = canvas.renderMode;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = camera.nearClipPlane + .05f;
+            Canvas.ForceUpdateCanvases();
+            var texture = new RenderTexture(1280, 720, 24); texture.Create();
+            var previous = RenderTexture.active;
+            var image = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+            try
+            {
+                UnityEngine.Rendering.RenderPipeline.SubmitRenderRequest(camera, new UnityEngine.Rendering.Universal.UniversalRenderPipeline.SingleCameraRequest { destination = texture });
+                RenderTexture.active = texture;
+                image.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0); image.Apply();
+                File.WriteAllBytes(Path.Combine(directory, name), image.EncodeToPNG());
+            }
+            finally { RenderTexture.active = previous; texture.Release(); Object.Destroy(texture); Object.Destroy(image); canvas.renderMode = mode; }
         }
     }
 }
