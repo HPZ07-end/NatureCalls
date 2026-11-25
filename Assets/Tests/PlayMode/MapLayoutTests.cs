@@ -117,8 +117,10 @@ namespace NatureCalls.Tests
             Assert.That(door.State, Is.EqualTo(StallDoorState.Closed));
 
             var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
-            var roll = rolls.First();
-            // Stand on the floor in front of the supply cabinet and look at one roll on its shelves.
+            // The front-most roll on the top shelf of one supply cabinet (its front faces +x), so no other roll is on the line of sight.
+            var cabinet = rolls.First(item => item.transform.parent != null && item.transform.parent.name.StartsWith("Supply_Paper")).transform.parent;
+            var roll = rolls.Where(item => item.transform.parent == cabinet).OrderByDescending(item => item.transform.position.y).ThenByDescending(item => item.transform.position.x).First();
+            // Stand on the floor in front of the supply cabinet and look at that roll.
             var front = roll.transform.position + Vector3.right * 1f;
             Assert.That(Physics.Raycast(front + Vector3.up * 2f, Vector3.down, out var standing, 4f,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore), Is.True, "The cabinet front needs a floor.");
@@ -131,10 +133,7 @@ namespace NatureCalls.Tests
             player.LookAt(roll.AimPoint);
             Assert.That(input.TryInteract(), Is.True, "E should pick up the paper roll under the crosshair.");
             Assert.That(rolls.Where(item => item.PickedUpBy == player).ToArray(), Has.Length.EqualTo(1));
-            var view = player.ViewRay;
-            Assert.That(Item.FindCarriedBy(player), Is.SameAs(roll), "view " + view.origin.ToString("F2") + view.direction.ToString("F2") + " | " +
-                string.Join("; ", rolls.Select(r => r.name + " aim " + r.AimPoint.ToString("F2") + " pos " + r.transform.position.ToString("F2"))) + " | hits " +
-                string.Join(",", Physics.RaycastAll(view, 3f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide).OrderBy(h => h.distance).Select(h => h.collider.name + "<" + h.collider.transform.parent?.name + "@" + h.distance.ToString("F2"))));
+            Assert.That(Item.FindCarriedBy(player), Is.SameAs(roll), "E takes the roll under the crosshair.");
         }
 
         [UnityTearDown]

@@ -280,6 +280,8 @@ namespace NatureCalls.Tests
                 yield return null;
 
                 // Seated, E reaches the door: close, then lock from inside, then unlock and open.
+                input.RefreshFocus();
+                Assert.That(input.Focus, Is.SameAs(stall), stall.name + ": seated proximity focus is " + ((input.Focus as Component)?.name ?? input.Focus?.ToString() ?? "none"));
                 Assert.That(input.TryInteract(), Is.True);
                 Assert.That(stall.State, Is.EqualTo(StallDoorState.Closed));
                 Assert.That(input.TryInteract(), Is.True);

@@ -155,7 +155,7 @@ namespace NatureCalls.Tests
             input.TickAim(NeedsRules.ToiletingSeconds, Vector2.zero);
             Assert.That(toilet.IsOccupied, Is.False);
             Assert.That(input.Unwiped, Is.True);
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+            Assert.That(input.TryAction(), Is.True, "F wipes with the held roll.");
             Assert.That(input.Unwiped, Is.False);
             Assert.That(backup.RemainingUses, Is.EqualTo(NeedsRules.PaperUses - 1));
             Place(world.Spawns[0].position, Vector3.forward);
@@ -184,10 +184,10 @@ namespace NatureCalls.Tests
             Assert.That(rolls.Any(roll => roll.CanPickup(player)), Is.False);
             var puddle = world.Messes.First(mess => mess != null && mess.Kind == MessKind.Puddle);
             Place(new Vector3(puddle.transform.position.x, .015f, puddle.transform.position.z), Vector3.forward);
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+            player.LookAt(puddle.transform.position); Assert.That(input.TryAction(), Is.True, "Holding F with the mop starts cleaning.");
             input.ContinueCleaning(false, .1f);
             Assert.That(world.Messes[puddle.Index], Is.SameAs(puddle));
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True);
+            Assert.That(input.TryAction(), Is.True);
             input.ContinueCleaning(true, NeedsRules.CleaningSeconds);
             Assert.That(world.Messes[puddle.Index], Is.Null);
             Place(box.transform.position + Vector3.back * .55f, Vector3.forward);

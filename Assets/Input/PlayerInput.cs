@@ -102,7 +102,7 @@ namespace NatureCalls.Input
             bool accept = Application.isFocused && (Captured || !CaptureMouse);
             if (accept)
             {
-                ResolveFocus();
+                RefreshFocus();
                 if (!IsToileting) movement.Look(look.ReadValue<Vector2>());
                 if (jump.WasPressedThisFrame()) movement.Jump();
                 if (toggle.WasPressedThisFrame()) TryToilet();
@@ -124,10 +124,11 @@ namespace NatureCalls.Input
 
         private static bool IsPointerOverUi() => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
-        private void ResolveFocus()
+        /// <summary>Re-resolves the crosshair (or proximity) focus now; Update does this every frame.</summary>
+        public void RefreshFocus()
         {
-            if (movement == null || movement.IsTraversing || Phase != Stage.None) { Focus = null; FocusPrompt = ""; return; }
-            var context = new InteractionContext(movement, Online ? facilities.OwnerClientId : 0, Online, facilities);
+            if (movement == null || movement.IsTraversing) { Focus = null; FocusPrompt = ""; return; }
+            var context = Context();
             // First person: the crosshair (view ray). Seated, squatting, crawling or aiming: nearest by proximity.
             Ray? view = posture.State == PostureState.Standing && movement.Seat == null && !movement.IsCrawling && !movement.Aiming
                 ? movement.ViewRay : null;
@@ -267,14 +268,15 @@ namespace NatureCalls.Input
             cleaning = null; cleanElapsed = 0; Phase = Stage.None;
         }
 
-        /// <summary>E performs the facility selected by the active camera centre ray.</summary>
+        private InteractionContext Context() => new InteractionContext(movement, Online ? facilities.OwnerClientId : 0, Online, facilities, Phase != Stage.None);
+
+        /// <summary>E performs the facility selected by the crosshair (first person) or by proximity (seated, squatting, crawling, aiming).</summary>
         public bool TryInteract()
         {
             if (movement.IsTraversing) return false;
-            ResolveFocus();
+            RefreshFocus();
             if (Focus == null) return false;
-            var context = new InteractionContext(movement, Online ? facilities.OwnerClientId : 0, Online, facilities);
-            if (!Focus.Perform(context)) return false;
+            if (!Focus.Perform(Context())) return false;
             GetComponent<PlayerAppearance>()?.PlayReach();
             var avatar = GetComponent<Network.Avatar>();
             if (avatar != null && avatar.IsSpawned && avatar.IsOwner) avatar.PlayReachRpc();

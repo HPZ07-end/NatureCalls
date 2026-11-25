@@ -41,9 +41,9 @@ namespace NatureCalls.Map
         {
             private readonly Map2Interactions owner; private readonly Transform target; private readonly int action;
             public Station(Map2Interactions owner, Transform target, int action) { this.owner = owner; this.target = target; this.action = action; }
-            public int Priority => action; public Transform Target => target; public float Distance => 1.15f;
+            public int Priority => action; public Transform Target => target; public float Distance => Reach + .55f;
             public Vector3 AimPoint => target != null ? target.position : Vector3.zero;
-            public bool CanInteract(InteractionContext context) => target != null && context.Player != null && Vector3.Distance(context.Player.transform.position, target.position) <= Distance && owner.CanUse(action, context.Player, context.ClientId);
+            public bool CanInteract(InteractionContext context) => !context.Busy && target != null && context.Player != null && InReach(context.Player, target) && owner.CanUse(action, context.Player, context.ClientId);
             public string Prompt(InteractionContext context) => owner.Prompt(action, context.ClientId, context.Player);
             public bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestInteract(action) : owner.Interact(action, context.Player, context.ClientId, out _, out _);
         }
@@ -101,13 +101,21 @@ namespace NatureCalls.Map
             return false;
         }
 
+        // Map2 station reach: measured from a point .55 m above the feet, within 1.15 m and a .95 m height band.
+        private const float Reach = 1.15f, ReachHeightBand = .95f;
+        private static Vector3 ReachCenter(Movement player) => player.transform.position + Vector3.up * .55f;
+        private static bool InReach(Movement player, Transform target)
+        {
+            var center = ReachCenter(player);
+            return Mathf.Abs(target.position.y - center.y) <= ReachHeightBand && (target.position - center).sqrMagnitude < Reach * Reach;
+        }
+
         public int Nearby(Movement player)
         {
             if (player == null || player.IsTraversing || player.Aiming || player.Immobile ||
                 player.GetComponent<Posture>().State != PostureState.Standing) return -1;
-            var center = player.transform.position + Vector3.up * .55f;
-            const float rangeSquared = 1.15f * 1.15f;
-            var best = rangeSquared;
+            var center = ReachCenter(player);
+            var best = Reach * Reach;
             int action = -1;
 
             Check(VendingMachine, Vending);
@@ -121,7 +129,7 @@ namespace NatureCalls.Map
 
             void Check(Transform target, int index)
             {
-                if (Mathf.Abs(target.position.y - center.y) > .95f) return;
+                if (Mathf.Abs(target.position.y - center.y) > ReachHeightBand) return;
                 var distance = (target.position - center).sqrMagnitude;
                 if (distance >= best) return;
                 action = index;

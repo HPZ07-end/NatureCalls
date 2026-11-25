@@ -31,7 +31,7 @@ namespace NatureCalls.Map
         public string ActionPrompt => Ascending ? "E  爬梯返回地面" : "E  打开井盖并下滑";
 
         public override float Distance => 1.85f;
-        public override bool CanInteract(InteractionContext context) => CanTraverse(context.Player);
+        public override bool CanInteract(InteractionContext context) => !context.Busy && CanTraverse(context.Player);
         public override string Prompt(InteractionContext context) => ActionPrompt;
         public override bool Perform(InteractionContext context) => context.Online ? context.Sync != null && context.Sync.RequestSewerTraversal(this) : Traverse(context.Player);
 

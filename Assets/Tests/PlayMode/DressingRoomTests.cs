@@ -125,6 +125,7 @@ namespace NatureCalls.Tests
             Assert.That(input.TryInteract(), Is.False, "Nothing is in reach at the spawn point.");
             yield return Teleport(player, mirror.transform.position - Vector3.up);
 
+            TestAim.AimAt(player, mirror);
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(lobby.IsOutfitPanelOpen, Is.True);
             Assert.That(player.Controlled, Is.False, "Choosing an outfit pauses movement.");
@@ -201,6 +202,8 @@ namespace NatureCalls.Tests
             Assert.That(activities.EmergencyPaper.GetComponentsInChildren<Renderer>().Any(r => r.enabled), Is.True);
             input.enabled = false;
             yield return WalkTo(player, 6f, 1.32f);
+            TestAim.AimAt(player, activities.EmergencyPaper);
+            input.RefreshFocus();
             Assert.That(input.FocusPrompt, Does.Contain("应急卷纸"));
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(input.HeldItem, Is.SameAs(activities.EmergencyPaper));
@@ -209,6 +212,8 @@ namespace NatureCalls.Tests
             yield return WalkTo(player, 6f, 1.86f);
             yield return WalkTo(player, 4.4f, 1.86f);
             yield return WalkTo(player, 4.4f, 5.25f);
+            TestAim.AimAt(player, map.GetComponentsInChildren<SewerAccess>().Single(item => !item.Ascending));
+            input.RefreshFocus();
             Assert.That(input.FocusPrompt, Does.Contain("打开井盖"));
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(player.IsTraversing, Is.True);
@@ -225,6 +230,7 @@ namespace NatureCalls.Tests
             var outfit = (LocalProfile.OutfitIndex + 1) % player.GetComponent<PlayerAppearance>().Catalog.Count;
             LocalProfile.SetAppearance(PlayerBodyType.Tall, outfit);
             yield return Teleport(player, door.transform.position - Vector3.up);
+            TestAim.AimAt(player, door);
             Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryInteract(), Is.True);
             Assert.That(lobby.IsLobbyOpen, Is.True);
             Assert.That(view.Blur.Active, Is.True, "The DressingRoom is blurred behind the Lobby UI.");
@@ -279,7 +285,8 @@ namespace NatureCalls.Tests
                     var origin = access.Ascending ? access.Landing : access.Top;
                     var destination = access.Ascending ? access.Top : access.Landing;
                     yield return Teleport(walker, origin.position + access.ApproachDirection * access.ApproachDistance + Vector3.up * .03f);
-                    Assert.That(input.TryInteract(), Is.True);
+                    TestAim.AimAt(walker, access);
+                    Assert.That(input.TryInteract(), Is.True, access.name);
                     Assert.That(walker.IsTraversing, Is.True);
                     float arrival = Time.realtimeSinceStartup + 4;
                     while (walker.IsTraversing && Time.realtimeSinceStartup < arrival) yield return null;
@@ -344,7 +351,15 @@ namespace NatureCalls.Tests
                 var origin = station.position + direction * .65f + Vector3.up * .2f;
                 if (!Physics.Raycast(origin, Vector3.down, out var floor, 1.65f, 1, QueryTriggerInteraction.Ignore)) continue;
                 yield return Teleport(player, floor.point + Vector3.up * .02f);
-                if (activities.Prompt(activities.Nearby(player), 0).Contains(prompt)) yield break;
+                if (activities.Prompt(activities.Nearby(player), 0).Contains(prompt))
+                {
+                    TestAim.AimAt(player, station);
+                    var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+                    input.RefreshFocus();
+                    Assert.That(input.FocusPrompt, Does.Contain(prompt), station.name + ": crosshair focus " + ((input.Focus?.Target != null) ? input.Focus.Target.name : "none") +
+                        " view " + player.ViewRay.direction.ToString("F2") + " pitch " + player.Pitch.ToString("F1"));
+                    yield break;
+                }
             }
             Assert.Fail("No reachable prompt at " + station.name + " for " + prompt);
         }
@@ -443,6 +458,7 @@ namespace NatureCalls.Tests
                 Assert.That(activities.Wallet(avatar.OwnerClientId), Is.Zero);
                 Assert.That(input.HeldItem, Is.TypeOf<PaperRoll>());
                 yield return Teleport(movement, access.Top.position + access.ApproachDirection * access.ApproachDistance + Vector3.up * .03f);
+                TestAim.AimAt(movement, access);
                 Assert.That(input.TryInteract(), Is.True);
                 yield return null;
                 Assert.That(movement.IsTraversing, Is.True);

@@ -102,6 +102,8 @@ namespace NatureCalls.Facility
             return bounds;
         }
 
+        // The crosshair selects the door by its leaf, not by the whole stall (partitions, toilet, occupancy volume).
+        public override Transform Target => DoorLeaf != null ? DoorLeaf : transform;
         public override float Distance => InteractionDistance;
         public override Vector3 AimPoint => DoorLeaf != null ? DoorLeaf.GetComponentInChildren<Collider>()?.bounds.center ?? DoorLeaf.position : transform.position;
         public override bool CanInteract(InteractionContext context) => CanInteract(context.Player);

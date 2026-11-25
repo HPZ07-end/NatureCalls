@@ -13,8 +13,10 @@ namespace NatureCalls.Facility
         public readonly ulong ClientId;
         public readonly bool Online;
         public readonly FacilitySync Sync;
-        public InteractionContext(Movement player, ulong clientId, bool online, FacilitySync sync)
-        { Player = player; ClientId = clientId; Online = online; Sync = sync; }
+        /// <summary>The player is mid-toileting or cleaning. Doors, pickups and the toolbox still work (a seated player can lock the stall); map traversal and Map2 stations do not.</summary>
+        public readonly bool Busy;
+        public InteractionContext(Movement player, ulong clientId, bool online, FacilitySync sync, bool busy = false)
+        { Player = player; ClientId = clientId; Online = online; Sync = sync; Busy = busy; }
     }
 
     public interface IInteractable
