@@ -61,8 +61,8 @@ namespace NatureCalls.Tests
             var paperBefore = roll.transform.position;
             var collider = player.gameObject.GetComponent<CharacterController>();
             portal.SendMessage("OnTriggerEnter", collider, SendMessageOptions.RequireReceiver);
-            Assert.That(player.transform.position, Is.EqualTo(before + portal.Offset).Using(Vector3Equality));
-            Assert.That(roll.transform.position, Is.EqualTo(paperBefore + portal.Offset).Using(Vector3Equality));
+            Assert.That((player.transform.position - (before + portal.Offset)).sqrMagnitude, Is.LessThan(.0001f));
+            Assert.That((roll.transform.position - (paperBefore + portal.Offset)).sqrMagnitude, Is.LessThan(.0001f));
             yield return null;
         }
 
@@ -74,7 +74,7 @@ namespace NatureCalls.Tests
             player.transform.position = portal.transform.position + portal.transform.right * .2f;
             var before = player.transform.position;
             portal.SendMessage("OnTriggerEnter", player.GetComponent<CharacterController>(), SendMessageOptions.RequireReceiver);
-            Assert.That(player.transform.position, Is.EqualTo(before + portal.Offset).Using(Vector3Equality));
+            Assert.That((player.transform.position - (before + portal.Offset)).sqrMagnitude, Is.LessThan(.0001f));
             yield return null;
         }
 
@@ -97,7 +97,6 @@ namespace NatureCalls.Tests
             yield return null;
         }
 
-        private static bool Vector3Equality(Vector3 a, Vector3 b) => (a - b).sqrMagnitude < .0001f;
     }
 }
 #endif
