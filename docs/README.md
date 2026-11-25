@@ -27,6 +27,7 @@
 | [DEVELOPMENT_STATUS](DEVELOPMENT_STATUS.md) | 当前实际状态（只写现状） |
 | [ROADMAP](ROADMAP.md) | 阶段路线与课程截止日 |
 | [机制讨论](design/mechanics-brainstorm.md) | 一局推进方式与急迫值重做的讨论记录（非权威，结论进 GLOSSARY） |
+| [对抗模式设计稿](design/versus-mode.md) | 1 名捣蛋者对保洁队的完整游戏流（待批准的 Proposed Change） |
 
 ## 记录与历史（只追加，不改写）
 
