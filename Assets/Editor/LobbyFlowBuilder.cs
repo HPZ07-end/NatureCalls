@@ -283,8 +283,11 @@ namespace NatureCalls.Editor
                 view.EntryGroup = entry.gameObject;
                 view.OfflineButton = MakeButton(entry, "Offline", "单人离线测试");
                 view.CreateButton = MakeButton(entry, "CreateRoom", "创建房间");
-                view.CodeInput = MakeInput(entry, "CodeInput", "房间号 / 房主局域网地址");
+                view.CreateServerButton = MakeButton(entry, "CreateServerRoom", "创建服务器房间");
+                view.CodeInput = MakeInput(entry, "CodeInput", "房间号 / IP:端口");
                 view.JoinButton = MakeButton(entry, "JoinRoom", "加入房间");
+                view.LanRooms = Column(entry, "LanRooms", new Vector2(0, -500), new Vector2(560, 180));
+                view.LanRoomTemplate = MakeButton(view.LanRooms, "LanRoomTemplate", "局域网房间");
                 view.CloseButton = MakeButton(entry, "Close", "返回准备房");
                 var room = Column(lobby, "RoomGroup", new Vector2(0, -120), new Vector2(760, 560));
                 view.RoomGroup = room.gameObject;
