@@ -16,29 +16,38 @@ namespace NatureCalls.Network
         public int ToiletIndex;
         public bool Equals(MessSnapshot other) => Kind == other.Kind && Position == other.Position && ToiletIndex == other.ToiletIndex;
     }
+    public struct FacilityStateEntry : INetworkSerializeByMemcpy, IEquatable<FacilityStateEntry>
+    {
+        public ushort Id;
+        public byte State;
+        public ulong Owner;
+        public bool Equals(FacilityStateEntry other) => Id == other.Id && State == other.State && Owner == other.Owner;
+    }
     /// <summary>Server-owned facility state for one map, independent of every player.</summary>
     [RequireComponent(typeof(NetworkObject))]
     public sealed class Facilities : NetworkBehaviour
     {
         public static Facilities Current { get; private set; }
-        public NetworkList<byte> SharedDoors;
+        // dedicated: item pose, velocity, uses, and flight ownership need streaming snapshots.
         public NetworkList<ItemSnapshot> SharedItems;
-        // Toilet occupants: 0 when free, otherwise the sitting player's client id + 1.
-        public NetworkList<ulong> SharedToilets;
-        // Where players toileted outside a stall during this round.
+        // dedicated: mess count is append/remove state, not a fixed facility value.
         public NetworkList<MessSnapshot> SharedMesses;
         private Map.Playground world;
-        internal Map.SewerAccess[] SewerAccesses { get; private set; } = Array.Empty<Map.SewerAccess>();
-        private readonly NetworkVariable<byte> sewerOpenMask = new();
-        internal Map.Map2Interactions Map2 { get; private set; }
-        private NetworkList<ulong> sharedCoins;
-        private readonly NetworkVariable<Map.SewerRepairProgress> sharedRepair = new();
+        internal ITraversalFacility[] TraversalSources { get; private set; } = Array.Empty<ITraversalFacility>();
+        public NetworkList<FacilityStateEntry> SharedFacilityState;
+        // Generic shared state: every ISharedFacilityState under the map, in hierarchy order; entry ids are assigned
+        // consecutively over (source, local index), so every peer derives the same ids from the same map.
+        private ISharedFacilityState[] sharedSources = Array.Empty<ISharedFacilityState>();
+        private int[] sharedFirstId = Array.Empty<int>();
+        /// <summary>Provider interactables reachable through the generic FacilitySync.RequestInteract, in hierarchy order.</summary>
+        internal List<IInteractable> SharedInteractables { get; } = new();
+
+
         internal StallDoor[] doors;
         internal Item[] items;
         internal Toilet[] toilets;
         internal Urinal[] urinals;
         internal Toolbox[] toolboxes;
-        public NetworkList<ulong> SharedUrinals;
         private static int facilitySceneHandle = -1;
         private static StallDoor[] sceneDoors;
         private static Item[] sceneItems;
@@ -46,34 +55,31 @@ namespace NatureCalls.Network
 
         private void Awake()
         {
-            SharedUrinals = new NetworkList<ulong>();
-            SharedDoors = new NetworkList<byte>();
             SharedItems = new NetworkList<ItemSnapshot>();
-            SharedToilets = new NetworkList<ulong>();
             SharedMesses = new NetworkList<MessSnapshot>();
-            sharedCoins = new NetworkList<ulong>();
+            SharedFacilityState = new NetworkList<FacilityStateEntry>();
         }
 
         public override void OnNetworkSpawn()
         {
             Current = this;
+            Map.Playground.MessAuthority = AddMess;
             world = FindFirstObjectByType<Map.Playground>();
             if (world != null)
             {
-                SewerAccesses = world.GetComponentsInChildren<Map.SewerAccess>()
-                    .OrderBy(access => access.Ascending).ToArray();
-                sewerOpenMask.OnValueChanged += SewerCoverChanged;
-                SewerCoverChanged(0, sewerOpenMask.Value);
-                Map2 = world.GetComponent<Map.Map2Interactions>();
-                if (Map2 != null)
-                {
-                    if (IsServer)
-                        for (int i = 0; i < Map2.CoinCount; i++) sharedCoins.Add(0);
-                    sharedCoins.OnListChanged += CoinsChanged;
-                    sharedRepair.OnValueChanged += RepairChanged;
-                    for (int i = 0; i < sharedCoins.Count; i++) Map2.ApplyCoin(i, sharedCoins[i]);
-                    Map2.ApplyRepairProgress(sharedRepair.Value);
-                }
+                TraversalSources = world.GetComponentsInChildren<MonoBehaviour>().OfType<ITraversalFacility>()
+                    .OrderBy(access => ((MonoBehaviour)access).name).ToArray();
+                // Every facility in the map scene, not only under the Playground root (stalls and urinals are scene roots).
+                var owners = world.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<MonoBehaviour>(true))
+                    .OrderBy(item => FacilityPath(item.transform), StringComparer.Ordinal).ToArray();
+                sharedSources = owners.OfType<ISharedFacilityState>().ToArray();
+                sharedFirstId = new int[sharedSources.Length];
+                for (int i = 0, next = 0; i < sharedSources.Length; next += sharedSources[i].SharedEntryCount, i++) sharedFirstId[i] = next;
+                SharedInteractables.Clear();
+                foreach (var provider in owners.OfType<IInteractableProvider>()) SharedInteractables.AddRange(provider.Interactables);
+                if (IsServer) PublishShared();
+                SharedFacilityState.OnListChanged += FacilityStateChanged;
+                ApplyGenericFacilityState();
                 // Capture the map ordering once, before a carried roll is reparented to a player.
                 if (facilitySceneHandle != world.gameObject.scene.handle || sceneDoors == null || sceneItems == null || sceneToilets == null)
                 {
@@ -96,17 +102,9 @@ namespace NatureCalls.Network
             }
             if (doors == null) return;
             if (IsServer)
-            {
-                foreach (var door in doors) SharedDoors.Add((byte)door.State);
                 foreach (var roll in items) SharedItems.Add(Snapshot(roll, roll.Stored ? ItemSnapshot.Stored : ItemSnapshot.OnMap, 0));
-                foreach (var toilet in toilets) SharedToilets.Add(0);
-                foreach (var urinal in urinals) SharedUrinals.Add(0);
-            }
-            SharedDoors.OnListChanged += DoorChanged;
             SharedItems.OnListChanged += ItemChanged;
-            SharedToilets.OnListChanged += ToiletChanged;
             SharedMesses.OnListChanged += MessesChanged;
-            SharedUrinals.OnListChanged += ToiletChanged;
             ApplyAllFacilityState();
             ShowMesses();
         }
@@ -129,48 +127,81 @@ namespace NatureCalls.Network
             };
         }
 
-        private void DoorChanged(NetworkListEvent<byte> change) => ApplyAllFacilityState();
-        internal void OpenSewerCover(int index) => sewerOpenMask.Value |= (byte)(1 << index);
-
-        private void SewerCoverChanged(byte previous, byte current)
+        /// <summary>Server: performs a generic interactable for a player after re-checking it with a server-side context, then publishes.</summary>
+        internal void PerformShared(int id, Movement player, ulong clientId, bool busy)
         {
-            for (int index = 0; index < SewerAccesses.Length; index++)
-                SewerAccesses[index].SetOpen((current & (1 << index)) != 0);
+            if (!IsServer || player == null || id < 0 || id >= SharedInteractables.Count) return;
+            var interactable = SharedInteractables[id];
+            var context = new InteractionContext(player, clientId, false, null, busy);
+            if (!interactable.CanInteract(context) || !interactable.Perform(context)) return;
+            PublishShared();
+            PublishPickedUpItems();
         }
 
-        internal void InteractWithMap2(int action, Movement player, ulong clientId)
+        /// <summary>Server: writes every shared entry that differs from the list (seeds the list on first call).</summary>
+        internal void PublishShared()
         {
-            if (!IsServer || Map2 == null || !Map2.Interact(action, player, clientId, out var coin, out var roll)) return;
-            if (coin >= 0) sharedCoins[coin] = Map2.CoinOwner(coin);
-            if (roll != null)
-            {
-                var index = Array.IndexOf(items, roll);
-                SharedItems[index] = Snapshot(roll, ItemSnapshot.Carried, clientId);
-            }
-            sharedRepair.Value = Map2.RepairProgress;
-        }
-
-        internal void ReleaseCoins(ulong clientId)
-        {
-            if (!IsServer || Map2 == null) return;
-            for (int i = 0; i < sharedCoins.Count; i++)
-                if (sharedCoins[i] == clientId + 1)
+            if (!IsServer) return;
+            for (int i = 0; i < sharedSources.Length; i++)
+                for (int k = 0; k < sharedSources[i].SharedEntryCount; k++)
                 {
-                    Map2.ApplyCoin(i, 0);
-                    sharedCoins[i] = 0;
+                    var id = (ushort)(sharedFirstId[i] + k); var value = sharedSources[i].ReadShared(k); var current = GetFacilityState(id, out var found);
+                    if (!found || current.State != value.State || current.Owner != value.Owner) SetFacilityState(id, value.State, value.Owner);
                 }
         }
 
-        private void CoinsChanged(NetworkListEvent<ulong> change)
+        // An interaction may hand the player an item (e.g. a dispenser); mirror it into the item list.
+        private void PublishPickedUpItems()
         {
-            if (change.Type == NetworkListEvent<ulong>.EventType.Value)
-                Map2.ApplyCoin(change.Index, change.Value);
+            if (items == null) return;
+            for (int i = 0; i < items.Length; i++)
+            {
+                var carrier = items[i].PickedUpBy;
+                if (carrier == null || SharedItems[i].Mode == ItemSnapshot.Carried) continue;
+                var network = carrier.GetComponent<NetworkObject>();
+                SharedItems[i] = Snapshot(items[i], ItemSnapshot.Carried, network != null ? network.OwnerClientId : 0);
+            }
         }
 
-        private void RepairChanged(Map.SewerRepairProgress previous, Map.SewerRepairProgress current) =>
-            Map2.ApplyRepairProgress(current);
+        internal void ReleaseOwned(ulong clientId)
+        {
+            if (!IsServer) return;
+            foreach (var source in sharedSources) source.ReleaseOwner(clientId);
+            PublishShared();
+        }
+
+        /// <summary>The published entry for one source's local entry, if the server has published it.</summary>
+        public bool TryGetShared(ISharedFacilityState source, int index, out FacilityStateEntry entry)
+        {
+            entry = default;
+            int i = Array.IndexOf(sharedSources, source);
+            if (i < 0 || index < 0 || index >= source.SharedEntryCount) return false;
+            entry = GetFacilityState((ushort)(sharedFirstId[i] + index), out var found);
+            return found;
+        }
+
+        private FacilityStateEntry GetFacilityState(ushort id, out bool found)
+        {
+            for (int i = 0; i < SharedFacilityState.Count; i++) if (SharedFacilityState[i].Id == id) { found = true; return SharedFacilityState[i]; }
+            found = false; return new FacilityStateEntry { Id = id };
+        }
+        private void SetFacilityState(ushort id, byte state, ulong owner)
+        {
+            for (int i = 0; i < SharedFacilityState.Count; i++) if (SharedFacilityState[i].Id == id) { SharedFacilityState[i] = new FacilityStateEntry { Id = id, State = state, Owner = owner }; return; }
+            SharedFacilityState.Add(new FacilityStateEntry { Id = id, State = state, Owner = owner });
+        }
+        private void FacilityStateChanged(NetworkListEvent<FacilityStateEntry> change) => ApplyGenericFacilityState();
+        private void ApplyGenericFacilityState()
+        {
+            if (IsServer) return;
+            for (int i = 0; i < sharedSources.Length; i++)
+                for (int k = 0; k < sharedSources[i].SharedEntryCount; k++)
+                {
+                    var value = GetFacilityState((ushort)(sharedFirstId[i] + k), out var found);
+                    if (found) sharedSources[i].ApplyShared(k, new SharedFacilityValue(value.State, value.Owner));
+                }
+        }
         private void ItemChanged(NetworkListEvent<ItemSnapshot> change) => ApplyAllFacilityState();
-        private void ToiletChanged(NetworkListEvent<ulong> change) => ApplyAllFacilityState();
 
         private static Movement MovementOf(ulong clientId)
         {
@@ -182,8 +213,6 @@ namespace NatureCalls.Network
         internal void ApplyAllFacilityState()
         {
             if (doors == null || IsServer) return;
-            for (var index = 0; index < doors.Length && index < SharedDoors.Count; index++)
-                doors[index].ApplySharedState((StallDoorState)SharedDoors[index]);
             for (var index = 0; index < items.Length && index < SharedItems.Count; index++)
             {
                 var state = SharedItems[index];
@@ -200,19 +229,13 @@ namespace NatureCalls.Network
                 else if (state.Mode == ItemSnapshot.Landed)
                     items[index].ApplySharedRest(state.Position, state.Rotation);
             }
-            for (var index = 0; index < urinals.Length && index < SharedUrinals.Count; index++)
-                urinals[index].ApplySharedOccupant(SharedUrinals[index] == 0 ? null : MovementOf(SharedUrinals[index] - 1));
-            for (var index = 0; index < toilets.Length && index < SharedToilets.Count; index++)
-                toilets[index].ApplySharedOccupant(SharedToilets[index] == 0 ? null : MovementOf(SharedToilets[index] - 1));
         }
 
         private void MessesChanged(NetworkListEvent<MessSnapshot> change) => ShowMesses();
         private void ShowMesses()
         {
             if (world == null) return;
-            var states = new List<MessSnapshot>();
-            foreach (var state in SharedMesses) states.Add(state);
-            world.ShowMesses(states);
+            for (int i = 0; i < SharedMesses.Count; i++) world.ShowMess(i, SharedMesses[i].Kind, SharedMesses[i].Position, SharedMesses[i].ToiletIndex);
         }
         public int AddMess(MessKind kind, Vector3 position, int toiletIndex = -1)
         {
@@ -228,14 +251,10 @@ namespace NatureCalls.Network
         }
         public override void OnNetworkDespawn()
         {
-            sewerOpenMask.OnValueChanged -= SewerCoverChanged;
-            sharedCoins.OnListChanged -= CoinsChanged;
-            sharedRepair.OnValueChanged -= RepairChanged;
-            SharedDoors.OnListChanged -= DoorChanged;
+            if (Map.Playground.MessAuthority == (Func<MessKind, Vector3, int, int>)AddMess) Map.Playground.MessAuthority = null;
+            SharedFacilityState.OnListChanged -= FacilityStateChanged;
             SharedItems.OnListChanged -= ItemChanged;
-            SharedToilets.OnListChanged -= ToiletChanged;
             SharedMesses.OnListChanged -= MessesChanged;
-            SharedUrinals.OnListChanged -= ToiletChanged;
             if (Current == this) Current = null;
         }
     }

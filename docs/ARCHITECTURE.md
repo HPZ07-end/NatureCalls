@@ -8,13 +8,13 @@
 
 | 目录 | 技术职责 / 当前内容 |
 | --- | --- |
-| `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非领队全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）、`NeedsRules`（需求、准度阈值与清洁数值）、`Accuracy`（按时间累计准度）。未完成 Stage 2 |
+| `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非领队全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）、`NeedsRules`（需求、准度阈值与清洁数值）、`Accuracy`（按时间累计准度）、`MovementRules`（移动效果合并）、`RepairRules`（五步维修）、`RuntimeMode`（是否专用服务器）。未完成 Stage 2 |
 | `Assets/Player` | Movement：CharacterController、朝向、跳跃与对位坐下与站起位置恢复；Posture：姿态状态与通知；PlayerAppearance：身份颜色与外观（按 `OutfitCatalog` 编号）；PlayerOutfitController：DressingRoom 换装流程；OutfitCatalog：可选外观资源；LocalProfile：本地已确认外观（PlayerPrefs）；PlayerNeeds：急迫值与恶心值（由离线 Playground 或服务器驱动） |
-| `Assets/Input` | PlayerInput：本地键鼠操作请求，只为 Owner 启用；C 负责全部如厕，E 按固定顺序分派其他交互 |
+| `Assets/Input` | PlayerInput：本地键鼠操作请求，只为 Owner 启用；C 负责全部如厕，E 按准星目标分派，F 处理手持物品或自身 |
 | `Assets/Camera` | CameraController：本地 Cinemachine 目标、优先级、Blend 与渲染 |
-| `Assets/Facility` | Toilet：测试 Anchor 和可见目标；StallDoor：隔间门开/关/锁；Item：卷纸/拖把共用携带与丢掷；PaperRoll：消耗；Urinal：小便池占用；Toolbox：唯一拖把取放；Mess：污物表现与清洁目标；PlanarMirror：镜面渲染。门、卷纸与马桶占用由 Network/FacilitySync 接入服务器权威同步，尚无冲水、堵塞等正式玩法 |
-| `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生、联机对局全局计时与全体判负；Avatar：所有权、控制与镜头绑定、姿态同步；AvatarAppearance：身份颜色与外观编号；NeedsSync：需求与未擦拭状态同步；FacilitySync：玩家设施请求与服务器校验；Facilities：服务器拥有的地图设施共享状态；Probe：显式启动的 Development 验证程序 |
-| `Assets/Map` | Playground：地图资源引用、出生点、离线练习；MapCatalog：可选地图；Match：本局模式（离线/联机）、场景切换与离线对局计时；DressingMirror / LobbyDoor：DressingRoom 中镜子与门的 E 键入口 |
+| `Assets/Facility` | Toilet：测试 Anchor 和可见目标及通用共享占用；StallDoor：隔间门开/关/锁及通用共享状态；Item：卷纸/拖把共用携带与丢掷；PaperRoll：消耗；PaperVendingMachine：通用金币购纸与金币共享状态；Urinal：小便池占用及通用共享状态；Toolbox：唯一拖把取放；Mess：污物表现与清洁目标；PlanarMirror：镜面渲染。门、卷纸与马桶占用由 Network/FacilitySync 接入服务器权威同步，尚无冲水、堵塞等正式玩法 |
+| `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生、联机对局全局计时与全体判负；Avatar：所有权、控制与镜头绑定、姿态同步；AvatarAppearance：身份颜色与外观编号；NeedsSync：需求、未擦拭与手脏状态同步；FacilitySync：玩家设施请求与服务器校验；Facilities：服务器拥有的地图设施共享状态；Probe：显式启动的 Development 验证程序 |
+| `Assets/Map` | Playground：地图资源引用、出生点、离线练习；MapCatalog：可选地图；Match：本局模式（离线/联机）、场景切换与离线对局计时；WetZone：地图配置的 BoxCollider 湿地移动效果；SewerAccess：Map2 井口与短梯；VentPassage：Map1 风道；Map2Repair：Map2 A 支路五步维修原型（计划由 Facility Pipe/WaterValve 替代）；DressingMirror / LobbyDoor：DressingRoom 中镜子与门的 E 键入口 |
 | `Assets/UI` | MatchExit：地图左上角「退出」按钮（`MatchHud.prefab`），联机时先离开房间再回到准备房；MatchClock：同一 HUD 顶部的本局剩余时间；NeedsView：左上角本地玩家的急迫值/恶心值条；`UI/Lobby`：LobbyView（纯引用）、LobbyController（行为）、BackgroundBlur（URP 景深虚化） |
 | `Assets/Scenes` | 构建顺序：DressingRoom（启动场景）、Playground（地图）、Smoke；Sandbox 原样保留 |
 | `Assets/Prefabs` | `Characters/Player`（网络玩家基础 Prefab）与 Variant `DressingRoomPlayer`（带换装组件）；`Network/Network`（Lobby 的持久 NetworkManager + Session）、`Network/LobbyRoom`、`Network/Facilities`；`Levels/WCStall` 与早期 `Levels/Stall6x8`；`Toilet` 由 Playground 重建工具生成 |
@@ -24,6 +24,8 @@
 | `scripts` | Mac/Windows Python 标准库命令、语义检查及双 Player 验证 |
 
 运行时组件共用一个 `NatureCalls.Runtime` 总程序集（引用 `NatureCalls.Core`），使 Editor/测试能引用它；没有按 Player、Facility 等拆分程序集。运行时不依赖 Editor/测试，Core 不依赖 Unity。
+
+模块依赖方向（2026-11-25 起）：Core ← Player ← Facility ← Map ← Network ← Input / UI，Camera 只读 Player。下层不引用上层：Facility 与 Map 不引用 Network，联机请求经 Facility 中声明的 `IFacilityRequests`（由 `FacilitySync` 实现）发出；`Playground` 的联机污物入口 `MessAuthority` 由 `Facilities` 在生成时设置；是否专用服务器读 Core `RuntimeMode`。例外：`Playground` 是场景组装入口，生成离线玩家时启用 `PlayerInput` 并绑定 `CameraController`；`PlanarMirror` 读取摄像机以渲染镜面。
 
 依赖流：Input → Movement/Posture/Facility/Map 交互对象；Camera 读取 Movement/Posture；Avatar 只为 Owner 启用控制与本地 Camera，AvatarAppearance / NeedsSync / FacilitySync 分别把外观、需求与设施的共享状态映射到场景；Session 管理连接和出生，UI 调用 Session、LobbyRoom 与 Match。Posture 不引用 Camera 或网络。未来正式如厕系统可调用 Posture/Movement 的现有能力。
 
@@ -111,6 +113,13 @@ M1 仍关闭 NGO Scene Management：地图切换由各端本地加载并以 RPC 
 
 2026-11-07 技术名称：新增 `Facilities` 作为每张地图的服务器状态对象，保留 `FacilitySync` 作为玩家请求入口；移除 `FindHost` 与房主玩家存储依赖，`IsHostPlayer` / `FromHost` / `ReadyGuests` 改为 `IsLeader` / `FromLeader` / `ReadyMembers`。回合结束先清理玩家，再销毁 Facilities；每局重新生成。
 
-纯服务器入口：`Session.Dedicated` 识别 `UNITY_SERVER` 或 `-server`，`Session.StartServer` 使用 UDP，默认 8000，`-port` 覆盖；房间为空时仍保持监听并重置为 Waiting。服务器加载 DressingRoom 时仅创建持久 Session，跳过 UI、离线玩家、摄像机和镜面运行时贴图，限制 30 FPS。`LobbyController` 接受 IP:端口，Relay Join Code 路径保持不变。Linux 构建和 systemd 运维命令见 DEVELOPMENT；实际验证与部署状态见 DEVELOPMENT_STATUS。
+纯服务器入口：Core `RuntimeMode.Dedicated` 识别 `UNITY_SERVER` 或 `-server`，`Session.StartServer` 使用 UDP，默认 8000，`-port` 覆盖；房间为空时仍保持监听并重置为 Waiting。服务器加载 DressingRoom 时仅创建持久 Session，跳过 UI、离线玩家、摄像机和镜面运行时贴图，限制 30 FPS。`LobbyController` 接受 IP:端口，Relay Join Code 路径保持不变。Linux 构建和 systemd 运维命令见 DEVELOPMENT；实际验证与部署状态见 DEVELOPMENT_STATUS。
 
 2026-11-13 技术名称：沿用 `NeedsRules` 集中参数；新增 `Accuracy` 表示时间积分；`Item` 抽取唯一携带职责，`PaperRoll` 与 `Mop` 复用。移除仅适用于卷纸的快照名（由 `ItemSnapshot`/`SharedItems` 替代）和单一黑球列表（由 `MessSnapshot`/`SharedMesses` 替代），移除固定 `SeatPose` 吸附接口。未增加兼容层。`Facilities` 继续是唯一服务器共享设施对象；客户端表现从列表恢复，污物用相同对象池。离线与服务器调用同一结算入口，入口拒绝非服务器联网调用。
+
+
+### 当前交互与共享状态接口
+
+`InteractionContext` 携带玩家、客户端、联机状态和 Busy 状态。`IInteractable` 暴露 `Target`、`AimPoint`、`Distance`、提示和执行方法；`InteractionRegistry` 只收集设施自身注册的对象。E 的选择顺序是物理射线命中、约 15° 窄锥内按 AimPoint 最近、再按 Priority；非第一人称镜头使用距离加 Priority。Busy 时不允许穿越或操作 Map2 站点。
+
+移动分三层：接管层（穿越、坐厕等完全接管移动），姿态约束层（风道强制爬行），持续修正层（湿地惯性及未来环境效果）。共享设施状态：`Facilities.SharedFacilityState`（`NetworkList<FacilityStateEntry { Id, State, Owner }>`）承载所有实现 `ISharedFacilityState` 的组件，包括门、马桶、小便池、售纸机金币、Map2 维修进度与井盖。编号按 FacilityPath 层级顺序在各端一致推导，Network 层不含任何具体设施的名称或编号。`SharedItems` 保留为专用列表，因为它需要同步位姿、速度、使用次数和飞行模拟者；`SharedMesses` 保留为专用列表，因为污物是动态数量的追加/移除状态。其余设施状态统一走 generic list。Core 规则包含 `MovementRules`、`RepairRules` 和售纸容量规则。

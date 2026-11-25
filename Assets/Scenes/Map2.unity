@@ -399,7 +399,8 @@ GameObject:
   m_Component:
   - component: {fileID: 19435402}
   - component: {fileID: 19435401}
-  - component: {fileID: 19435400}
+  - component: {fileID: 19435404}
+  - component: {fileID: 19435403}
   m_Layer: 0
   m_Name: Playground
   m_TagString: Untagged
@@ -407,41 +408,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &19435400
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 19435399}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eabb1dc956239924e8433953c4a3eb4c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Map.Map2Interactions
-  Coins:
-  - {fileID: 1614829363}
-  - {fileID: 1506068732}
-  VendingMachine: {fileID: 601305462}
-  VendingStock:
-  - {fileID: 1074717443}
-  - {fileID: 547774158}
-  EmergencyPaper: {fileID: 902831594}
-  UpstreamWindow: {fileID: 1407430860}
-  Valve: {fileID: 370891424}
-  InspectionPort: {fileID: 1405697079}
-  DownstreamWindow: {fileID: 873345852}
-  Handwheel: {fileID: 370891425}
-  InspectionLid: {fileID: 1405697080}
-  AugerCrank: {fileID: 1050460546}
-  UpstreamWater: {fileID: 1407430861}
-  DownstreamWater: {fileID: 873345853}
-  WetZones:
-  - {fileID: 366533823}
-  - {fileID: 1070162895}
-  - {fileID: 2052624310}
-  - {fileID: 735302404}
-  - {fileID: 346538907}
 --- !u!114 &19435401
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -485,6 +451,46 @@ Transform:
   - {fileID: 346538908}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &19435403
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 19435399}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd9ab51db32b407db0b57849820be641, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Map.Map2Repair
+  UpstreamWindow: {fileID: 1407430860}
+  Valve: {fileID: 370891424}
+  InspectionPort: {fileID: 1405697079}
+  DownstreamWindow: {fileID: 873345852}
+  Handwheel: {fileID: 370891425}
+  InspectionLid: {fileID: 1405697080}
+  AugerCrank: {fileID: 1050460546}
+  UpstreamWater: {fileID: 1407430861}
+  DownstreamWater: {fileID: 873345853}
+--- !u!114 &19435404
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 19435399}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0eefe997db624294aa79327ef0acd6c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.PaperVendingMachine
+  VendingMachine: {fileID: 601305462}
+  VendingStock:
+  - {fileID: 1074717443}
+  - {fileID: 547774158}
+  Coins:
+  - {fileID: 1614829363}
+  - {fileID: 1506068732}
 --- !u!1 &22281660
 GameObject:
   m_ObjectHideFlags: 0
@@ -7316,6 +7322,7 @@ GameObject:
   m_Component:
   - component: {fileID: 346538908}
   - component: {fileID: 346538907}
+  - component: {fileID: 346538909}
   m_Layer: 0
   m_Name: Wet zone 12
   m_TagString: Untagged
@@ -7359,6 +7366,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 19435402}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &346538909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 346538906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c95c1ae6d4de49aba978f489207498c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Map.WetZone
 --- !u!1 &355504230
 GameObject:
   m_ObjectHideFlags: 0
@@ -7986,6 +8005,7 @@ GameObject:
   m_Component:
   - component: {fileID: 366533824}
   - component: {fileID: 366533823}
+  - component: {fileID: 366533825}
   m_Layer: 0
   m_Name: Wet zone 8
   m_TagString: Untagged
@@ -8029,6 +8049,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 19435402}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &366533825
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 366533822}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c95c1ae6d4de49aba978f489207498c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Map.WetZone
 --- !u!1 &370049012
 GameObject:
   m_ObjectHideFlags: 0
@@ -11592,6 +11624,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.PaperRoll
   InteractionDistance: 1.5
+  PromptLabel: 
   PickupHeightOffset: 0
   ThrowSpeed: 4
   ThrowUpwardSpeed: 1.5
@@ -14473,6 +14506,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Mop
   InteractionDistance: 1.5
+  PromptLabel: 
   PickupHeightOffset: 0
   ThrowSpeed: 4
   ThrowUpwardSpeed: 1.5
@@ -16262,6 +16296,7 @@ GameObject:
   m_Component:
   - component: {fileID: 735302405}
   - component: {fileID: 735302404}
+  - component: {fileID: 735302406}
   m_Layer: 0
   m_Name: Wet zone 11
   m_TagString: Untagged
@@ -16305,6 +16340,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 19435402}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &735302406
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 735302403}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c95c1ae6d4de49aba978f489207498c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Map.WetZone
 --- !u!1 &736968252
 GameObject:
   m_ObjectHideFlags: 0
@@ -20065,6 +20112,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.PaperRoll
   InteractionDistance: 1.5
+  PromptLabel: "\u62FE\u53D6\u5E94\u6025\u5377\u7EB8"
   PickupHeightOffset: 0.65
   ThrowSpeed: 4
   ThrowUpwardSpeed: 1.5
@@ -23157,6 +23205,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1070162896}
   - component: {fileID: 1070162895}
+  - component: {fileID: 1070162897}
   m_Layer: 0
   m_Name: Wet zone 9
   m_TagString: Untagged
@@ -23200,6 +23249,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 19435402}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1070162897
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1070162894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c95c1ae6d4de49aba978f489207498c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Map.WetZone
 --- !u!1 &1071406358
 GameObject:
   m_ObjectHideFlags: 0
@@ -23476,6 +23537,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.PaperRoll
   InteractionDistance: 1.5
+  PromptLabel: 
   PickupHeightOffset: 0
   ThrowSpeed: 4
   ThrowUpwardSpeed: 1.5
@@ -48460,6 +48522,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2052624311}
   - component: {fileID: 2052624310}
+  - component: {fileID: 2052624312}
   m_Layer: 0
   m_Name: Wet zone 10
   m_TagString: Untagged
@@ -48503,6 +48566,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 19435402}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2052624312
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2052624309}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c95c1ae6d4de49aba978f489207498c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Map.WetZone
 --- !u!1 &2052854422
 GameObject:
   m_ObjectHideFlags: 0

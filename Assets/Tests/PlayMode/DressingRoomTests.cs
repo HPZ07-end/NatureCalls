@@ -125,6 +125,7 @@ namespace NatureCalls.Tests
             Assert.That(input.TryInteract(), Is.False, "Nothing is in reach at the spawn point.");
             yield return Teleport(player, mirror.transform.position - Vector3.up);
 
+            TestAim.AimAt(player, mirror);
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(lobby.IsOutfitPanelOpen, Is.True);
             Assert.That(player.Controlled, Is.False, "Choosing an outfit pauses movement.");
@@ -197,19 +198,24 @@ namespace NatureCalls.Tests
             var map = Object.FindFirstObjectByType<Playground>();
             var player = map.OfflinePlayer;
             var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
-            var activities = map.GetComponent<Map2Interactions>();
-            Assert.That(activities.EmergencyPaper.GetComponentsInChildren<Renderer>().Any(r => r.enabled), Is.True);
+            var vending = map.GetComponent<PaperVendingMachine>();
+            var emergency = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).Single(r => r.PromptLabel.Contains("应急"));
+            Assert.That(emergency.GetComponentsInChildren<Renderer>().Any(r => r.enabled), Is.True);
             input.enabled = false;
             yield return WalkTo(player, 6f, 1.32f);
-            Assert.That(input.NearbyMap2Prompt(), Does.Contain("应急卷纸"));
+            TestAim.AimAt(player, emergency);
+            input.RefreshFocus();
+            Assert.That(input.FocusPrompt, Does.Contain("应急卷纸"));
             Assert.That(input.TryInteract(), Is.True);
-            Assert.That(input.HeldItem, Is.SameAs(activities.EmergencyPaper));
+            Assert.That(input.HeldItem, Is.SameAs(emergency));
             Assert.That(input.PaperRemainingUses, Is.EqualTo(3));
 
             yield return WalkTo(player, 6f, 1.86f);
             yield return WalkTo(player, 4.4f, 1.86f);
             yield return WalkTo(player, 4.4f, 5.25f);
-            Assert.That(input.NearbyMap2Prompt(), Does.Contain("打开井盖"));
+            TestAim.AimAt(player, map.GetComponentsInChildren<SewerAccess>().Single(item => !item.Ascending));
+            input.RefreshFocus();
+            Assert.That(input.FocusPrompt, Does.Contain("打开井盖"));
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(player.IsTraversing, Is.True);
             float arrival = Time.realtimeSinceStartup + 4;
@@ -225,6 +231,7 @@ namespace NatureCalls.Tests
             var outfit = (LocalProfile.OutfitIndex + 1) % player.GetComponent<PlayerAppearance>().Catalog.Count;
             LocalProfile.SetAppearance(PlayerBodyType.Tall, outfit);
             yield return Teleport(player, door.transform.position - Vector3.up);
+            TestAim.AimAt(player, door);
             Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryInteract(), Is.True);
             Assert.That(lobby.IsLobbyOpen, Is.True);
             Assert.That(view.Blur.Active, Is.True, "The DressingRoom is blurred behind the Lobby UI.");
@@ -256,19 +263,21 @@ namespace NatureCalls.Tests
                 Assert.That(Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None), Has.Length.EqualTo(3));
                 var walker = map.OfflinePlayer;
                 var input = walker.GetComponent<NatureCalls.Input.PlayerInput>();
-                var activities = map.GetComponent<Map2Interactions>();
-                yield return StandAtMap2Station(walker, activities, activities.Coins[0], "拾取金币");
+                var vending = map.GetComponent<PaperVendingMachine>();
+                var repair = map.GetComponent<Map2Repair>();
+                yield return StandAtMap2Station(walker, vending, vending.Coins[0], "拾取金币");
                 Assert.That(input.TryInteract(), Is.True);
-                Assert.That(activities.Wallet(0), Is.EqualTo(1));
-                yield return StandAtMap2Station(walker, activities, activities.VendingMachine, "买卷纸");
+                Assert.That(vending.Wallet(0), Is.EqualTo(1));
+                yield return StandAtMap2Station(walker, vending, vending.VendingMachine, "买卷纸");
                 Assert.That(input.TryInteract(), Is.True);
-                Assert.That(activities.Wallet(0), Is.Zero);
+                Assert.That(vending.Wallet(0), Is.Zero);
                 Assert.That(input.HeldItem, Is.TypeOf<PaperRoll>());
 
-                var wet = activities.WetZones[0].bounds.center;
+                var wetZone = Object.FindObjectsByType<WetZone>(FindObjectsSortMode.None).OrderBy(zone => zone.name, System.StringComparer.Ordinal).First();
+                var wet = wetZone.GetComponent<BoxCollider>().bounds.center;
                 wet.y = .03f;
                 yield return Teleport(walker, wet);
-                Assert.That(activities.IsWet(walker.transform.position), Is.True);
+                Assert.That(wetZone.IsWet(walker.transform.position), Is.True);
                 walker.Move(Vector2.right, .08f);
                 var beforeRelease = walker.transform.position;
                 walker.Move(Vector2.zero, .02f);
@@ -279,7 +288,8 @@ namespace NatureCalls.Tests
                     var origin = access.Ascending ? access.Landing : access.Top;
                     var destination = access.Ascending ? access.Top : access.Landing;
                     yield return Teleport(walker, origin.position + access.ApproachDirection * access.ApproachDistance + Vector3.up * .03f);
-                    Assert.That(input.TryInteract(), Is.True);
+                    TestAim.AimAt(walker, access);
+                    Assert.That(input.TryInteract(), Is.True, access.name);
                     Assert.That(walker.IsTraversing, Is.True);
                     float arrival = Time.realtimeSinceStartup + 4;
                     while (walker.IsTraversing && Time.realtimeSinceStartup < arrival) yield return null;
@@ -297,14 +307,14 @@ namespace NatureCalls.Tests
                         yield return WalkTo(walker, 12.24f, 7.4f);
                         Assert.That(walker.transform.position.y, Is.EqualTo(-2.7f).Within(.18f));
                         input.enabled = true;
-                        var stations = new[] { activities.UpstreamWindow, activities.Valve, activities.InspectionPort,
-                            activities.Valve, activities.DownstreamWindow };
+                        var stations = new[] { repair.UpstreamWindow, repair.Valve, repair.InspectionPort,
+                            repair.Valve, repair.DownstreamWindow };
                         var prompts = new[] { "查看上游堵塞", "关闭阀门", "清除堵塞", "打开阀门", "复查回流" };
                         for (int i = 0; i < stations.Length; i++)
                         {
-                            yield return StandAtMap2Station(walker, activities, stations[i], prompts[i]);
+                            yield return StandAtMap2Station(walker, repair, stations[i], prompts[i]);
                             Assert.That(input.TryInteract(), Is.True, prompts[i]);
-                            Assert.That((int)activities.RepairProgress, Is.EqualTo(i + 1));
+                            Assert.That((int)repair.RepairProgress, Is.EqualTo(i + 1));
                         }
                     }
                 }
@@ -336,7 +346,7 @@ namespace NatureCalls.Tests
             Assert.Fail($"Blocked walking to ({x}, {z}) from {player.transform.position}.");
         }
 
-        private static IEnumerator StandAtMap2Station(Movement player, Map2Interactions activities, Transform station, string prompt)
+        private static IEnumerator StandAtMap2Station(Movement player, IInteractableProvider provider, Transform station, string prompt)
         {
             for (int index = 0; index < 12; index++)
             {
@@ -344,7 +354,16 @@ namespace NatureCalls.Tests
                 var origin = station.position + direction * .65f + Vector3.up * .2f;
                 if (!Physics.Raycast(origin, Vector3.down, out var floor, 1.65f, 1, QueryTriggerInteraction.Ignore)) continue;
                 yield return Teleport(player, floor.point + Vector3.up * .02f);
-                if (activities.Prompt(activities.Nearby(player), 0).Contains(prompt)) yield break;
+                var interactable = provider.Interactables.First(item => item.Target == station);
+                if (interactable.CanInteract(new InteractionContext(player, 0, false, null)) && interactable.Prompt(new InteractionContext(player, 0, false, null)).Contains(prompt))
+                {
+                    TestAim.AimAt(player, station);
+                    var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+                    input.RefreshFocus();
+                    Assert.That(input.FocusPrompt, Does.Contain(prompt), station.name + ": crosshair focus " + ((input.Focus?.Target != null) ? input.Focus.Target.name : "none") +
+                        " view " + player.ViewRay.direction.ToString("F2") + " pitch " + player.Pitch.ToString("F1"));
+                    yield break;
+                }
             }
             Assert.Fail("No reachable prompt at " + station.name + " for " + prompt);
         }
@@ -432,17 +451,19 @@ namespace NatureCalls.Tests
                 var access = map.GetComponentsInChildren<SewerAccess>().Single(item => !item.Ascending);
                 var movement = avatar.GetComponent<Movement>();
                 var input = movement.GetComponent<NatureCalls.Input.PlayerInput>();
-                var activities = map.GetComponent<Map2Interactions>();
-                yield return StandAtMap2Station(movement, activities, activities.Coins[0], "拾取金币");
+                var vending = map.GetComponent<PaperVendingMachine>();
+                var repair = map.GetComponent<Map2Repair>();
+                yield return StandAtMap2Station(movement, vending, vending.Coins[0], "拾取金币");
                 Assert.That(input.TryInteract(), Is.True);
                 yield return null;
-                Assert.That(activities.Wallet(avatar.OwnerClientId), Is.EqualTo(1));
-                yield return StandAtMap2Station(movement, activities, activities.VendingMachine, "买卷纸");
+                Assert.That(vending.Wallet(avatar.OwnerClientId), Is.EqualTo(1));
+                yield return StandAtMap2Station(movement, vending, vending.VendingMachine, "买卷纸");
                 Assert.That(input.TryInteract(), Is.True);
                 yield return null;
-                Assert.That(activities.Wallet(avatar.OwnerClientId), Is.Zero);
+                Assert.That(vending.Wallet(avatar.OwnerClientId), Is.Zero);
                 Assert.That(input.HeldItem, Is.TypeOf<PaperRoll>());
                 yield return Teleport(movement, access.Top.position + access.ApproachDirection * access.ApproachDistance + Vector3.up * .03f);
+                TestAim.AimAt(movement, access);
                 Assert.That(input.TryInteract(), Is.True);
                 yield return null;
                 Assert.That(movement.IsTraversing, Is.True);
@@ -450,10 +471,10 @@ namespace NatureCalls.Tests
                 float arrival = Time.realtimeSinceStartup + 4;
                 while (movement.IsTraversing && Time.realtimeSinceStartup < arrival) yield return null;
                 Assert.That(movement.transform.position.y, Is.EqualTo(access.Landing.position.y).Within(.18f));
-                yield return StandAtMap2Station(movement, activities, activities.UpstreamWindow, "查看上游堵塞");
+                yield return StandAtMap2Station(movement, repair, repair.UpstreamWindow, "查看上游堵塞");
                 Assert.That(input.TryInteract(), Is.True);
                 yield return null;
-                Assert.That(activities.RepairProgress, Is.EqualTo(SewerRepairProgress.Inspected));
+                Assert.That(repair.RepairProgress, Is.EqualTo(SewerRepairProgress.Inspected));
             }
 
             // The global round clock and the needs start once everyone is on the map.

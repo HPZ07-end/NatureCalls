@@ -1,10 +1,11 @@
 using NatureCalls.Player;
+using NatureCalls.Facility;
 using UnityEngine;
 
 namespace NatureCalls.Map
 {
     /// <summary>Map2 descent at A and ladder return at B.</summary>
-    public sealed class SewerAccess : MonoBehaviour
+    public sealed class SewerAccess : InteractableComponent, ITraversalFacility, ISharedFacilityState
     {
         public bool Ascending;
         public Transform Top;
@@ -27,7 +28,12 @@ namespace NatureCalls.Map
 
         private Vector3 Approach => (Ascending ? Landing : Top).position + ApproachDirection * ApproachDistance;
 
-        public string Prompt => Ascending ? "E  爬梯返回地面" : "E  打开井盖并下滑";
+        public string ActionPrompt => Ascending ? "E  爬梯返回地面" : "E  打开井盖并下滑";
+
+        public override float Distance => 1.85f;
+        public override bool CanInteract(InteractionContext context) => !context.Busy && CanTraverse(context.Player);
+        public override string Prompt(InteractionContext context) => ActionPrompt;
+        public override bool Perform(InteractionContext context) => context.Online ? context.Requests != null && context.Requests.RequestTraversal(this) : Traverse(context.Player);
 
         public bool CanTraverse(Movement player)
         {
@@ -50,6 +56,12 @@ namespace NatureCalls.Map
             return true;
         }
 
+        // Shared entry: whether the cover is open (State 1).
+        public int SharedEntryCount => 1;
+        public SharedFacilityValue ReadShared(int index) => new SharedFacilityValue(open ? (byte)1 : (byte)0);
+        public void ApplyShared(int index, SharedFacilityValue value) => SetOpen(value.State != 0);
+        public void ReleaseOwner(ulong clientId) { }
+
         public void SetOpen(bool value)
         {
             open = value;
@@ -64,7 +76,7 @@ namespace NatureCalls.Map
             return player.Traverse(Route(player.transform.position), Ascending ? 1.55f : .95f);
         }
 
-        internal bool TraverseGranted(Movement player)
+        public bool TraverseGranted(Movement player)
         {
             if (!open) SetOpen(true);
             return player.Traverse(Route(player.transform.position), Ascending ? 1.55f : .95f);

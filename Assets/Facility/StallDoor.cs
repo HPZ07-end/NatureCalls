@@ -11,7 +11,7 @@ namespace NatureCalls.Facility
     }
 
     [DisallowMultipleComponent]
-    public sealed class StallDoor : MonoBehaviour
+    public sealed class StallDoor : InteractableComponent, ISharedFacilityState
     {
         [Min(.1f)] public float InteractionDistance = 1.5f;
         [Range(-120, 120)] public float OpenAngle = 95f;
@@ -19,6 +19,10 @@ namespace NatureCalls.Facility
         public Transform DoorColliderPivot;
         [SerializeField] private StallDoorState initialState = StallDoorState.Closed;
         public StallDoorState State { get; private set; }
+        public int SharedEntryCount => 1;
+        public SharedFacilityValue ReadShared(int index) => new SharedFacilityValue((byte)State);
+        public void ApplyShared(int index, SharedFacilityValue value) => ApplySharedState((StallDoorState)value.State);
+        public void ReleaseOwner(ulong clientId) { }
 
         private Quaternion leafClosedRotation;
         private Quaternion colliderClosedRotation;
@@ -100,6 +104,18 @@ namespace NatureCalls.Facility
                 }
             }
             return bounds;
+        }
+
+        // The crosshair selects the door by its leaf, not by the whole stall (partitions, toilet, occupancy volume).
+        public override Transform Target => DoorLeaf != null ? DoorLeaf : transform;
+        public override float Distance => InteractionDistance;
+        public override Vector3 AimPoint => DoorLeaf != null ? DoorLeaf.GetComponentInChildren<Collider>()?.bounds.center ?? DoorLeaf.position : transform.position;
+        public override bool CanInteract(InteractionContext context) => CanInteract(context.Player);
+        public override string Prompt(InteractionContext context) => State == StallDoorState.Open ? "E  关门" : State == StallDoorState.Locked ? "E  开门" : "E  开门";
+        public override bool Perform(InteractionContext context)
+        {
+            if (context.Online) return context.Requests != null && context.Requests.RequestDoor(this);
+            return Interact(context.Player);
         }
 
         public bool Interact(Movement player)

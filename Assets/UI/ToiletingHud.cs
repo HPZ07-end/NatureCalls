@@ -49,11 +49,12 @@ namespace NatureCalls.UI
             if (input == null) { Hide(); return; }
 
             var phase = input.Phase;
-            var accessPrompt = input.NearbyMap2Prompt();
-            statusPanel.SetActive(phase != PlayerInput.Stage.None || accessPrompt.Length > 0);
-            if (phase == PlayerInput.Stage.None && accessPrompt.Length > 0)
+            var focusPrompt = input.FocusPrompt;
+            var actionPrompt = input.FPrompt;
+            statusPanel.SetActive(phase != PlayerInput.Stage.None || focusPrompt.Length > 0 || actionPrompt.Length > 0);
+            if (phase == PlayerInput.Stage.None && (focusPrompt.Length > 0 || actionPrompt.Length > 0))
             {
-                phaseLabel.text = accessPrompt;
+                phaseLabel.text = focusPrompt.Length > 0 ? focusPrompt : actionPrompt;
                 progressFill.transform.parent.gameObject.SetActive(false);
                 accuracyLabel.gameObject.SetActive(false);
             }
@@ -77,7 +78,7 @@ namespace NatureCalls.UI
             var item = input.HeldItem;
             itemLabel.gameObject.SetActive(item != null);
             if (item is PaperRoll) itemLabel.text = $"手持：卷纸（还能擦 {input.PaperRemainingUses} 次）";
-            else if (item is Mop) itemLabel.text = "手持：拖把（对着污物长按 E 清理）";
+            else if (item is Mop) itemLabel.text = "手持：拖把（对着污物长按 F 清理）";
             else if (item != null) itemLabel.text = "手持：" + item.name;
 
             DrawTarget(input, phase);
@@ -88,7 +89,7 @@ namespace NatureCalls.UI
             PlayerInput.Stage.Aligning => "对位：移动让落点进入圆圈，按 C 蹲下",
             PlayerInput.Stage.Holding => "保持：用 WASD 把落点留在圆圈里",
             PlayerInput.Stage.Urinating => "小便：用鼠标把落点留在圆圈里",
-            PlayerInput.Stage.Cleaning => "清理中：按住 E",
+            PlayerInput.Stage.Cleaning => "清理中：按住 F",
             _ => ""
         };
 

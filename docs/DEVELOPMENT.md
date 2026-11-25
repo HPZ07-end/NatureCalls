@@ -67,7 +67,7 @@ py -3 scripts/unity.py detect
 - Windows：在 Unity File → Build Profiles 中选择/添加 Windows 平台，选择 x86_64，确认 Scene List 首项为 `Assets/Scenes/DressingRoom.unity`、其后为地图 `Assets/Scenes/Playground.unity`，构建到 `Builds/Windows/`。缺少平台支持时通过 Hub 添加。当前没有自动化 Windows 构建命令，不要求 Windows 队友运行 `build-macos`。
 - 现有 EditMode/PlayMode 覆盖设置、资源、角色、镜头及 Host 生命周期；双进程验证与平台验收边界见 [TESTING](TESTING.md)。不能把本机直连成功写成 Relay 或 Windows 已通过。
 - GitHub Actions 在 Linux、macOS、Windows 上只运行仓库检查与 Python 脚本测试。绿色 CI 不等于三个系统上的 Unity 都已通过；Windows 的 Unity 导入、运行测试和 `.exe` 构建仍需 Windows 队友实测并记录。
-- 同一份工程不能同时由 Unity GUI 和 batchmode 打开。脚本会拒绝已占用的项目；不要为了运行脚本删锁或强行结束队友/自己的编辑器。
+- 同一份工程不能同时由 Unity GUI 和 batchmode 打开。脚本会拒绝已占用的项目；不要为了运行脚本删锁或强行结束队友/自己的编辑器。Unity 异常退出（编译失败、构建后台崩溃）会留下 `Temp/UnityLockfile`：脚本发现它时检查本工程是否有 Unity 进程、是否有进程打开该文件，都没有才判定为残留并清理，追加记录到 `Artifacts/stale-lock.txt`；否则照旧报错停止。
 
 ## 日常协作
 

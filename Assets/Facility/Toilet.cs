@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using NatureCalls.Player;
 
@@ -7,12 +8,20 @@ namespace NatureCalls.Facility
     /// A toilet a player can sit on. One player at a time: the seat is occupied until that player stands up.
     /// Which toilet a player uses is decided by the stall they stand in (<see cref="StallDoor.Containing"/>).
     /// </summary>
-    public sealed class Toilet : MonoBehaviour
+    public sealed class Toilet : MonoBehaviour, ISharedFacilityState
     {
         public Transform Anchor;
         public Transform Interior;
         public Movement Occupant { get; private set; }
         public bool IsOccupied => Occupant != null;
+        public int SharedEntryCount => 1;
+        public SharedFacilityValue ReadShared(int index)
+        {
+            var owner = Occupant != null ? Occupant.GetComponentsInParent<MonoBehaviour>(true).OfType<IClientOwner>().FirstOrDefault() : null;
+            return new SharedFacilityValue(0, owner != null ? owner.ClientId + 1 : 0);
+        }
+        public void ApplyShared(int index, SharedFacilityValue value) => Occupant = FindMovement(value.Owner);
+        public void ReleaseOwner(ulong clientId) { if (OwnerId() == clientId + 1) Occupant = null; }
 
         public bool CanSeat(Movement player) => Anchor != null && player != null && (Occupant == null || Occupant == player);
 
@@ -34,6 +43,18 @@ namespace NatureCalls.Facility
 
         /// <summary>The host decides who sits here; peers only record it.</summary>
         public void ApplySharedOccupant(Movement player) => Occupant = player;
+
+        private ulong OwnerId() => ReadShared(0).Owner;
+        private static Movement FindMovement(ulong owner)
+        {
+            if (owner == 0) return null;
+            foreach (var player in FindObjectsByType<Movement>(FindObjectsSortMode.None))
+            {
+                var identity = player.GetComponentsInParent<MonoBehaviour>(true).OfType<IClientOwner>().FirstOrDefault();
+                if (identity != null && identity.ClientId + 1 == owner) return player;
+            }
+            return null;
+        }
 
         public static Toilet SeatedOn(Movement player)
         {

@@ -157,11 +157,11 @@ None → 其它位置 C、获准使用 → Holding（原地）→ 计时结束 �
 - FinishToileting 是 private；完成时**先 ReportResult，再恢复 Standing**，避免释放占用后服务器无法核对结果。
 - `static ApplyResult(Movement, Toilet, Urinal, float, Vector3, int)` 直接耦合需求、污物和隔间来源；它不是通用交互事件。没有 PlayerNeeds 或 Ticking 为 false 时提前返回。
 
-### 5.3 E 的实际优先级
+### 5.3 E 与 F 的分派
 
-以源码分支为准：未擦拭且持卷纸时擦拭 → 持拖把时尝试最近可清污物 → 最近可拾 Item → 工具箱 → 镜子 → 最近可交互隔间门 → 大厅门。
+E：`PlayerInput.RefreshFocus` 每帧用 `InteractionRegistry.Resolve` 选出一个 `IInteractable`（`Focus`，提示为 `FocusPrompt`），按 E 调用它的 `Perform`。第一人称时用 `Movement.ViewRay`（眼睛位置与身体朝向、俯仰，不依赖本帧摄像机）：先取物理射线命中的对象（命中 `Target` 或其子物体），否则取约 15° 窄锥内离视线最近的 `AimPoint`，再按 `Priority`；坐下、蹲下、爬行或瞄准时按到 `AimPoint` 的距离和 `Priority`。每个对象只在自身 `CanInteract`（距离、状态）为真时参与。`InteractionContext.Busy` 表示如厕或清洁中：门、拾取、工具箱仍可用，井口和 Map2 站点不可用。
 
-这不是准星射线交互，也没有统一 IInteractable 注册表。Item 在自身类别内选最近；门在自身类别内选最近；镜子/工具箱遍历顺序不等于全类别最近。如果新玩法改为准星选择或交互菜单，应明确替换目标选择和分派，不能只更换提示文字。
+F：`TryAction` 只看手持物品或自身：未擦拭时用卷纸或用手擦（`FPrompt`）；持拖把时开始对准的污物的长按清洁。PlayerInput 中没有任何设施专用分支。
 
 清洁公开入口：`bool BeginCleaning(Mess)`、`void ContinueCleaning(bool held, float seconds)`、`void CancelCleaning()`。联机持续约每 0.1 秒发送清洁保持消息，服务器用时间与条件结算；松键或离开中断。不要用 UI 动画计时直接授予清洁结果。
 
@@ -208,7 +208,7 @@ void RequestClean(int index, bool held)
 
 离线入口调用设施本地方法；联机入口走 FacilitySync，由服务器调用本地方法校验并发布 Facilities 列表。`ApplyShared*` 是接收后的应用端。客户端不能绕过 Request 直接开门、消费卷纸或改占用，否则会出现仅自己看到的状态。
 
-Facilities 维护 SharedDoors、SharedItems、SharedToilets、SharedUrinals、SharedMesses。马桶/小便池占用用 0 表示空，其他值是 clientId + 1；ItemSnapshot.Carrier 使用原始 clientId，Simulator 用 clientId + 1。不要混用。
+Facilities 维护一个 generic `SharedFacilityState`，由门、马桶、小便池及其他 `ISharedFacilityState` 设施声明固定条目；Owner 为 0 表示空，其他值是 clientId + 1。`SharedItems` 专用于位姿、速度、使用次数和飞行模拟，`SharedMesses` 专用于动态污物数量。ItemSnapshot.Carrier 使用原始 clientId，Simulator 用 clientId + 1。不要混用。
 
 设施索引在生成 Facilities 时建立，主要按层级名字和 sibling index 排序；门、Item、马桶还按地图 Scene 过滤，小便池/工具箱当前使用全局查找。所有端必须有一致地图版本和层级。它不是持久设施 ID；运行中动态加入设施、多地图 Additive 或各端独立改层级，不能直接依赖当前索引机制。
 
@@ -307,3 +307,14 @@ NGO Scene Management 当前关闭，Scene 由本地加载加 RPC 协调。当前
 `Semantic-Diff: none`
 
 本次只新增技术复用说明和开发状态入口，不增删改领域语义、代码、资源或既有命名。工作区原有 Glossary/角色修改属于此前工作，不纳入本次 none；以后如果将它们一并提交，PR 必须按实际 Glossary 与实现变化重新声明，不能沿用本次声明掩盖已有变化。
+
+
+### 新增设施或地图
+
+设施和地图的归属按 Glossary：通用设施放在 `Assets/Facility`，由地图在 Inspector 提供布局和参数；只描述某张地图的井道、湿地或维修原型放在 `Assets/Map`。例如 `PaperVendingMachine` 是 Facility，`WetZone`、`SewerAccess`、`VentPassage` 和 `Map2Repair` 是 Map。新增组件后必须由对应 Editor 集成脚本通过 Unity API 接线并保存场景，不能用文本直接改序列化资产。
+
+新设施或地图只在自己的组件里实现接口，Input、Player、Network、UI 不需要改：
+
+- **可交互**：继承 `InteractableComponent`（自动在 OnEnable/OnDisable 注册）并实现 `CanInteract`、`Prompt`、`Perform`；`Target` 是准星要命中的物体，`AimPoint` 默认为其碰撞体包围盒中心。一个组件有多个入口时实现 `IInteractableProvider` 并自行注册各入口（参照 `PaperVendingMachine` 或 `Map2Repair` 的 Station）。联机时 `Perform` 调用 `context.Requests.RequestInteract(this)`：服务器按 `Facilities.SharedInteractables` 中的序号找到同一对象，用服务器端上下文重新检查 `CanInteract` 后执行。
+- **移动效果**：实现 `IMovementEffectSource`（`AppliesTo` + 返回 Core `MovementModifier`），在 OnEnable/OnDisable 调用 `MovementEffectRegistry.Register/Unregister`。多个来源由 `MovementRules.Combine` 合并：速度相乘、取最小的非零加速度、强制爬行与禁跳取或。
+- **共享状态**：实现 `ISharedFacilityState`：声明条目数，`ReadShared`/`ApplyShared` 读写每个条目的 `SharedFacilityValue`（State + Owner，含义由设施自己定义），`ReleaseOwner` 释放断线玩家占有的条目。`Facilities` 按地图层级顺序给条目分配连续编号，服务器在开局和每次通用交互、穿越、断线后发布变化，所有客户端（含中途加入）按列表应用。

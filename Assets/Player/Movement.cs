@@ -1,4 +1,4 @@
-using NatureCalls.Map;
+using NatureCalls.Core;
 using System.Collections;
 using UnityEngine;
 
@@ -26,6 +26,11 @@ namespace NatureCalls.Player
         private const float CrawlingStep = .08f;
         public float Pitch { get; private set; }
         public Quaternion ViewRotation => Quaternion.Euler(Pitch, transform.eulerAngles.y, 0);
+        /// <summary>Eye heights matching the first-person camera rig (CameraController.EyeHeight and its crawl height).</summary>
+        public const float StandingEyeHeight = 1.65f, CrawlingEyeHeight = .63f;
+        public Vector3 ViewOrigin => transform.position + Vector3.up * (IsCrawling ? CrawlingEyeHeight : StandingEyeHeight);
+        /// <summary>The first-person view ray, valid in the same frame as a look change (the camera follows it in LateUpdate).</summary>
+        public Ray ViewRay => new Ray(ViewOrigin, ViewRotation * Vector3.forward);
         private CharacterController controller;
         private Posture posture;
         private float verticalSpeed;
@@ -37,8 +42,6 @@ namespace NatureCalls.Player
         private bool bodyGroundingPending;
         private bool usesRiggedBody;
         private float standingStep;
-        private VentPassage[] passages;
-        private Map2Interactions map2;
         private Vector3 planarVelocity;
         /// <summary>The toilet anchor the player is seated at, or null.</summary>
         public Transform Seat { get; private set; }
@@ -54,8 +57,6 @@ namespace NatureCalls.Player
             controller.enabled = false;
             posture = GetComponent<Posture>();
             standingStep = controller.stepOffset;
-            passages = FindObjectsByType<VentPassage>(FindObjectsSortMode.None);
-            map2 = FindFirstObjectByType<Map2Interactions>();
             usesRiggedBody = GetComponent<PlayerAppearance>()?.HasRiggedBody == true;
             if (Body != null)
             {
@@ -92,15 +93,24 @@ namespace NatureCalls.Player
             transform.Rotate(Vector3.up, delta.x * Sensitivity, Space.World);
             Pitch = Mathf.Clamp(Pitch - delta.y * Sensitivity, -PitchLimit, PitchLimit);
         }
+        public void LookAt(Vector3 worldPoint)
+        {
+            var delta = worldPoint - ViewOrigin;
+            var flat = Vector3.ProjectOnPlane(delta, Vector3.up);
+            if (flat.sqrMagnitude > .0001f) transform.rotation = Quaternion.LookRotation(flat, Vector3.up);
+            Pitch = Mathf.Clamp(-Mathf.Atan2(delta.y, Mathf.Max(.0001f, flat.magnitude)) * Mathf.Rad2Deg, -PitchLimit, PitchLimit);
+        }
         public void Move(Vector2 direction, float deltaTime)
         {
             if (!Controlled || !controller.enabled || IsTraversing) return;
             RefreshVentPosture();
             var startPosition = transform.position;
+            var effect = MovementEffectRegistry.Combine(this);
             var movement = (posture.IsSquatting || Immobile) ? Vector3.zero : transform.TransformDirection(new Vector3(direction.x, 0, direction.y));
-            movement = Vector3.ClampMagnitude(movement, 1) * (posture.IsCrawling ? CrawlingSpeed : Speed);
-            planarVelocity = !posture.IsSquatting && !Immobile && map2 != null && map2.IsWet(transform.position)
-                ? Vector3.MoveTowards(planarVelocity, movement, 8 * deltaTime) : movement;
+            var speed = (posture.IsCrawling ? CrawlingSpeed : Speed) * effect.SpeedMultiplier;
+            movement = Vector3.ClampMagnitude(movement, 1) * speed;
+            planarVelocity = effect.Acceleration > 0 && !posture.IsSquatting && !Immobile
+                ? Vector3.MoveTowards(planarVelocity, movement, effect.Acceleration * deltaTime) : movement;
             verticalSpeed = controller.isGrounded && verticalSpeed <= 0 ? -2 : Mathf.Max(verticalSpeed - 20 * deltaTime, -30);
             controller.Move((planarVelocity + Vector3.up * verticalSpeed) * deltaTime);
             Airborne = !controller.isGrounded && !posture.IsSquatting;
@@ -203,12 +213,8 @@ namespace NatureCalls.Player
         internal void RefreshVentPosture()
         {
             if (!Controlled || !controller.enabled || posture.IsSquatting || Aiming || Immobile) return;
-            foreach (var passage in passages)
-            {
-                if (passage.gameObject.scene != gameObject.scene || !passage.RequiresCrawling(transform.position)) continue;
-                posture.Set(PostureState.Crawling);
-                return;
-            }
+            if (MovementEffectRegistry.ForceCrawl(this))
+            { posture.Set(PostureState.Crawling); return; }
             if (posture.IsCrawling && HasStandingClearance())
                 posture.Set(PostureState.Standing);
         }

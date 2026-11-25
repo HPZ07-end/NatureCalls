@@ -73,15 +73,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Network.Facilities
   ShowTopMostFoldoutHeaderGroup: 1
-  SharedDoors:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
   SharedItems:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-  SharedToilets:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
@@ -89,7 +81,7 @@ MonoBehaviour:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
-  SharedUrinals:
+  SharedFacilityState:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0

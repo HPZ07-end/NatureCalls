@@ -61,12 +61,33 @@ class LockTests(unittest.TestCase):
         unity.ROOT = self.previous
         self.directory.cleanup()
 
-    def test_refuses_gui_lock_and_preserves_it(self):
+    def test_refuses_held_unity_lock_and_preserves_it(self):
         lock = unity.ROOT / "Temp/UnityLockfile"
         lock.parent.mkdir()
         lock.touch()
-        with self.assertRaises(RuntimeError), unity.project_lock():
-            self.fail("Unity GUI lock was ignored")
+        with patch.object(unity, "unity_lock_holders", return_value=["pid 1 has UnityLockfile open"]), \
+                patch.object(unity, "can_check_lock_holders", return_value=True):
+            with self.assertRaisesRegex(RuntimeError, "held"), unity.project_lock():
+                self.fail("Held Unity lock was ignored")
+        self.assertTrue(lock.exists())
+
+    def test_removes_stale_unity_lock_and_records_it(self):
+        lock = unity.ROOT / "Temp/UnityLockfile"
+        lock.parent.mkdir()
+        lock.touch()
+        with patch.object(unity, "unity_lock_holders", return_value=[]), \
+                patch.object(unity, "can_check_lock_holders", return_value=True), unity.project_lock():
+            pass
+        self.assertFalse(lock.exists())
+        self.assertIn("removed stale", (unity.ROOT / "Artifacts/stale-lock.txt").read_text())
+
+    def test_keeps_unity_lock_when_holders_cannot_be_checked(self):
+        lock = unity.ROOT / "Temp/UnityLockfile"
+        lock.parent.mkdir()
+        lock.touch()
+        with patch.object(unity, "can_check_lock_holders", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "cannot be checked"), unity.project_lock():
+                self.fail("Unchecked Unity lock was ignored")
         self.assertTrue(lock.exists())
 
     def test_refuses_concurrent_automation(self):
@@ -102,7 +123,9 @@ class TargetTests(unittest.TestCase):
             (root / "Temp").mkdir()
             lock = root / "Temp/UnityLockfile"
             lock.touch()
-            with patch.object(unity, "ROOT", root), patch.object(unity.subprocess, "run") as launch:
+            with patch.object(unity, "ROOT", root), patch.object(unity.subprocess, "run") as launch, \
+                    patch.object(unity, "unity_lock_holders", return_value=["pid 1 has UnityLockfile open"]), \
+                    patch.object(unity, "can_check_lock_holders", return_value=True):
                 with self.assertRaisesRegex(RuntimeError, "UnityLockfile"):
                     unity.restore_player(Path("Unity"), root / "restore", {}, 10, {})
                 launch.assert_not_called()

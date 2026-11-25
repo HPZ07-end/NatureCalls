@@ -90,7 +90,9 @@ namespace NatureCalls.Tests
             Assert.That(Find("LandingMarker").activeSelf, Is.True);
             Score(5, 5);
             yield return null;
-            Assert.That(Find("ToiletingPanel").activeSelf, Is.False, "The prompt hides when the toileting ends.");
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Not.Contain("保持"), "The toileting prompt hides when the toileting ends.");
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("F  用手擦拭"), "Unwiped without paper, the F wipe prompt is offered.");
+            Assert.That(Find("AccuracyLabel").activeSelf, Is.False);
             Assert.That(Find("TargetOverlay").activeSelf, Is.False);
             Assert.That(Find("UnwipedWarning").activeSelf, Is.True, "After defecating the player is warned to wipe.");
         }
@@ -112,13 +114,15 @@ namespace NatureCalls.Tests
         {
             var toilet = Align(); Score(5, 5);
             var paper = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).First();
-            paper.transform.position = player.transform.position;
-            Assert.That(input.TryInteract(), Is.True); Assert.That(input.Unwiped, Is.True); Assert.That(needs.Disgust, Is.Zero);
-            Assert.That(input.HeldItem, Is.SameAs(paper));
+            paper.transform.position = player.transform.position + player.transform.forward * .7f + Vector3.up * .6f; Physics.SyncTransforms();
+            TestAim.AimAt(player, paper); input.RefreshFocus();
+            var focusInfo = "focus " + (input.Focus?.Target != null ? input.Focus.Target.name : "none") + " posture " + player.GetComponent<Posture>().State + " seat " + (player.Seat != null) + " crawl " + player.IsCrawling + " aiming " + player.Aiming + " pitch " + player.Pitch.ToString("F1");
+            Assert.That(input.TryInteract(), Is.True, focusInfo); Assert.That(input.Unwiped, Is.True); Assert.That(needs.Disgust, Is.Zero);
+            Assert.That(input.HeldItem, Is.SameAs(paper), focusInfo);
             for (int i = 2; i >= 0; i--)
             {
                 needs.MarkUnwiped(toilet.GetComponentInParent<StallDoor>());
-                Assert.That(input.TryInteract(), Is.True); Assert.That(input.Unwiped, Is.False);
+                Assert.That(input.TryAction(), Is.True); Assert.That(input.Unwiped, Is.False);
                 Assert.That(paper.RemainingUses, Is.EqualTo(i));
             }
             Assert.That(paper.gameObject.activeSelf, Is.False); Assert.That(input.HeldItem, Is.Null);
@@ -127,24 +131,25 @@ namespace NatureCalls.Tests
         {
             var toilet = Align(); Score(5, 5); var stall = toilet.GetComponentInParent<StallDoor>();
             Place(stall.DoorColliderPivot.position + stall.transform.forward * .2f, stall.transform.forward);
-            Assert.That(input.TryInteract(), Is.True); Assert.That(needs.Disgust, Is.EqualTo(15)); Assert.That(input.Unwiped, Is.False);
-            needs.MarkUnwiped(stall); Place(world.Spawns[0].position, Vector3.forward);
-            yield return null; Assert.That(needs.Disgust, Is.EqualTo(30)); Assert.That(input.Unwiped, Is.False);
-            yield return null; Assert.That(needs.Disgust, Is.EqualTo(30));
+            TestAim.AimAt(player, stall); Assert.That(input.TryInteract(), Is.True, "E operates the door.");
+            Assert.That(needs.Disgust, Is.Zero, "E on the door while unwiped no longer charges disgust (2026-11-24 key scheme)."); Assert.That(input.Unwiped, Is.True);
+            Place(world.Spawns[0].position, Vector3.forward);
+            yield return null; Assert.That(needs.Disgust, Is.EqualTo(15), "Walking out unwiped charges once."); Assert.That(input.Unwiped, Is.False);
+            yield return null; Assert.That(needs.Disgust, Is.EqualTo(15));
         }
         [Test] public void ToolboxCapacityThrowPickupAndReturn()
         {
             var box = Object.FindFirstObjectByType<Toolbox>(); Place(box.transform.position, Vector3.forward);
             Assert.That(StallDoor.Containing(player), Is.Null, "Toolbox must be in the public area.");
             Assert.That(Object.FindObjectsByType<Mop>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
-            Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop));
+            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop));
             var paper = Object.FindFirstObjectByType<PaperRoll>(); paper.transform.position = player.transform.position;
             Assert.That(paper.Pickup(player), Is.False);
             Assert.That(box.Mop.Throw(player, Vector3.forward), Is.True);
             box.Mop.ApplySharedRest(player.transform.position, Quaternion.identity);
             paper.transform.position += Vector3.right;
-            Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop), "Nearest dropped item wins.");
-            Assert.That(input.TryInteract(), Is.True); Assert.That(box.Mop.Stored, Is.True); Assert.That(input.HeldItem, Is.Null);
+            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop), "Nearest dropped item wins.");
+            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True); Assert.That(box.Mop.Stored, Is.True); Assert.That(input.HeldItem, Is.Null);
         }
         [Test] public void CleaningRequiresContinuousHoldAndRange()
         {

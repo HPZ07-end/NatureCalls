@@ -1,3 +1,4 @@
+using NatureCalls.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,17 +20,6 @@ namespace NatureCalls.Network
     {
         /// <summary>The persistent Session; a scene's own Network object yields to one carried over from the Lobby.</summary>
         public static Session Instance { get; private set; }
-        public static bool Dedicated
-        {
-            get
-            {
-#if UNITY_SERVER
-                return true;
-#else
-                return Environment.GetCommandLineArgs().Contains("-server");
-#endif
-            }
-        }
         public static bool CloudLinked => Guid.TryParse(Application.cloudProjectId, out _);
 
         public NetworkManager Manager;
@@ -70,7 +60,7 @@ namespace NatureCalls.Network
         }
         private void Start()
         {
-            if (!Dedicated || destroyed) return;
+            if (!RuntimeMode.Dedicated || destroyed) return;
             Application.targetFrameRate = 30;
             QualitySettings.vSyncCount = 0;
             var args = Environment.GetCommandLineArgs();

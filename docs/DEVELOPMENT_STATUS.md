@@ -1,6 +1,8 @@
 # 实际开发状态
 
-2026-11-24 语义批准（未实现）：冲水与堵塞、倒灌、洗手台、维修工具、统一如厕过程、滑倒与 E/F 按键方案已写入 GLOSSARY 并标注「尚未实现」，实施顺序见 [ROADMAP](ROADMAP.md)。当前代码行为不变。课程服务器仍运行 #30 之前的版本，需重新部署才能与当前客户端（三款体型外观字段）联机。
+2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器仍运行 #30 之前的版本，需重新部署才能与当前客户端（三款体型外观字段）联机。
+
+2026-11-25 E/F 交互与通用状态：E 按准星目标选择设施，F 处理擦拭和拖把清洁；设施状态和移动效果均通过可注册接口复用。Unity 6000.3.26f1 EditMode 36/36，PlayMode 42/43（1 Relay 跳过），build-server 通过。同日整理：`Map2Interactions` 拆为 Facility `PaperVendingMachine` 与 Map `WetZone`、`Map2Repair`；门、马桶、小便池改用通用 `SharedFacilityState`，Map2 场景与 Facilities prefab 经 Unity API 重建；整理后 EditMode 36/36，PlayMode 42/43（1 Relay 跳过），build-server 通过。
 
 2026-11-24 Map2 井口及卷纸修复：A 井使用井口周边的站立范围，遮挡检查略过井口自身构件，提示与 E 键共享目标判定。应急卷纸移到出生点旁的柜台，拾取距离从角色躯干附近计算。售纸仍按一枚金币换一卷纸，并在手中有物品时显示限制。Unity 6000.3.26f1 PlayMode 42 项通过，1 项 Relay 跳过。从真实出生点步行拾纸并从 A 井侧边到达 −3.20 m 落脚台通过，离线购纸和本机房主进井通过。`Semantic-Diff: none`。
 
@@ -42,7 +44,7 @@ Map2 进入单人、联机和随机选图目录，复用设施、HUD、计时和
 
 | 类别 | 实际状态 |
 | --- | --- |
-| 已实现 | 配置/编译/测试/构建工具、语义治理；URP Playground（8m×10m 厕所，三个 `WCStall` 隔间、小便池、洗手池与镜子、卷纸架）；第一人称移动、角色脚底接地校准、Space 跳跃、C 姿态与第三人称 Blend、C 键如厕（隔间内先对位再蹲下保持准度，小便池前站立瞄准，其他位置原地如厕）、马桶一人占用（联机由房主判定）、坐着可用 E 关门上锁；隔间门 E 开/关/锁；卷纸 E 拾取、R 丢掷；NGO 位置/朝向/姿态同步、本地双 Player 验证工具；隔间门与卷纸的房主权威状态同步代码（Host PlayMode 和 Windows 本机双 Player 双向同步验证通过）；DressingRoom 作为启动场景：镜子 E 换装（真实改变外观并记住）、左侧门 E 打开虚化背景的联机大厅；大厅提供单人离线测试、创建房间（已关联 Cloud，使用 Relay Join Code）、加入房间；房间 2–4 人，准备/开始同一按键；开始后房主选地图（含随机地图），所有端加载后生成角色并同步外观；地图左上角「退出」返回准备房；全局对局计时（默认 3 分钟，到点后回到准备房，联机时留在原房间）；急迫值（1 分钟涨满、如厕中不涨、大便后清零、小便减半）与恶心值（隔间外如厕 +10 并留下黑色小球），任意玩家任一项到阈值全队失败；大便 5 秒、小便 3 秒；三档大便准度、积水/脏马桶/黑球、擦拭与卷纸消耗、工具箱唯一拖把、长按清洁和中断；Owner 本地准度、IsServer 结算、只读 UI 接口与调试显示 |
+| 已实现 | 配置/编译/测试/构建工具、语义治理；URP Playground（8m×10m 厕所，三个 `WCStall` 隔间、小便池、洗手池与镜子、卷纸架）；第一人称移动、角色脚底接地校准、Space 跳跃、C 姿态与第三人称 Blend、C 键如厕（隔间内先对位再蹲下保持准度，小便池前站立瞄准，其他位置原地如厕）、马桶一人占用（联机由房主判定）、坐着可用 E 关门上锁；隔间门 E 开/关/锁；卷纸 E 拾取、R 丢掷；NGO 位置/朝向/姿态同步、本地双 Player 验证工具；隔间门与卷纸的房主权威状态同步代码（Host PlayMode 和 Windows 本机双 Player 双向同步验证通过）；DressingRoom 作为启动场景：镜子 E 换装（真实改变外观并记住）、左侧门 E 打开虚化背景的联机大厅；大厅提供单人离线测试、创建房间（已关联 Cloud，使用 Relay Join Code）、加入房间；房间 2–4 人，准备/开始同一按键；开始后房主选地图（含随机地图），所有端加载后生成角色并同步外观；地图左上角「退出」返回准备房；全局对局计时（默认 3 分钟，到点后回到准备房，联机时留在原房间）；急迫值（1 分钟涨满、如厕中不涨、大便后清零、小便减半）与恶心值（隔间外如厕 +10 并留下黑色小球），任意玩家任一项到阈值全队失败；大便 5 秒、小便 3 秒；三档大便准度、积水/脏马桶/黑球、F 擦拭（卷纸或用手）与卷纸消耗、工具箱唯一拖把、持拖把长按 F 清洁和中断；E 按准星选择目标；Owner 本地准度、IsServer 结算、只读 UI 接口与调试显示 |
 | 已编写但缺服务验收 | MPS Session + Relay Join Code、匿名认证及连接失败反馈；2026-11-03 已关联 Cloud 项目，尚未验证真实 Relay 联机成功 |
 | 正在推进 | 大厅两端真人联机（准备→开始→选图→同步外观）的人工验收、隔间门与卷纸的真实跨设备及 Relay 显示验收、MPPM GUI/人工键鼠手感、Relay 联机验收、Windows 与真实跨设备验收 |
 | 已规划 | 依实际需求进行 Stage 2/3、正式 Gameplay 闭环、Map 配置、共享规则的 Host 权威、跨平台联调和发布 |
@@ -65,3 +67,5 @@ Windows Unity、真实 LAN/Relay、签名/公证尚未验收；CI 的三个 OS �
 
 
 2026-11-13 JST 如厕对准与清洁：已在 `feat/toileting-accuracy` 实现，运行时代码提交 `87cbb95`（Player 接口 `d659ad9`），尚待 PR Review/合入 dev。Mac ARM64 / Unity 6000.3.26f1：EditMode 30/30；无过滤 PlayMode 28 Passed + 1 Relay Ignored；build-macos 与扩展双 Player 探针通过；build-server（Linux x86_64）和桌面 Player 恢复通过，之后无过滤 PlayMode 再次 28 Passed + 1 Ignored；服务器+两客户端探针通过。仓库检查通过、Python 31/31、Semantic Diff changed 格式检查通过。完整命令、Artifacts、两次早期失败及后续回归见 [开发记录](records/status-log.md#2026-11-13-jst-如厕对准擦拭小便池工具箱与清洁日志-utc-2026-11-12)。一次既有脚底贴地测试的 8 cm 偏差未稳定复现，保留为测试不稳定记录。无未决定的规则阻塞；Windows、Linux 二进制执行、真实 LAN/Relay、真人手感与正式 HUD 仍未验收。本次不访问或部署课程服务器，不合并 PR。
+
+- 2026-11-24：E/F controls, facility interaction registry, movement effect rules, and generic shared facility state implemented; EditMode 31/31.

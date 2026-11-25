@@ -80,7 +80,7 @@ namespace NatureCalls.Tests
             Assert.That(panel, Is.Not.Null, "The map door needs a visible panel below its rotating hinge.");
             var closedForward = panel.forward;
             var closedDoorCenter = panel.position;
-            Assert.That(input.TryInteract(), Is.True, "E should select the nearby stall door.");
+            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True, "E should select the nearby stall door.");
             Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
             Assert.That(Vector3.Angle(closedForward, panel.forward), Is.GreaterThan(45f), "Opening a door must visibly rotate its panel.");
             Assert.That(door.DoorColliderPivot.GetComponent<Collider>().enabled, Is.False,
@@ -113,20 +113,27 @@ namespace NatureCalls.Tests
                 "; Controller hits: " + string.Join(", ", hitRecorder.Hits));
 
             Assert.That(StallDoor.Containing(player), Is.SameAs(door), "The player should now be inside the stall.");
-            Assert.That(input.TryInteract(), Is.True, "E should select and close the player's own door from inside the stall.");
+            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True, "E should select and close the player's own door from inside the stall.");
             Assert.That(door.State, Is.EqualTo(StallDoorState.Closed));
 
             var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
-            var roll = rolls.First();
-            player.transform.position = roll.transform.position + Vector3.right * .3f;
-            var eligible = rolls.Where(item => item.CanPickup(player)).ToArray();
-            Assert.That(eligible, Is.Not.Empty);
-            var nearest = eligible.Min(item => Vector3.Distance(item.transform.position, player.transform.position));
-            var nearestRolls = eligible.Where(item =>
-                Mathf.Abs(Vector3.Distance(item.transform.position, player.transform.position) - nearest) < .001f).ToArray();
-            Assert.That(input.TryInteract(), Is.True, "E should select the nearby paper roll.");
+            // The front-most roll on the top shelf of one supply cabinet (its front faces +x), so no other roll is on the line of sight.
+            var cabinet = rolls.First(item => item.transform.parent != null && item.transform.parent.name.StartsWith("Supply_Paper")).transform.parent;
+            var roll = rolls.Where(item => item.transform.parent == cabinet).OrderByDescending(item => item.transform.position.y).ThenByDescending(item => item.transform.position.x).First();
+            // Stand on the floor in front of the supply cabinet and look at that roll.
+            var front = roll.transform.position + Vector3.right * 1f;
+            Assert.That(Physics.Raycast(front + Vector3.up * 2f, Vector3.down, out var standing, 4f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore), Is.True, "The cabinet front needs a floor.");
+            controller.enabled = false;
+            player.transform.position = standing.point + Vector3.up * .01f;
+            Physics.SyncTransforms();
+            controller.enabled = true;
+            Assert.That(roll.CanPickup(player), Is.True, "The roll next to the player must be within reach.");
+            // E picks the roll under the crosshair (2026-11-24 key scheme), not merely the nearest one.
+            player.LookAt(roll.AimPoint);
+            Assert.That(input.TryInteract(), Is.True, "E should pick up the paper roll under the crosshair.");
             Assert.That(rolls.Where(item => item.PickedUpBy == player).ToArray(), Has.Length.EqualTo(1));
-            Assert.That(nearestRolls, Does.Contain(Item.FindCarriedBy(player)));
+            Assert.That(Item.FindCarriedBy(player), Is.SameAs(roll), "E takes the roll under the crosshair.");
         }
 
         [UnityTearDown]

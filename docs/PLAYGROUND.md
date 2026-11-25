@@ -21,7 +21,7 @@
 
 隔间内第一次 C 进入俯视对位，WASD 与鼠标调整位置/朝向；第二次 C 在当前位置蹲下，5 秒内 WASD 修正漂移落点，结束自动站起回到蹲下前的位置。小便池前 C 站立小便 3 秒，鼠标修正落点。其他位置 C 原地如厕 5 秒。对准、结算与数值依据 [GLOSSARY](../GLOSSARY.md)，实现参数集中在 `Core/NeedsRules`。
 
-2026-11-24 已批准的新按键方案（E 对准星目标、F 对手持物品或自身，擦拭改用 F）尚未实现，见 GLOSSARY Input；以下为当前实现。E 顺序：未擦拭且持卷纸时擦拭 → 持拖把对污物长按清洁 → 拾取最近的卷纸或地上拖把 → 工具箱取放 → 门。准备房保留镜子与大厅门入口。未擦拭时拾取卷纸不扣恶心值，下一次 E 才擦拭；操作门或走出隔间才计未擦拭惩罚。卷纸与拖把共用一件携带容量，R 丢掷。全场一个工具箱、一把拖把；卷纸用尽后消失。清洁中松开 E、失去焦点、走开或不再朝向污物会中断。门原有开/关/锁顺序保留。
+E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取放、开关锁门、准备房的镜子与大厅门、Map2 的井口、售纸机、维修点与金币。视线未直接命中时取约 15° 窄锥内离视线最近的对象，仍并列再按优先级；坐下、蹲下、爬行或瞄准时（非第一人称）改为按距离与优先级选择，因此坐在马桶上也能关门、上锁和开门。F 只作用于手持物品或自身：未擦拭时持卷纸按 F 用卷纸擦（每卷 3 次，用完消失），没有卷纸按 F 用手擦（记为手脏，后果待定）；持拖把对准污物长按 F 三秒清洁，松开 F、失去焦点、走开或不再朝向污物会中断。未擦拭时 E 拾取卷纸或操作门都不扣恶心值，未擦拭就走出隔间扣一次。卷纸与拖把共用一件携带容量，R 丢掷。全场一个工具箱、一把拖把。门原有开/关/锁顺序保留。
 
 `python3 scripts/unity.py toileting`（菜单 `NatureCalls/Configure Toileting`）通过 Editor API 给现有 `Urinal -2/-1/0` 安装组件、生成 `Assets/Prefabs/Toolbox.prefab` 并在公共区域放置一次。重跑保留已有工具箱和地图资源，不重建地图。
 
@@ -35,8 +35,8 @@
 - `Player/Movement`：CharacterController、角色朝向、俯仰、姿态下的身体与碰撞体调整。
 - `Input/PlayerInput`：Input System 将本地键鼠转化为移动、跳跃、观察、姿态与交互调用。
 - `Camera/CameraController`：唯一实际 Camera + CinemachineBrain，两个 CinemachineCamera 的优先级和 Blend；仅绑定本地角色。
-- `Player/PlayerNeeds`：急迫值与恶心值。规则在 Core `NeedsRules`：急迫值上限 100、从 0 涨满 60 秒、开局初值随机 0–40、如厕中不涨、大便结束清零、小便减半；隔间外如厕 +10 恶心值；任一项到阈值（100）全队失败。离线由 Playground 驱动，联机由房主驱动并经 `NeedsSync` 的 `SharedUrgency`/`SharedDisgust` 同步；地图 HUD 的 `NeedsView` 显示本地玩家的两项数值。三种污物由 `Playground` 从同一对象池取出，联机时类型、位置和马桶索引经服务器拥有的 `Facilities` 的 `SharedMesses` 同步。
-- `Facility/Toilet`：姿态 Anchor、内部可见目标与占用（同一时间一人，站起释放；联机时由房主判定并经服务器拥有的 `Facilities` 的 `SharedToilets` 同步）；`TargetCenter`/`TargetRadius` 表示目标区；Anchor 只识别设施，坐下不再吸附。没有冲水状态。使用哪个马桶由 `StallDoor.Containing`（隔间门后方且在隔间范围内）决定。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
+- `Player/PlayerNeeds`：急迫值与恶心值。规则在 Core `NeedsRules`：急迫值上限 100、从 0 涨满 60 秒、开局初值随机 0–40、如厕中不涨、大便结束清零、小便减半；隔间外如厕 +10 恶心值；任一项到阈值（100）全队失败。离线由 Playground 驱动，联机由房主驱动并经 `NeedsSync` 的 `SharedUrgency`/`SharedDisgust`/`SharedUnwiped`/`SharedHandsDirty` 同步；地图 HUD 的 `NeedsView` 显示本地玩家的两项数值。三种污物由 `Playground` 从同一对象池取出，联机时类型、位置和马桶索引经服务器拥有的 `Facilities` 的 `SharedMesses` 同步。
+- `Facility/Toilet`：姿态 Anchor、内部可见目标与占用（同一时间一人，站起释放；联机时由房主判定并经服务器拥有的 `Facilities` 的 `SharedFacilityState` 同步）；`TargetCenter`/`TargetRadius` 表示目标区；Anchor 只识别设施，坐下不再吸附。没有冲水状态。使用哪个马桶由 `StallDoor.Containing`（隔间门后方且在隔间范围内）决定。`WCStall.prefab` 的马桶由 `python3 scripts/unity.py toilet-anchors`（菜单 `NatureCalls/Configure WC Stall Toilet`）配置。
 - `Map/Playground` 出生点：`Spawns[i]` 对应房间槽位 i（房主为 Spawn 1）。由 `python3 scripts/unity.py spawn-points`（菜单 `NatureCalls/Place Playground Spawn Points`）以 Spawn 1 为起点在场景中实测放置：脚下有地板、站立胶囊不碰撞、不在隔间内、与 Spawn 1 之间无遮挡，间距至少 1.2m。修改房间布局后重新运行。
 - `Facility/StallDoor`：驱动 WCStall Prefab 的 WC 门扇与独立碰撞体，依据玩家位于隔间内外处理打开、关闭、上锁和解锁。
 - `Facility/PlanarMirror`：为每个 WC 镜面实例创建独立运行时 RenderTexture；第一人称主摄像机隐藏本地身体时，镜面摄像机仍可渲染本地 Brown 角色。
@@ -58,8 +58,10 @@
 
 `py -3 scripts/unity.py map-integration`（菜单 `NatureCalls/Connect Layout Map To Lobby`）通过 Unity API 为现有布局补齐镜头、出生点、门/马桶/卷纸/工具箱接线、HUD、地图目录和构建列表；不重新生成布局、覆盖原 Playground 或改变模块 Prefab。普通使用不需要重跑。漏水、阀门、应急设施及损坏/污渍装饰保持视觉展示，本次不赋予新的规则。
 
-1. 打开 `DressingRoom` 并 Play。走到镜子前按 E 打开换装面板，点选外观预览，「确认」保存（写入本机 PlayerPrefs），「取消」恢复。
-2. 走到镜子左侧的门按 E：背景虚化，出现联机大厅。
+`python3 scripts/unity.py map2-integration`（菜单 `NatureCalls/Connect Map2 To Lobby`）通过 Unity API 为 Map2 接线：出生点、隔间、工具箱、井口、`PaperVendingMachine`（售纸机与金币）、`WetZone`（每块湿地一个）和 `Map2Repair`（A 支路维修原型），并删除失效的脚本引用。修改这些组件的字段后重跑。
+
+1. 打开 `DressingRoom` 并 Play。走到镜子前、准星对准镜子按 E 打开换装面板，点选外观预览，「确认」保存（写入本机 PlayerPrefs），「取消」恢复。
+2. 走到镜子左侧的门、对准门按 E：背景虚化，出现联机大厅。
    - **单人离线测试**：直接进入地图选择，选地图或「随机地图」后加载该地图，本地玩家穿着所选外观。
    - **创建房间**：已关联 Unity Cloud 时创建 Relay 房间并显示 Join Code；未关联时开启局域网房间，房间号即房主局域网地址（端口 7777）。
    - **加入房间**：输入 Join Code，或 IP:端口；裸 IP 默认 7777，同机可用 `127.0.0.1`，课程专用服务器入口为 `49.233.132.244:8000`（部署状态见 DEVELOPMENT_STATUS）。
@@ -152,6 +154,7 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 ## 表现层读取接口
 
-本地玩家 `Input/PlayerInput` 的只读属性：`Phase`（None/Aligning/Holding/Urinating/Cleaning）、`TargetCenter`、`TargetRadius`（世界坐标/米）、`CurrentLanding`（世界坐标）、`Elapsed`/`Duration`（秒）、`CurrentAccuracy`（0–1 时间比例）、`Unwiped`、`HeldItem`（Item，具体为 PaperRoll/Mop）、`PaperRemainingUses`、`CleaningProgress`（0–1）。`Stage.None` 时瞄准值为上一次记录，不应用于显示目标区。另有 `TargetAxes`（目标圈所在平面的两个轴：马桶为地面，小便池为墙面）。`UI/ToiletingHud`（在 `MatchHud.prefab` 上，由 `python3 scripts/unity.py match-flow` 生成）只读取这些属性：底部显示阶段提示、进度条与实时准度（按结算阈值显示绿/黄/红），对位与如厕时在画面上投影目标圈与落点（落点在圈内时变绿），大便后未擦拭时显示红色提醒，左下角显示手持物品与卷纸剩余次数。布局、颜色与字体都在 Prefab 中，美术可直接替换；目前为纯色占位，没有图标与动画。
+本地玩家 `Input/PlayerInput` 的只读属性：`Phase`（None/Aligning/Holding/Urinating/Cleaning）、`TargetCenter`、`TargetRadius`（世界坐标/米）、`CurrentLanding`（世界坐标）、`Elapsed`/`Duration`（秒）、`CurrentAccuracy`（0–1 时间比例）、`Unwiped`、`HeldItem`（Item，具体为 PaperRoll/Mop）、`PaperRemainingUses`、`CleaningProgress`（0–1）、`FocusPrompt`、`FPrompt`；需要刷新当前目标时调用 `RefreshFocus`。`Stage.None` 时瞄准值为上一次记录，不应用于显示目标区。另有 `TargetAxes`（目标圈所在平面的两个轴：马桶为地面，小便池为墙面）。`UI/ToiletingHud`（在 `MatchHud.prefab` 上，由 `python3 scripts/unity.py match-flow` 生成）只读取这些属性：底部显示阶段提示、进度条与实时准度（按结算阈值显示绿/黄/红），对位与如厕时在画面上投影目标圈与落点（落点在圈内时变绿），大便后未擦拭时显示红色提醒，左下角显示手持物品与卷纸剩余次数。布局、颜色与字体都在 Prefab 中，美术可直接替换；目前为纯色占位，没有图标与动画。
 
 Owner 本地累计落点在圈内的时间；结束经 `FacilitySync` 上报准度与玩家位置。服务器验证请求者、开始记录、最低时长、设施占用、所在位置以及数值范围后应用需求和污物。此模式不验证客户端每一帧轨迹，不是反作弊方案。清洁服务器记录开始时间，并要求持续心跳、距离、朝向及持有拖把；松开时主动取消，缺失心跳也取消。
+

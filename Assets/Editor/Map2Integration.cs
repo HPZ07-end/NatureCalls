@@ -161,35 +161,37 @@ namespace NatureCalls.Editor
 
         private static void ConfigureActivities(Scene scene, Map.Playground world, Transform supplies, PaperRoll paper)
         {
-            var activities = GetOrAdd<Map2Interactions>(world.gameObject);
-            activities.EmergencyPaper = paper;
+            GameObjectUtility.RemoveMonoBehavioursWithMissingScript(world.gameObject);
+            var vending = GetOrAdd<PaperVendingMachine>(world.gameObject);
+            paper.PromptLabel = "拾取应急卷纸";
             var room = FindRoot(scene, "Street Restroom");
             var sewer = FindRoot(scene, "Sewer and Maintenance");
             var machine = Descendant(supplies, "Paper vending machine");
-            activities.VendingMachine = Descendant(machine, "Paper Output");
-            activities.Coins = room.GetComponentsInChildren<Transform>(true)
+            vending.VendingMachine = Descendant(machine, "Paper Output");
+            vending.Coins = room.GetComponentsInChildren<Transform>(true)
                 .Where(t => t.name.StartsWith("Coin at ", StringComparison.Ordinal))
                 .OrderBy(t => t.name, StringComparer.Ordinal).ToArray();
-            activities.VendingStock = activities.Coins.Select((_, index) =>
+            vending.VendingStock = vending.Coins.Select((_, index) =>
             {
                 var name = "Vending paper " + (index + 1);
                 var stock = supplies.Find(name);
                 if (stock != null) return stock.GetComponent<PaperRoll>();
                 var copy = Object.Instantiate(paper, supplies);
                 copy.name = name;
-                copy.transform.position = activities.VendingMachine.position;
+                copy.transform.position = vending.VendingMachine.position;
                 return copy;
             }).ToArray();
-            activities.UpstreamWindow = Descendant(sewer, "A upstream window");
-            activities.Valve = Descendant(sewer, "A isolating valve");
-            activities.InspectionPort = Descendant(sewer, "A inspection cover");
-            activities.DownstreamWindow = Descendant(sewer, "A downstream window");
-            activities.UpstreamWater = Descendant(activities.UpstreamWindow, "Water Height Pivot");
-            activities.DownstreamWater = Descendant(activities.DownstreamWindow, "Water Height Pivot");
-            activities.Handwheel = Descendant(activities.Valve, "Handwheel Pivot");
-            activities.InspectionLid = Descendant(activities.InspectionPort, "Inspection Cover Hinge");
-            activities.AugerCrank = Descendant(Descendant(sewer, "Drain auger"), "Crank Pivot");
-            activities.WetZones = room.GetComponentsInChildren<Transform>(true)
+            var repair = GetOrAdd<Map2Repair>(world.gameObject);
+            repair.UpstreamWindow = Descendant(sewer, "A upstream window");
+            repair.Valve = Descendant(sewer, "A isolating valve");
+            repair.InspectionPort = Descendant(sewer, "A inspection cover");
+            repair.DownstreamWindow = Descendant(sewer, "A downstream window");
+            repair.UpstreamWater = Descendant(repair.UpstreamWindow, "Water Height Pivot");
+            repair.DownstreamWater = Descendant(repair.DownstreamWindow, "Water Height Pivot");
+            repair.Handwheel = Descendant(repair.Valve, "Handwheel Pivot");
+            repair.InspectionLid = Descendant(repair.InspectionPort, "Inspection Cover Hinge");
+            repair.AugerCrank = Descendant(Descendant(sewer, "Drain auger"), "Crank Pivot");
+            room.GetComponentsInChildren<Transform>(true)
                 .Where(t => t.name == "Wet shortcut patch").Select(patch =>
                 {
                     var bounds = patch.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) =>
@@ -208,6 +210,7 @@ namespace NatureCalls.Editor
                     var collider = GetOrAdd<BoxCollider>(zone.gameObject);
                     collider.size = new Vector3(bounds.size.x, .24f, bounds.size.z);
                     collider.isTrigger = true;
+                    GetOrAdd<WetZone>(zone.gameObject);
                     return collider;
                 }).ToArray();
         }
