@@ -33,8 +33,11 @@ namespace NatureCalls.UI
         public GameObject EntryGroup;
         public Button OfflineButton;
         public Button CreateButton;
+        public Button CreateServerButton;
         public InputField CodeInput;
         public Button JoinButton;
+        public RectTransform LanRooms;
+        public Button LanRoomTemplate;
         public Button CloseButton;
         public GameObject RoomGroup;
         public Text RoomCode;
