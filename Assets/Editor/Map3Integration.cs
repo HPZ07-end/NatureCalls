@@ -126,8 +126,22 @@ namespace NatureCalls.Editor
             var world = scene.GetRootGameObjects().SelectMany(o => o.GetComponentsInChildren<Map.Playground>(true)).FirstOrDefault();
             if (world == null) world = new GameObject("Playground").AddComponent<Map.Playground>();
             world.PlayerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerAppearanceSetup.PlayerPath); world.StartOffline = true;
+            if (world.Camera == null)
+            {
+                var templateScene = EditorSceneManager.OpenScene(Map.Playground.ScenePath, OpenSceneMode.Additive);
+                var template = templateScene.GetRootGameObjects().SelectMany(o => o.GetComponentsInChildren<Map.Playground>(true)).First();
+                var source = new GameObject("Local camera rig");
+                SceneManager.MoveGameObjectToScene(source, templateScene);
+                foreach (var rootObject in new[] { template.Camera.transform.root, template.Camera.Eye.root,
+                    template.Camera.Shoulder.root, template.Camera.FirstPerson.transform.root,
+                    template.Camera.ThirdPerson.transform.root }.Distinct()) rootObject.SetParent(source.transform, true);
+                SceneManager.SetActiveScene(scene);
+                var rig = Object.Instantiate(source, scene);
+                rig.name = "Local camera rig";
+                world.Camera = rig.GetComponentInChildren<CameraController>(true);
+                EditorSceneManager.CloseScene(templateScene, true);
+            }
             world.Spawns = Enumerable.Range(1, 4).Select(i => root.GetComponentsInChildren<Transform>(true).First(t => t.name == $"Marker_Spawn_{i:00}")).ToArray();
-            var camera = Object.FindFirstObjectByType<CameraController>(); if (camera != null) world.Camera = camera;
         }
 
         private static void ConfigureLobby(Scene scene)
