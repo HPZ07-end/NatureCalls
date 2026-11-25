@@ -7,6 +7,6 @@
 - 每次任务产出 Semantic Diff；每个进入 `dev`/`main` 的 PR 即使无语义变化也声明 `none`，并检查代码是否实际引入新领域语义。语义审批不等于普通 Review，合并记录须可追溯。不得自行伪造 Review 或绕过保护。
 - 当前为 Stage 1 + 已获明确授权的 M1 联机 Playground，见 [ROADMAP](docs/ROADMAP.md)。M1 允许 URP、Input System、NGO、MPS/Relay、Cinemachine 3 和 Multiplayer Play Mode；不主动做 Stage 2/3 或完整 Gameplay；准确更新 [DEVELOPMENT_STATUS](docs/DEVELOPMENT_STATUS.md)。
 - Unity 以 `ProjectSettings/ProjectVersion.txt` 为准；保留资源、场景、GUID 与 `.meta`，通过 Unity API 修改序列化资源。Core 禁止 UnityEngine/UnityEditor；MonoBehaviour 连接场景、输入和表现。
-- GUI 与 batchmode 不得并行打开同一工程；先保存关闭 GUI，不自动删锁或强行结束 Editor。登录、许可和管理员授权由用户完成。
+- GUI 与 batchmode 不得并行打开同一工程；先保存关闭 GUI，不强行结束 Editor。`Temp/UnityLockfile` 只在没有 Unity 进程、也没有进程打开该文件时视为异常退出的残留，由 `scripts/unity.py` 记录后清理（用户 2026-11-25 批准）；有进程持有时一律停下，不手动删锁。登录、许可和管理员授权由用户完成。
 - 命令只是尝试，依观察到的文件、日志或 UI 验证结果再执行依赖操作。报告区分未执行、失败、通过；脚本单测不能冒充 Unity 测试。不提交缓存、产物、密钥、许可和个人路径；不强推、不丢弃改动或未经授权改写历史。
 - 课程报告及提交材料：应弈劼，学号 2024012833。

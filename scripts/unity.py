@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import uuid
@@ -46,11 +47,40 @@ def verify_editor(editor):
     return project_version()
 
 
+def unity_lock_holders(lockfile: Path) -> list[str]:
+    """Processes that keep this project's Unity lock: any process with the file open, or a Unity Editor on this project."""
+    holders = []
+    opened = subprocess.run(["lsof", "-t", str(lockfile)], capture_output=True, text=True)
+    holders += [f"pid {pid} has {lockfile.name} open" for pid in opened.stdout.split()]
+    editors = subprocess.run(["pgrep", "-fl", "Unity.app/Contents/MacOS/Unity"], capture_output=True, text=True)
+    for line in editors.stdout.splitlines():
+        if str(ROOT) in line:
+            holders.append("Unity Editor on this project: " + line)
+    return holders
+
+
+def clear_stale_unity_lock():
+    # A Unity lock is only stale when no Unity process for this project runs and nobody has the file open
+    # (Unity leaves it behind when it aborts, e.g. on compile errors). Anything else stops the run.
+    lockfile = ROOT / "Temp/UnityLockfile"
+    if not lockfile.exists():
+        return
+    if sys.platform == "win32" or shutil.which("lsof") is None or shutil.which("pgrep") is None:
+        raise RuntimeError("UnityLockfile exists and holders cannot be checked on this platform. Close Unity and inspect it manually.")
+    holders = unity_lock_holders(lockfile)
+    if holders:
+        raise RuntimeError("UnityLockfile is held (" + "; ".join(holders) + "). Save and close that Unity first.")
+    record = ROOT / "Artifacts/stale-lock.txt"
+    record.parent.mkdir(exist_ok=True)
+    with record.open("a") as stream:
+        stream.write(f"{datetime.now(timezone.utc).isoformat()} removed stale {lockfile} (mtime {datetime.fromtimestamp(lockfile.stat().st_mtime, timezone.utc).isoformat()}); no Unity process, no open handle\n")
+    lockfile.unlink()
+    print(f"Removed stale Unity lock (no process holds it); recorded in {record}", flush=True)
+
+
 @contextmanager
 def project_lock():
-    # Never remove Unity's own lock, including apparently stale locks.
-    if (ROOT / "Temp/UnityLockfile").exists():
-        raise RuntimeError("UnityLockfile exists. Save and close this project's Unity GUI first; do not delete its lock automatically.")
+    clear_stale_unity_lock()
     lock = ROOT / "Artifacts/unity.lock"
     lock.parent.mkdir(exist_ok=True)
     try:
@@ -95,8 +125,7 @@ def restore_player(editor, directory, environment, timeout, summary):
     if use_nographics():
         command += ["-nographics"]
     summary["restore"] = {"command": command, "status": "failed"}
-    if (ROOT / "Temp/UnityLockfile").exists():
-        raise RuntimeError("Server build left UnityLockfile; cannot safely restore Player. Inspect the build logs.")
+    clear_stale_unity_lock()
     print(f"Restoring desktop Player: {directory}", flush=True)
     with (directory / "process.log").open("w") as output:
         result = subprocess.run(command, env=dict(environment, NATURECALLS_RUN_PATH=str(directory)),
