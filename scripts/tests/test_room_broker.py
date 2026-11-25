@@ -94,6 +94,7 @@ class BrokerTests(unittest.TestCase):
     def test_pending_reservations_do_not_block_lookup_or_collide(self):
         ready = threading.Event()
         self.broker.max_rooms = 2
+        self.broker.start_timeout = 5.0  # both creators must stay pending while the test checks them (slow CI runners)
         self.broker.is_listening = lambda port: ready.is_set()
         self.broker.log_ready = lambda port: ready.is_set()
         results = []
