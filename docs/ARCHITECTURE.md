@@ -8,12 +8,12 @@
 
 | 目录 | 技术职责 / 当前内容 |
 | --- | --- |
-| `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非领队全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）、`NeedsRules`（需求、准度阈值与清洁数值）、`Accuracy`（按时间累计准度）、`MovementRules`（移动效果合并）、`RepairRules`（五步维修）、`RuntimeMode`（是否专用服务器）。未完成 Stage 2 |
+| `Assets/Core` | `NatureCalls.Core.asmdef`，无 Unity 引用；纯 C# 规则：`OutfitSelection`（换装预览/确认）、`LobbyRules`（2–4 人、非领队全员准备）、`MapSelection`（含随机地图）、`RoundClock`（全局对局计时）、`NeedsRules`（需求、准度阈值与清洁数值）、`Accuracy`（按时间累计准度）、`MovementRules`（移动效果合并）、`RepairRules`（五步维修）、`RuntimeMode`（是否专用服务器）、`StoolRules`（粪便种类 StoolKind 的抽取概率、管路堵塞量、气味与脏度权重）。未完成 Stage 2 |
 | `Assets/Player` | Movement：CharacterController、朝向、跳跃与对位坐下与站起位置恢复；Posture：姿态状态与通知；PlayerAppearance：身份颜色与外观（按 `OutfitCatalog` 编号）；PlayerOutfitController：DressingRoom 换装流程；OutfitCatalog：可选外观资源；LocalProfile：本地已确认外观（PlayerPrefs）；PlayerNeeds：急迫值与恶心值（由离线 Playground 或服务器驱动） |
 | `Assets/Input` | PlayerInput：本地键鼠操作请求，只为 Owner 启用；C 负责全部如厕，E 按准星目标分派，F 处理手持物品或自身 |
 | `Assets/Camera` | CameraController：本地 Cinemachine 目标、优先级、Blend 与渲染 |
-| `Assets/Facility` | Toilet、Urinal、Sink 与 Pipe（水管堵塞、累积、倒灌）；StallDoor、Item、PaperRoll、PaperVendingMachine、Toolbox、Mess、PlanarMirror 保持原职责。Pipe 与马桶倒灌等设施状态经通用共享状态表（Network/Facilities）由服务器同步；污物通过 Facility 中的 `IMessSink` 产生，由 Map 实现。 |
-| `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生、联机对局全局计时与全体判负；Avatar：所有权、控制与镜头绑定、姿态同步；AvatarAppearance：身份颜色与外观编号；NeedsSync：需求、未擦拭与手脏状态同步；FacilitySync：玩家设施请求与服务器校验；Facilities：服务器拥有的地图设施共享状态；Probe：显式启动的 Development 验证程序 |
+| `Assets/Facility` | Toilet、Urinal、Sink 与 Pipe（水管堵塞、累积、倒灌）；StallDoor、Item、PaperRoll、PaperVendingMachine、Toolbox、Mess、PlanarMirror 保持原职责。粪便种类：`StoolOutput`（服务器/离线抽取种类，落地或进马桶）、`HardStool`（硬便 Item：可踢、E 拾取扣镇定值、R 丢掷、落进马桶加堵塞；每个地图场景由 `StoolPool` 生成 6 个存放态硬便，经 SharedItems 同步）、`MessLook`（污物正式模型、气味与拉稀/失禁的湿滑，由 `Mess.Configure` 调用）、`MessArt`（Resources 中的模型与 URP 材质目录）、`MessFx`/`Wisps`（面向镜头的气味、闪光与水花精灵；工程未启用 Particle System 模块）。Pipe 与马桶倒灌等设施状态经通用共享状态表（Network/Facilities）由服务器同步；污物通过 Facility 中的 `IMessSink` 产生，由 Map 实现。 |
+| `Assets/Network` | Session：持久 MPS/Relay 与直连连接、人数、出生槽位、Lobby 模式；LobbyRoom：房间成员/准备/外观/阶段、地图加载后的出生、联机对局全局计时与全体判负；Avatar：所有权、控制与镜头绑定、姿态同步；AvatarAppearance：身份颜色与外观编号；NeedsSync：需求、未擦拭与手脏状态同步；FacilitySync：玩家设施请求与服务器校验；Facilities：服务器拥有的地图设施共享状态；Probe：显式启动的 Development 验证程序；StoolSync：硬便的发布、踢飞请求与权威判断（`FacilitySync.RequestKick` → 服务器 `KickItemRpc`，飞行沿用丢掷的 Flying/Landed 流程） |
 | `Assets/Map` | Playground：地图资源引用、出生点、离线练习；MapCatalog：可选地图；Match：本局模式（离线/联机）、场景切换与离线对局计时；WetZone：地图配置的 BoxCollider 湿地移动效果；SewerAccess：Map2 井口与短梯；VentPassage：Map1 风道；Map2Repair：Map2 A 支路五步维修原型（计划由 Facility Pipe/WaterValve 替代）；DressingMirror / LobbyDoor：DressingRoom 中镜子与门的 E 键入口 |
 | `Assets/UI` | MatchExit：地图左上角「退出」按钮（`MatchHud.prefab`），联机时先离开房间再回到准备房；MatchClock：同一 HUD 顶部的本局剩余时间；NeedsView：左上角本地玩家的急迫值/恶心值条；`UI/Lobby`：LobbyView（纯引用）、LobbyController（行为）、BackgroundBlur（URP 景深虚化） |
 | `Assets/Scenes` | 构建顺序：DressingRoom（启动场景）、Playground（地图）、Smoke；Sandbox 原样保留 |
@@ -50,7 +50,7 @@
 | 单例 | `Session.Instance`（重复实例自毁）、`LobbyRoom.Current`，NGO `NetworkManager.Singleton` | 跨场景只保留一个连接与一个房间 |
 | 观察者 | `Posture.Changed` 事件（Movement、CameraController、FacilitySync、PlayerInput 订阅）；`NetworkVariable.OnValueChanged` / `NetworkList.OnListChanged` | 姿态与共享状态变化时各方自行响应，互不引用 |
 | 状态 | `PlayerInput.Stage`（对位/保持/小便/清洁）、`PostureState`（站立/如厕）、`StallDoorState`（开/关/锁，`StallDoor.Interact` 按状态转移）、`LobbyPhase`（等待/选图/对局）、`ItemSnapshot.Mode`（地图上/携带/飞行/落地/工具箱内） | 以显式状态与转移规则驱动行为；目前用枚举加转移函数实现，没有为每个状态单独建类 |
-| 对象池 | `Playground` 的三种 Mess（`UnityEngine.Pool.ObjectPool`） | 污物被清除时回收、再次出现时复用，不重复创建 |
+| 对象池 | `Playground` 的 Mess（`UnityEngine.Pool.ObjectPool`）；`StoolPool` 的存放态硬便 | 污物被清除时回收、再次出现时复用，不重复创建；硬便冲进马桶后回到存放态 |
 | 数据驱动配置 | `OutfitCatalog`、`MapCatalog`（ScriptableObject） | 外观与地图由资源配置，美术可替换而不改代码 |
 
 ## 游戏流程

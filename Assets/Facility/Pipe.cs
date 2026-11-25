@@ -34,6 +34,8 @@ namespace NatureCalls.Facility
             if (UnityEngine.Random.value < Time.deltaTime / PlumbingRules.BackflowDenominator) TriggerBackflow();
         }
         public void AddStool() { Accumulation = PlumbingRules.AddStool(Accumulation); }
+        /// <summary>Adds a given load, e.g. StoolRules.PipeLoad for the stool kind.</summary>
+        public void AddLoad(int amount) { Accumulation = PlumbingRules.Add(Accumulation, amount); }
         public void AddPaper(int units) { Accumulation = PlumbingRules.AddPaper(Accumulation, units); }
         public void Clear() { Accumulation = PlumbingRules.Clear(); }
         public void SetAuthority(bool value) { authority = value; }

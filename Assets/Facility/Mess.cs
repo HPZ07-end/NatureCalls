@@ -15,6 +15,7 @@ namespace NatureCalls.Facility
             transform.position = position + Vector3.up * (kind == MessKind.Puddle ? .015f : .11f);
             transform.localScale = kind == MessKind.Puddle || kind == MessKind.Backflow ? new Vector3(.8f, .025f, .8f) : Vector3.one * .22f;
             GetComponent<Renderer>().material.color = kind == MessKind.Dropping ? Color.black : kind == MessKind.Puddle ? Color.yellow : kind == MessKind.Backflow ? Color.magenta : new Color(.4f, .2f, .02f);
+            MessLook.Apply(this, kind, position); // formal model, odour and slip by kind
         }
         public bool CanClean(Movement player)
         {

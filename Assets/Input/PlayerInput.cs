@@ -233,22 +233,24 @@ namespace NatureCalls.Input
                 return;
             }
             bool inStall = targetToilet != null;
+            var stool = StoolOutput.Roll(player); // StoolKind, drawn before urgency clears
             playerNeeds.CompleteToileting(inStall);
-            if (!inStall) { world?.Drop(position); return; }
+            if (!inStall) { StoolOutput.Floor(player, position, stool); return; }
             if (targetToilet.IsBackflow || (world != null && world.IsBackflow(toiletIndex)))
             {
-                world?.AddMess(MessKind.Dropping, position, -1);
+                StoolOutput.Floor(player, position, stool);
                 playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
                 return; // Backflow makes this equivalent to outside defecation: no paper or pipe contribution.
             }
             if (world != null && world.IsDirty(toiletIndex)) playerNeeds.AddDisgust(NeedsRules.DirtyToiletDisgust);
             var kind = NeedsRules.Defecation(value);
             if (kind == MessKind.Dropping) playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
-            world?.AddMess(kind, kind == MessKind.DirtyToilet ? targetToilet.TargetCenter : position, toiletIndex);
+            if (kind == MessKind.Dropping) StoolOutput.Floor(player, position, stool);
+            else world?.AddMess(kind, kind == MessKind.DirtyToilet ? targetToilet.TargetCenter : position, toiletIndex);
             playerNeeds.MarkUnwiped(targetToilet.GetComponentInParent<StallDoor>());
             playerNeeds.SetPaperRequired(NeedsRules.PaperRequired(kind));
             playerNeeds.SetUnwipedPipe(targetToilet.ConnectedPipe);
-            if (kind == MessKind.None) targetToilet.ConnectedPipe?.AddStool();
+            if (kind != MessKind.Dropping) StoolOutput.Bowl(targetToilet, stool);
         }
         public bool BeginCleaning(Mess mess)
         {
