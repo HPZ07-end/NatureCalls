@@ -1,5 +1,9 @@
 # M1 Multiplayer Playground
 
+## 对抗模式 C：离线验收
+
+捣蛋者由测试直接调用 `RoleRegistry.Set(player, PlayerRole.Saboteur)`。手持卷纸对准马桶长按 E 约 2 秒后塞纸，管路增加 40；手持扳手对准损坏设施长按 F 3 秒修复，手持疏通器对准堵塞马桶长按 F 4 秒清空管路。捣蛋者对准洗手台按 E 接水，再按 E 洒出，积水出现在前方 1.5 米；对准关着且有人使用的隔间门按 E 触发 `BodyEvents.Knock`。各动作的冷却在服务器 `Perform` 重新检查。运行 `python3 scripts/unity.py plumbing` 会通过 Editor API 在 Playground 和 Map2 接上 Breakable，并在工具箱生成 Wrench、Plunger；接线完成后应在两张地图各检查一次。
+
 本次语义授权：2026-10-19 用户「Multiplayer Playground Initialization」，见根 [GLOSSARY](../GLOSSARY.md)。本文件描述技术实现与验证方式，不重新定义游戏规则。工程仍用 Unity **6000.3.26f1**，游戏版本不提升（`0.1.0-alpha.1`）。
 
 ## 环境与依赖

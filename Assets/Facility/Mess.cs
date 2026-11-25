@@ -19,10 +19,13 @@ namespace NatureCalls.Facility
             transform.position = position + Vector3.up * (kind == MessKind.Puddle ? .015f : .11f);
             transform.localScale = kind == MessKind.Puddle || kind == MessKind.Backflow ? new Vector3(.8f, .025f, .8f) : Vector3.one * .22f;
             GetComponent<Renderer>().material.color = kind == MessKind.Dropping ? Color.black : kind == MessKind.Puddle ? Color.yellow : kind == MessKind.Backflow ? Color.magenta : new Color(.4f, .2f, .02f);
+            DirtField.Register(this);
         }
         private void OnEnable() => DirtField.Register(this);
         private void OnDisable() => DirtField.Unregister(this);
 
+        public Movement Source { get; private set; }
+        public void SetSource(Movement source) { Source = source; SaboteurSource = source != null && RoleRegistry.IsSaboteur(source); }
         public bool CanClean(Movement player)
         {
             if (player == null || Item.FindCarriedBy(player) is not Mop) return false;

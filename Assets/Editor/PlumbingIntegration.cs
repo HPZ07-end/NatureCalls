@@ -51,9 +51,59 @@ namespace NatureCalls.Editor
                 else if (fixture is Sink sink) sink.SetPipe(pipe);
             }
             foreach (var repair in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Map2Repair>(true))) repair.SetPipes(new[] { pipe });
+            ApplyVersus(world, scene, map2);
+            foreach (var root in scene.GetRootGameObjects()) GameObjectUtility.RemoveMonoBehavioursWithMissingScript(root);
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException($"Could not save {path}");
             Debug.Log($"PLUMBING_INTEGRATION_OK|scene={path}|fixtures={fixtures.Length}|sinks={sinks.Count}");
+        }
+
+        private static void ApplyVersus(NatureCalls.Map.Playground world, Scene scene, bool map2)
+        {
+            foreach (var toilet in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Toilet>(true)))
+            {
+                var target = toilet.Target.gameObject;
+                var broken = target.GetComponent<Breakable>() ?? target.AddComponent<Breakable>();
+                broken.TargetComponent = toilet;
+                EditorUtility.SetDirty(broken);
+            }
+            foreach (var sink in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Sink>(true)))
+            {
+                var broken = sink.gameObject.GetComponent<Breakable>() ?? sink.gameObject.AddComponent<Breakable>();
+                broken.TargetComponent = sink;
+                EditorUtility.SetDirty(broken);
+            }
+            var box = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Toolbox>(true)).FirstOrDefault();
+            if (box != null)
+            {
+                var oldObjects = box.GetComponentsInChildren<Item>(true).Where(item => item is Wrench || item is Plunger)
+                    .Select(item => item.gameObject).Distinct().ToArray();
+                foreach (var oldObject in oldObjects)
+                    if (oldObject != box.gameObject) UnityEngine.Object.DestroyImmediate(oldObject);
+                box.Wrench = EnsureTool<Wrench>(world.transform, "Toolbox Wrench");
+                box.Plunger = EnsureTool<Plunger>(world.transform, "Toolbox Plunger");
+                box.Wrench.transform.position = box.transform.position + Vector3.up * .2f;
+                box.Plunger.transform.position = box.transform.position + Vector3.up * .2f;
+                // Prefab-instance fields cannot safely serialize references to added scene objects.
+                // Toolbox resolves the nearest named tools at runtime; leaving these null avoids dangling references.
+                box.Wrench = null;
+                box.Plunger = null;
+                PrefabUtility.RecordPrefabInstancePropertyModifications(box);
+                EditorUtility.SetDirty(box);
+            }
+            if (map2)
+                foreach (var valve in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Transform>(true)).Where(t => t.name.IndexOf("valve", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    var broken = valve.GetComponent<Breakable>() ?? valve.gameObject.AddComponent<Breakable>();
+                    EditorUtility.SetDirty(broken);
+                }
+        }
+
+        private static T EnsureTool<T>(Transform parent, string name) where T : Item
+        {
+            var child = parent.Find(name);
+            if (child == null) { child = new GameObject(name).transform; child.SetParent(parent, false); child.localPosition = Vector3.up * .2f; child.gameObject.AddComponent<BoxCollider>().size = Vector3.one * .2f; }
+            return child.GetComponent<T>() ?? child.gameObject.AddComponent<T>();
         }
     }
 }
