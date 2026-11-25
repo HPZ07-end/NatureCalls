@@ -1,6 +1,6 @@
 # 实际开发状态
 
-2026-11-26：正在整合 PR #37 `feat/art-model-import` 到 `integrate/art-model-import`，基线为 `origin/docs/floor1-approval`（`0f88a44`）。美术资源、换装间和双隔间大厅按已批准定义接入；代码结构以 dev 为准，Map2 将在 Unity API 重跑后复验。尚未宣称 Unity 回归或真实双端 LAN/Relay 通过。
+2026-11-26：PR #37 `feat/art-model-import` 已整合到 `integrate/art-model-import`，基线为 `origin/docs/floor1-approval`（`0f88a44`）。美术资源、换装间和双隔间大厅按已批准定义接入；代码结构以 dev 为准，Map2 已用队友场景作底并经 Unity API 重跑。EditMode 43/43、PlayMode 59 Passed + 1 Relay Ignored、build-server 及恢复 Player 通过；未执行真实双端 LAN/Relay。
 
 2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器已于同日更新到 dev `a58cf77`（#32），见下方课程服务器记录。
 
