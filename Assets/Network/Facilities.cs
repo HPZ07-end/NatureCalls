@@ -28,15 +28,9 @@ namespace NatureCalls.Network
     public sealed class Facilities : NetworkBehaviour
     {
         public static Facilities Current { get; private set; }
-        // legacy: migrate to FacilityStateEntry (planned: with plumbing / unified toileting)
-        public NetworkList<byte> SharedDoors;
-        // legacy: migrate to FacilityStateEntry (planned: with plumbing / unified toileting)
+        // dedicated: item pose, velocity, uses, and flight ownership need streaming snapshots.
         public NetworkList<ItemSnapshot> SharedItems;
-        // Toilet occupants: 0 when free, otherwise the sitting player's client id + 1.
-        // legacy: migrate to FacilityStateEntry (planned: with plumbing / unified toileting)
-        public NetworkList<ulong> SharedToilets;
-        // Where players toileted outside a stall during this round.
-        // legacy: migrate to FacilityStateEntry (planned: with plumbing / unified toileting)
+        // dedicated: mess count is append/remove state, not a fixed facility value.
         public NetworkList<MessSnapshot> SharedMesses;
         private Map.Playground world;
         internal ITraversalFacility[] TraversalSources { get; private set; } = Array.Empty<ITraversalFacility>();
@@ -54,8 +48,6 @@ namespace NatureCalls.Network
         internal Toilet[] toilets;
         internal Urinal[] urinals;
         internal Toolbox[] toolboxes;
-        // legacy: migrate to FacilityStateEntry (planned: with plumbing / unified toileting)
-        public NetworkList<ulong> SharedUrinals;
         private static int facilitySceneHandle = -1;
         private static StallDoor[] sceneDoors;
         private static Item[] sceneItems;
@@ -63,10 +55,7 @@ namespace NatureCalls.Network
 
         private void Awake()
         {
-            SharedUrinals = new NetworkList<ulong>();
-            SharedDoors = new NetworkList<byte>();
             SharedItems = new NetworkList<ItemSnapshot>();
-            SharedToilets = new NetworkList<ulong>();
             SharedMesses = new NetworkList<MessSnapshot>();
             SharedFacilityState = new NetworkList<FacilityStateEntry>();
         }
@@ -111,17 +100,9 @@ namespace NatureCalls.Network
             }
             if (doors == null) return;
             if (IsServer)
-            {
-                foreach (var door in doors) SharedDoors.Add((byte)door.State);
                 foreach (var roll in items) SharedItems.Add(Snapshot(roll, roll.Stored ? ItemSnapshot.Stored : ItemSnapshot.OnMap, 0));
-                foreach (var toilet in toilets) SharedToilets.Add(0);
-                foreach (var urinal in urinals) SharedUrinals.Add(0);
-            }
-            SharedDoors.OnListChanged += DoorChanged;
             SharedItems.OnListChanged += ItemChanged;
-            SharedToilets.OnListChanged += ToiletChanged;
             SharedMesses.OnListChanged += MessesChanged;
-            SharedUrinals.OnListChanged += ToiletChanged;
             ApplyAllFacilityState();
             ShowMesses();
         }
@@ -144,7 +125,6 @@ namespace NatureCalls.Network
             };
         }
 
-        private void DoorChanged(NetworkListEvent<byte> change) => ApplyAllFacilityState();
         /// <summary>Server: performs a generic interactable for a player after re-checking it with a server-side context, then publishes.</summary>
         internal void PerformShared(int id, Movement player, ulong clientId, bool busy)
         {
@@ -210,7 +190,6 @@ namespace NatureCalls.Network
                 }
         }
         private void ItemChanged(NetworkListEvent<ItemSnapshot> change) => ApplyAllFacilityState();
-        private void ToiletChanged(NetworkListEvent<ulong> change) => ApplyAllFacilityState();
 
         private static Movement MovementOf(ulong clientId)
         {
@@ -222,8 +201,6 @@ namespace NatureCalls.Network
         internal void ApplyAllFacilityState()
         {
             if (doors == null || IsServer) return;
-            for (var index = 0; index < doors.Length && index < SharedDoors.Count; index++)
-                doors[index].ApplySharedState((StallDoorState)SharedDoors[index]);
             for (var index = 0; index < items.Length && index < SharedItems.Count; index++)
             {
                 var state = SharedItems[index];
@@ -240,10 +217,6 @@ namespace NatureCalls.Network
                 else if (state.Mode == ItemSnapshot.Landed)
                     items[index].ApplySharedRest(state.Position, state.Rotation);
             }
-            for (var index = 0; index < urinals.Length && index < SharedUrinals.Count; index++)
-                urinals[index].ApplySharedOccupant(SharedUrinals[index] == 0 ? null : MovementOf(SharedUrinals[index] - 1));
-            for (var index = 0; index < toilets.Length && index < SharedToilets.Count; index++)
-                toilets[index].ApplySharedOccupant(SharedToilets[index] == 0 ? null : MovementOf(SharedToilets[index] - 1));
         }
 
         private void MessesChanged(NetworkListEvent<MessSnapshot> change) => ShowMesses();
@@ -268,11 +241,8 @@ namespace NatureCalls.Network
         {
             if (Map.Playground.MessAuthority == (Func<MessKind, Vector3, int, int>)AddMess) Map.Playground.MessAuthority = null;
             SharedFacilityState.OnListChanged -= FacilityStateChanged;
-            SharedDoors.OnListChanged -= DoorChanged;
             SharedItems.OnListChanged -= ItemChanged;
-            SharedToilets.OnListChanged -= ToiletChanged;
             SharedMesses.OnListChanged -= MessesChanged;
-            SharedUrinals.OnListChanged -= ToiletChanged;
             if (Current == this) Current = null;
         }
     }

@@ -139,16 +139,15 @@ namespace NatureCalls.Network
         private void SeatToiletRpc(int index, RpcParams rpc = default)
         {
             var host = ServerFacilities();
-            if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.toilets.Length ||
-                index >= host.SharedToilets.Count || host.SharedToilets[index] != 0) return;
+            if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.toilets.Length || host.toilets[index].IsOccupied) return;
             var toilet = host.toilets[index];
             var stall = toilet.GetComponentInParent<StallDoor>();
             if (stall != null && !stall.Contains(movement)) return;
             if (activeMode != 0 || posture.IsCrawling) return;
             activeMode = 1; activeIndex = index; began = Time.time;
             GetComponent<PlayerNeeds>().Toileting = true;
-            host.SharedToilets[index] = OwnerClientId + 1;
             toilet.ApplySharedOccupant(movement);
+            host.PublishShared();
             SeatGrantedRpc(index);
         }
 
@@ -159,28 +158,15 @@ namespace NatureCalls.Network
             GetComponent<Input.PlayerInput>().BeginGranted(toilets[index], null);
         }
 
-        // Frees every seat the player holds (on standing up, or when they leave the map).
-        private void ReleaseToiletsOf(ulong clientId)
-        {
-            var host = ServerFacilities();
-            if (host == null || host.toilets == null) return;
-            for (var index = 0; index < host.toilets.Length && index < host.SharedToilets.Count; index++)
-            {
-                if (host.SharedToilets[index] != clientId + 1) continue;
-                host.SharedToilets[index] = 0;
-                host.toilets[index].ApplySharedOccupant(null);
-            }
-        }
 
         [Rpc(SendTo.Server)]
         private void InteractDoorRpc(int index, RpcParams rpc = default)
         {
             var host = ServerFacilities();
-            if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.doors.Length ||
-                index >= host.SharedDoors.Count) return;
+            if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.doors.Length) return;
             var door = host.doors[index];
             if (!door.Interact(movement)) return;
-            host.SharedDoors[index] = (byte)door.State;
+            host.PublishShared();
             GetComponent<PlayerNeeds>().LeaveUnwiped();
         }
 
@@ -316,11 +302,11 @@ namespace NatureCalls.Network
         {
             var host = ServerFacilities();
             if (host == null || rpc.Receive.SenderClientId != OwnerClientId || activeMode != 0 || posture.IsCrawling ||
-                index < 0 || index >= host.urinals.Length || host.SharedUrinals[index] != 0) return;
+                index < 0 || index >= host.urinals.Length || host.urinals[index].IsOccupied) return;
             if (!host.urinals[index].Occupy(movement)) return;
             activeMode = 2; activeIndex = index; began = Time.time;
             GetComponent<PlayerNeeds>().Toileting = true;
-            host.SharedUrinals[index] = OwnerClientId + 1;
+            host.PublishShared();
             UrinalGrantedRpc(index);
         }
         [Rpc(SendTo.Owner)]
@@ -339,17 +325,16 @@ namespace NatureCalls.Network
             if (Time.time - began < duration - .1f || Vector3.Distance(position, movement.transform.position) > 2) return;
             Toilet toilet = activeMode == 1 ? host.toilets[activeIndex] : null;
             Urinal urinal = activeMode == 2 ? host.urinals[activeIndex] : null;
-            if (toilet != null && (host.SharedToilets[activeIndex] != OwnerClientId + 1 || !toilet.GetComponentInParent<StallDoor>().Contains(movement))) return;
-            if (urinal != null && (host.SharedUrinals[activeIndex] != OwnerClientId + 1 || !urinal.Contains(movement))) return;
+            if (toilet != null && (!toilet.IsOccupied || toilet.Occupant != movement || !toilet.GetComponentInParent<StallDoor>().Contains(movement))) return;
+            if (urinal != null && (!urinal.IsOccupied || urinal.Occupant != movement || !urinal.Contains(movement))) return;
             Input.PlayerInput.ApplyResult(movement, toilet, urinal, accuracy, position, activeIndex);
             ClearUse();
         }
         private void ClearUse()
         {
             var host = ServerFacilities();
-            if (host != null && activeMode == 2 && activeIndex >= 0)
-            { host.SharedUrinals[activeIndex] = 0; host.urinals[activeIndex].Release(movement); }
-            ReleaseToiletsOf(OwnerClientId);
+            if (host != null && activeMode == 2 && activeIndex >= 0) host.urinals[activeIndex].Release(movement);
+            if (host != null) { foreach (var toilet in host.toilets) toilet.Release(movement); host.PublishShared(); }
             activeMode = 0; activeIndex = -1;
             GetComponent<PlayerNeeds>().Toileting = false;
         }

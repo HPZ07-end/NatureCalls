@@ -11,7 +11,7 @@ namespace NatureCalls.Facility
     }
 
     [DisallowMultipleComponent]
-    public sealed class StallDoor : InteractableComponent
+    public sealed class StallDoor : InteractableComponent, ISharedFacilityState
     {
         [Min(.1f)] public float InteractionDistance = 1.5f;
         [Range(-120, 120)] public float OpenAngle = 95f;
@@ -19,6 +19,10 @@ namespace NatureCalls.Facility
         public Transform DoorColliderPivot;
         [SerializeField] private StallDoorState initialState = StallDoorState.Closed;
         public StallDoorState State { get; private set; }
+        public int SharedEntryCount => 1;
+        public SharedFacilityValue ReadShared(int index) => new SharedFacilityValue((byte)State);
+        public void ApplyShared(int index, SharedFacilityValue value) => ApplySharedState((StallDoorState)value.State);
+        public void ReleaseOwner(ulong clientId) { }
 
         private Quaternion leafClosedRotation;
         private Quaternion colliderClosedRotation;
