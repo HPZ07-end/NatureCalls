@@ -6,6 +6,8 @@ namespace NatureCalls.Facility
     public interface IMessSink
     {
         int AddMess(MessKind kind, UnityEngine.Vector3 position, int toiletIndex = -1);
+        /// <summary>Versus: same as AddMess, but records who produced it (saboteur droppings weigh less). Map overrides this.</summary>
+        int AddMess(MessKind kind, UnityEngine.Vector3 position, int toiletIndex, NatureCalls.Player.Movement source) => AddMess(kind, position, toiletIndex);
         int ToiletIndex(Toilet toilet);
     }
     public static class MessSinkRegistry
