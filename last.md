@@ -1,17 +1,15 @@
-# NatureCalls controls refactor fourth review
+# NatureCalls controls refactor final verification
 
-Rejected compatibility commit was reverted: `9b09c21` reverts `880edc4`.
+本轮完成：
+- 共享设施状态改为 `ISharedFacilityState` 接口入口，Network 层不再包含 Coin、Repair、Sewer、Map2 领域名称；保留门、物品、马桶、小便池、污物列表并标注 legacy 迁移计划。
+- `MovementEffectRegistry` 改为 OnEnable/OnDisable 注册，移动时不再扫描场景；新增注册源测试。
+- README、ARCHITECTURE、PLAYGROUND、REUSE_GUIDE、DEVELOPMENT_STATUS 改为中文并清理旧 E 顺序/长按 E/按 E 擦拭描述；GLOSSARY 未修改。
 
-Current fixes:
-- `Movement.LookAt(Vector3)` sets yaw and clamped pitch from the player view state.
-- `TestAim` uses movement view state and waits two frames.
-- `IInteractable.AimPoint` uses combined collider/renderer bounds; stall doors use the door leaf collider centre.
-- `InteractionRegistry.Resolve` now uses the registry only; per-frame scene scans were removed.
-- Emergency paper uses explicit `Item.PromptLabel`, assigned by `Map2Interactions`.
+验证：
+- test-editmode：通过，36/36，artifact `20261125T011200Z-d027e2-test-editmode`。
+- build-server：通过，artifact `20261125T011729Z-f4d803-build-server`。
+- unfiltered test-playmode：通过，42/43，1 Relay Ignored，artifact `20261125T012415Z-9a6365-test-playmode`。
+- grep 4：通过，无输出；Network 扩展 grep `Coin|Repair|Sewer|Map2`：通过，无输出。
+- semantic.py：通过，`changed`，body `pr-body.md`。
 
-Verification:
-- EditMode: PASSED, 35/35, artifact `20261124T160910Z-6caa17`.
-- Filtered `LayoutPlayerInteractSelectsNearbyDoorAndPaperRoll`: FAILED, 0/1, artifact `20261124T160946Z-9afd18`; E still returns false after the new aim helper. This is an unresolved registration/focus integration issue.
-- Required final unfiltered PlayMode, server build, grep, and final semantic verification after this commit: not run because the focused test remains blocked.
-
-No push or PR opened.
+未 push、未开 PR。ProjectSettings.asset 已恢复。
