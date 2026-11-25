@@ -187,7 +187,8 @@ namespace NatureCalls.Input
             if (!IsToileting) return;
             correction += adjustment;
             float t = accuracy.Elapsed * 2;
-            var profile = CharacterProfile.For(LocalProfile.BodyType);
+            var appearance = GetComponent<PlayerAppearance>();
+            var profile = CharacterProfile.For(appearance != null ? appearance.BodyType : LocalProfile.BodyType);
             var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0) / Mathf.Max(.01f, profile.AimSteadiness);
             var offset = correction + drift;
             if (urinal != null)
@@ -214,6 +215,7 @@ namespace NatureCalls.Input
         public static int ToiletIndex(Toilet target)
         {
             if (target == null) return -1;
+            if (MessSinkRegistry.Current != null) return MessSinkRegistry.Current.ToiletIndex(target);
             var toilets = FindObjectsByType<Toilet>(FindObjectsSortMode.InstanceID);
             return System.Array.IndexOf(toilets, target);
         }
@@ -233,6 +235,12 @@ namespace NatureCalls.Input
             bool inStall = targetToilet != null;
             playerNeeds.CompleteToileting(inStall);
             if (!inStall) { world?.Drop(position); return; }
+            if (targetToilet.IsBackflow || (world != null && world.IsBackflow(toiletIndex)))
+            {
+                world?.AddMess(MessKind.Dropping, position, -1);
+                playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
+                return; // Backflow makes this equivalent to outside defecation: no paper or pipe contribution.
+            }
             if (world != null && world.IsDirty(toiletIndex)) playerNeeds.AddDisgust(NeedsRules.DirtyToiletDisgust);
             var kind = NeedsRules.Defecation(value);
             if (kind == MessKind.Dropping) playerNeeds.AddDisgust(NeedsRules.OutsideStallDisgust);
@@ -296,7 +304,7 @@ namespace NatureCalls.Input
                     if (Online) return facilities.RequestWipe();
                     int amount = Mathf.Min(needs.PaperRequired, paper.RemainingUses);
                     if (amount <= 0 || !paper.Use(amount)) return false;
-                    needs.ConsumePaper(amount); needs.UnwipedPipe?.AddPaper(amount); return true;
+                    needs.ConsumePaper(amount); return true;
                 }
                 if (Online) return facilities.RequestWipe();
                 needs?.WipeByHand();

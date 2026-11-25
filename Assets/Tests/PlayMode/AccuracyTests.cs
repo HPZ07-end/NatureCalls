@@ -119,13 +119,14 @@ namespace NatureCalls.Tests
             var focusInfo = "focus " + (input.Focus?.Target != null ? input.Focus.Target.name : "none") + " posture " + player.GetComponent<Posture>().State + " seat " + (player.Seat != null) + " crawl " + player.IsCrawling + " aiming " + player.Aiming + " pitch " + player.Pitch.ToString("F1");
             Assert.That(input.TryInteract(), Is.True, focusInfo); Assert.That(input.Unwiped, Is.True); Assert.That(needs.Disgust, Is.Zero);
             Assert.That(input.HeldItem, Is.SameAs(paper), focusInfo);
-            for (int i = 2; i >= 0; i--)
+            for (int i = 5; i >= 3; i--)
             {
                 needs.MarkUnwiped(toilet.GetComponentInParent<StallDoor>());
+                needs.SetPaperRequired(1);
                 Assert.That(input.TryAction(), Is.True); Assert.That(input.Unwiped, Is.False);
                 Assert.That(paper.RemainingUses, Is.EqualTo(i));
             }
-            Assert.That(paper.gameObject.activeSelf, Is.False); Assert.That(input.HeldItem, Is.Null);
+            Assert.That(paper.gameObject.activeSelf, Is.True); Assert.That(input.HeldItem, Is.SameAs(paper));
         }
         [UnityTest] public IEnumerator UnwipedDoorAndWalkingOutChargeOnceEach()
         {
@@ -136,6 +137,39 @@ namespace NatureCalls.Tests
             Place(world.Spawns[0].position, Vector3.forward);
             yield return null; Assert.That(needs.Disgust, Is.EqualTo(15), "Walking out unwiped charges once."); Assert.That(input.Unwiped, Is.False);
             yield return null; Assert.That(needs.Disgust, Is.EqualTo(15));
+        }
+
+        [Test] public void BackflowDefecationBecomesOutsideMessWithoutPaper()
+        {
+            var toilet = Align();
+            var pipe = toilet.ConnectedPipe;
+            toilet.SetBackflowShared(true);
+            var before = pipe != null ? pipe.Accumulation : 0;
+            PlayerInput.ApplyResult(player, toilet, null, 1, toilet.TargetCenter + Vector3.forward, PlayerInput.ToiletIndex(toilet));
+            Assert.That(needs.Unwiped, Is.False);
+            Assert.That(needs.Disgust, Is.EqualTo(NeedsRules.OutsideStallDisgust));
+            if (pipe != null) Assert.That(pipe.Accumulation, Is.EqualTo(before));
+            Assert.That(world.Messes.Any(m => m != null && m.Kind == MessKind.Dropping));
+        }
+
+        [Test] public void PaperShortageKeepsUnwipedState()
+        {
+            var toilet = Align(); Score(5, 5);
+            var paper = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).First();
+            paper.ApplyUses(2); needs.SetPaperRequired(3);
+            paper.transform.position = player.transform.position + player.transform.forward * .7f + Vector3.up * .6f; Physics.SyncTransforms();
+            TestAim.AimAt(player, paper); input.RefreshFocus(); Assert.That(input.TryInteract(), Is.True);
+            Assert.That(input.TryAction(), Is.True);
+            Assert.That(paper.RemainingUses, Is.Zero); Assert.That(input.Unwiped, Is.True); Assert.That(needs.PaperRequired, Is.EqualTo(1));
+        }
+
+        [Test] public void HandWipeThenSinkClearsHandsDirty()
+        {
+            var sink = Object.FindFirstObjectByType<Sink>(); Assert.That(sink, Is.Not.Null);
+            needs.MarkUnwiped(Object.FindFirstObjectByType<Toilet>().GetComponentInParent<StallDoor>()); needs.SetPaperRequired(1); needs.WipeByHand();
+            Assert.That(needs.HandsDirty, Is.True);
+            Place(sink.transform.position - sink.transform.forward * .6f, sink.transform.forward); TestAim.AimAt(player, sink); input.RefreshFocus();
+            Assert.That(input.TryInteract(), Is.True); Assert.That(needs.HandsDirty, Is.False);
         }
         [Test] public void ToolboxCapacityThrowPickupAndReturn()
         {

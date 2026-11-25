@@ -14,6 +14,7 @@ namespace NatureCalls.Map
     {
         public Transform UpstreamWindow, Valve, InspectionPort, DownstreamWindow, Handwheel, InspectionLid, AugerCrank, UpstreamWater, DownstreamWater;
         [SerializeField] private Pipe[] pipes;
+        public void SetPipes(Pipe[] values) => pipes = values ?? System.Array.Empty<Pipe>();
         public SewerRepairProgress RepairProgress { get; private set; }
         private Quaternion handwheelRest, lidRest, crankRest; private Vector3 upstreamRest, downstreamRest;
         private readonly List<IInteractable> interactables = new();

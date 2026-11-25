@@ -354,7 +354,6 @@ namespace NatureCalls.Network
             int amount = Math.Min(needs.PaperRequired, roll.RemainingUses);
             if (amount <= 0 || !roll.Use(amount)) return;
             needs.ConsumePaper(amount);
-            needs.UnwipedPipe?.AddPaper(amount);
             int index = Array.IndexOf(host.items, roll);
             host.SharedItems[index] = Facilities.Snapshot(roll, ItemSnapshot.Carried, OwnerClientId);
         }

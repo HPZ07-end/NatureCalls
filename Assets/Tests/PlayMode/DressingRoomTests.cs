@@ -208,7 +208,7 @@ namespace NatureCalls.Tests
             Assert.That(input.FocusPrompt, Does.Contain("应急卷纸"));
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(input.HeldItem, Is.SameAs(emergency));
-            Assert.That(input.PaperRemainingUses, Is.EqualTo(3));
+            Assert.That(input.PaperRemainingUses, Is.EqualTo(6));
 
             yield return WalkTo(player, 6f, 1.86f);
             yield return WalkTo(player, 4.4f, 1.86f);

@@ -29,7 +29,7 @@ namespace NatureCalls.Player
         public void WipeByHand() { if (!Unwiped) return; Wipe(); HandsDirty = true; }
         public void SetPaperRequired(int units) { PaperRequired = System.Math.Max(0, units); }
         public void SetUnwipedPipe(Pipe pipe) { UnwipedPipe = pipe; }
-        public void ConsumePaper(int units) { PaperRequired = System.Math.Max(0, PaperRequired - System.Math.Max(0, units)); if (PaperRequired == 0) Wipe(); }
+        public void ConsumePaper(int units) { units = System.Math.Max(0, units); PaperRequired = System.Math.Max(0, PaperRequired - units); UnwipedPipe?.AddPaper(units); if (PaperRequired == 0) Wipe(); }
         public void WashHands() { HandsDirty = false; }
         public void LeaveUnwiped() { if (!Unwiped) return; AddDisgust(NeedsRules.UnwipedDisgust); Wipe(); }
         public void AddDisgust(float value) { if (Ticking) Disgust += value; }
@@ -52,7 +52,9 @@ namespace NatureCalls.Player
 
         private void Update()
         {
-            if (Ticking) Urgency = NeedsRules.TickUrgency(Urgency, Time.deltaTime, posture.IsSquatting || Toileting, CharacterProfile.For(LocalProfile.BodyType).UrgencyRateScale);
+            var appearance = GetComponent<PlayerAppearance>();
+            var bodyType = appearance != null ? appearance.BodyType : LocalProfile.BodyType;
+            if (Ticking) Urgency = NeedsRules.TickUrgency(Urgency, Time.deltaTime, posture.IsSquatting || Toileting, CharacterProfile.For(bodyType).UrgencyRateScale);
             if (!Ticking) return;
             if (Unwiped && unwipedStall != null && !unwipedStall.Contains(GetComponent<Movement>())) LeaveUnwiped();
             var world = FindFirstObjectByType<Map.Playground>();
@@ -73,12 +75,13 @@ namespace NatureCalls.Player
         }
 
         /// <summary>Peers show the authority's values.</summary>
-        public void ApplyShared(float urgency, float disgust, bool unwiped = false, bool handsDirty = false)
+        public void ApplyShared(float urgency, float disgust, bool unwiped = false, bool handsDirty = false, int paperRequired = 0)
         {
             Urgency = urgency;
             Disgust = disgust;
             Unwiped = unwiped;
             HandsDirty = handsDirty;
+            PaperRequired = System.Math.Max(0, paperRequired);
         }
     }
 }

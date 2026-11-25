@@ -17,7 +17,6 @@ namespace NatureCalls.Core
         public static int Add(int value, int amount) => System.Math.Max(0, value) + System.Math.Max(0, amount);
         public static bool IsBlocked(int value) => value >= BlockedThreshold;
         public static int Clear() => 0;
-        public static bool ShouldBackflow(int randomRoll) => IsBlocked(BlockedThreshold) && randomRoll == 0;
         public static bool ShouldBackflow(int accumulation, int randomRoll) => IsBlocked(accumulation) && randomRoll == 0;
     }
 }

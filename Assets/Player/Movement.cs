@@ -8,7 +8,7 @@ namespace NatureCalls.Player
     public sealed class Movement : MonoBehaviour
     {
         [Min(.1f)] public float Speed = 3.5f;
-        public CharacterProfile Profile => CharacterProfile.For(LocalProfile.BodyType);
+        public CharacterProfile Profile => CharacterProfile.For(GetComponent<PlayerAppearance>() != null ? GetComponent<PlayerAppearance>().BodyType : LocalProfile.BodyType);
         [Range(.01f, 1)] public float Sensitivity = .12f;
         [Range(10, 85)] public float PitchLimit = 75;
         [Min(.1f)] public float JumpSpeed = 6f;
