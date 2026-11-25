@@ -15,7 +15,7 @@ namespace NatureCalls.Player
         public OutfitCatalog Catalog => appearance.Catalog;
         public int PreviewIndex => selection.PreviewIndex;
         public int ConfirmedIndex => selection.ConfirmedIndex;
-        public PlayerGender PreviewGender => selection.PreviewGender;
+        public PlayerBodyType PreviewBodyType => selection.PreviewBodyType;
         public string PreviewName => Catalog[selection.PreviewIndex].Name;
         public bool IsSelecting => selection.IsSelecting;
 
@@ -23,7 +23,7 @@ namespace NatureCalls.Player
         {
             if (appearance == null)
                 appearance = GetComponent<PlayerAppearance>();
-            selection = new OutfitSelection(Catalog.Count, Catalog.Clamp(LocalProfile.OutfitIndex), LocalProfile.Gender);
+            selection = new OutfitSelection(Catalog.Count, Catalog.Clamp(LocalProfile.OutfitIndex), LocalProfile.BodyType);
             Apply(selection.ConfirmedIndex);
         }
 
@@ -43,16 +43,16 @@ namespace NatureCalls.Player
             Apply(selection.Move(index - selection.PreviewIndex));
         }
 
-        public void PreviewByGender(PlayerGender gender)
+        public void PreviewByBodyType(PlayerBodyType bodyType)
         {
-            selection.ChooseGender(gender);
+            selection.ChooseBodyType(bodyType);
             Apply(selection.PreviewIndex);
         }
 
         public void ConfirmSelection()
         {
             selection.Confirm();
-            LocalProfile.SetAppearance(selection.ConfirmedGender, selection.ConfirmedIndex);
+            LocalProfile.SetAppearance(selection.ConfirmedBodyType, selection.ConfirmedIndex);
             Apply(selection.ConfirmedIndex);
         }
 
@@ -64,8 +64,9 @@ namespace NatureCalls.Player
 
         private void Apply(int index)
         {
-            appearance.SetGender(selection.PreviewGender);
+            appearance.SetBodyType(selection.PreviewBodyType);
             appearance.ApplyOutfit(index);
+            if (selection.IsSelecting) appearance.PlayReach();
         }
     }
 }

@@ -1,348 +1,223 @@
 using System;
 using System.IO;
+using System.Linq;
+using NatureCalls.Camera;
 using NatureCalls.Facility;
+using NatureCalls.Map;
+using NatureCalls.UI;
+using Unity.Cinemachine;
 using UnityEditor;
+using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace NatureCalls.Editor
 {
+    /// <summary>Creates fresh scene contents, retaining the startup/return scene path and GUID.</summary>
     public static class DressingRoomSceneBuilder
     {
-        private const string ScenePath = "Assets/Scenes/DressingRoom.unity";
-        private const string RootName = "DressingRoomBlockout";
-        private const string PropsRootName = "DressingRoomProps";
-        private const string MaterialsFolder = "Assets/Materials";
-        private const string MirrorTexturePath = MaterialsFolder + "/DressingRoomMirror.renderTexture";
-        private const string SinkPrefabPath = "Assets/WC/Prefabs/props/SM_sink Variant.prefab";
-        private const string SoapPrefabPath = "Assets/WC/Prefabs/props/SM_soap Variant.prefab";
-        private const string DryerPrefabPath = "Assets/WC/Prefabs/props/SM_dryer Variant.prefab";
-        private const string TrashPrefabPath = "Assets/WC/Prefabs/props/SM_trash_can Variant.prefab";
-        private const string SignPrefabPath = "Assets/WC/Prefabs/props/SM_sign_2 Variant.prefab";
-        private const string LampPrefabPath = "Assets/WC/Prefabs/props/SM_lamp Variant.prefab";
+        public const string ScenePath = "Assets/Scenes/DressingRoom.unity";
+        private const string Materials = "Assets/Materials/DressingRoom";
+        private const string StoolPath = "Assets/Prefabs/Levels/DressingRoomStool.prefab";
+        private static Material plaster, trim, wood, ceramic, mirrorMaterial;
+        private static RenderTexture mirrorTexture;
 
-        [MenuItem("NatureCalls/Build Dressing Room Blockout")]
+        [MenuItem("NatureCalls/Rebuild Dressing Room")]
         public static void Build()
         {
-            if (!File.Exists(ScenePath))
-                throw new FileNotFoundException("Create and save the DressingRoom scene before building its blockout.", ScenePath);
-
-            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-            if (GameObject.Find(RootName) != null)
-                throw new InvalidOperationException("DressingRoomBlockout already exists. Refusing to overwrite existing blockout work.");
-
-            if (!AssetDatabase.IsValidFolder(MaterialsFolder))
-                AssetDatabase.CreateFolder("Assets", "Materials");
-
-            var root = new GameObject(RootName);
-            var floor = Material("DressingRoomFloor", new Color(.24f, .28f, .31f), .25f, .05f);
-            var wall = Material("DressingRoomWall", new Color(.68f, .72f, .73f), .12f, .05f);
-            var mirror = Material("DressingRoomMirror", new Color(.16f, .34f, .43f), .92f, .8f);
-            var frame = Material("DressingRoomFrame", new Color(.07f, .11f, .13f), .4f, .15f);
-            var door = Material("DressingRoomDoor", new Color(.30f, .18f, .12f), .18f, .1f);
-
-            ConfigureSceneLighting();
-            ConfigureCamera();
-            CreateFloor(root.transform, floor);
-            CreateRoomShell(root.transform, wall);
-            var mirrorRoot = CreateMirror(root.transform, mirror, frame);
-            ConfigureMirrorReflection(mirrorRoot, mirror);
-            CreateDoor(root.transform, door);
-            CreateAnchor(root.transform, "MirrorStandingPoint", new Vector3(1.1f, 0f, 1.65f));
-            CreateAnchor(root.transform, "DoorInteractionPoint", new Vector3(-4.25f, 0f, 2.7f));
-            ConfigurePublicWashroomProps();
-
-            EditorSceneManager.MarkSceneDirty(scene);
-            if (!EditorSceneManager.SaveScene(scene))
-                throw new IOException("Could not save " + ScenePath);
-            AssetDatabase.SaveAssets();
-            Selection.activeGameObject = root;
-            Debug.Log("NatureCalls DressingRoom blockout created: " + ScenePath);
-        }
-
-        [MenuItem("NatureCalls/Configure Dressing Room Mirror Reflection")]
-        public static void ConfigureExistingMirrorReflection()
-        {
-            if (Application.isPlaying)
-                throw new InvalidOperationException("Exit Play Mode before configuring the DressingRoom mirror.");
-            if (!File.Exists(ScenePath))
-                throw new FileNotFoundException("DressingRoom scene is missing.", ScenePath);
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
-                return;
-
-            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-            var root = GameObject.Find(RootName);
-            var mirrorRoot = root != null ? root.transform.Find("Mirror")?.gameObject : null;
-            if (mirrorRoot == null)
-                throw new InvalidOperationException("DressingRoomBlockout/Mirror was not found.");
-
-            var surface = mirrorRoot.transform.Find("Mirror Surface")?.GetComponent<Renderer>();
-            if (surface == null)
-                throw new InvalidOperationException("DressingRoom mirror surface was not found.");
-
-            var mirrorMaterial = surface.sharedMaterial;
-            if (mirrorMaterial == null)
-                throw new InvalidOperationException("DressingRoom mirror surface has no material.");
-
-            ConfigureMirrorReflection(mirrorRoot, mirrorMaterial);
-            EditorSceneManager.MarkSceneDirty(scene);
-            if (!EditorSceneManager.SaveScene(scene))
-                throw new IOException("Could not save " + ScenePath);
-            AssetDatabase.SaveAssets();
-            Selection.activeGameObject = mirrorRoot;
-            Debug.Log("NatureCalls DressingRoom mirror reflection configured.");
-        }
-
-        [MenuItem("NatureCalls/Configure Dressing Room Public Washroom Props")]
-        public static void ConfigureExistingPublicWashroomProps()
-        {
-            if (Application.isPlaying)
-                throw new InvalidOperationException("Exit Play Mode before configuring DressingRoom props.");
-            if (!File.Exists(ScenePath))
-                throw new FileNotFoundException("DressingRoom scene is missing.", ScenePath);
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
-                return;
-
-            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-            if (GameObject.Find(RootName) == null)
-                throw new InvalidOperationException("DressingRoomBlockout was not found.");
-
-            var props = ConfigurePublicWashroomProps();
-            EditorSceneManager.MarkSceneDirty(scene);
-            if (!EditorSceneManager.SaveScene(scene))
-                throw new IOException("Could not save " + ScenePath);
-            AssetDatabase.SaveAssets();
-            Selection.activeGameObject = props;
-            Debug.Log("NatureCalls DressingRoom public washroom props configured.");
-        }
-
-        private static void ConfigureSceneLighting()
-        {
+            if (Application.isPlaying) throw new InvalidOperationException("Exit Play Mode first.");
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            var player = Require<GameObject>(LobbyFlowBuilder.DressingRoomPlayerPath);
+            var canvasPrefab = Require<GameObject>(LobbyFlowBuilder.CanvasPath);
+            foreach (var model in new[] { "Facilities/Facilities-Sink", "Facilities/Facilities-SinkMirror", "Facilities/Facilities-SoapDispenser", "Fixtures/Fixtures-WallLight", "Structure/Structure-DressingDoor", "Structure/Structure-DressingDoorFrame", "Structure/Structure-FloorTile" })
+                Require<GameObject>("Assets/Art/Models/" + model + ".fbx");
+            var oldGuid = AssetDatabase.AssetPathToGUID(ScenePath);
+            if (!AssetDatabase.IsValidFolder(Materials)) AssetDatabase.CreateFolder("Assets/Materials", "DressingRoom");
+            plaster = Material("Plaster", new Color(.87f, .85f, .78f));
+            trim = Material("Trim", new Color(.24f, .42f, .38f));
+            wood = Material("Stool", new Color(.50f, .36f, .20f));
+            ceramic = Material("Tiles", new Color(.74f, .80f, .74f));
+            ConfigureMirrorMaterial();
+            var stoolPrefab = BuildStool();
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(.38f, .42f, .46f);
-
-            var directional = GameObject.Find("Directional Light");
-            if (directional == null) directional = new GameObject("Directional Light");
-            var light = directional.GetComponent<Light>() ?? directional.AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = 1.15f;
-            light.shadows = LightShadows.Soft;
-            directional.transform.rotation = Quaternion.Euler(48f, -30f, 0f);
-
-            var roomLight = new GameObject("Room Light").AddComponent<Light>();
-            roomLight.type = LightType.Point;
-            roomLight.color = new Color(.85f, .94f, 1f);
-            roomLight.intensity = 4.5f;
-            roomLight.range = 12f;
-            roomLight.transform.position = new Vector3(0f, 2.55f, .5f);
+            RenderSettings.ambientLight = new Color(.52f, .55f, .50f);
+            var room = new GameObject("DressingRoom");
+            BuildShell(room.transform);
+            var world = new GameObject("DressingRoomPractice").AddComponent<NatureCalls.Map.Playground>();
+            world.PlayerPrefab = player; world.StartOffline = true; world.Camera = CameraRig();
+            var spawn = Child(world.transform, "Player Spawn");
+            spawn.position = new Vector3(-1.15f, .08f, -1.25f); world.Spawns = new[] { spawn };
+            var canvas = (GameObject)PrefabUtility.InstantiatePrefab(canvasPrefab, scene);
+            var lobby = canvas.GetComponent<LobbyController>();
+            var interaction = world.gameObject.AddComponent<DressingRoomInteraction>(); interaction.World = world; interaction.Lobby = lobby;
+            BuildWashStation(room.transform, lobby, world.Camera.Output, "A", -.95f);
+            BuildWashStation(room.transform, lobby, world.Camera.Output, "B", .35f);
+            var stool = (GameObject)PrefabUtility.InstantiatePrefab(stoolPrefab, scene);
+            stool.transform.SetParent(room.transform, false); stool.transform.position = new Vector3(-1.9f, 0, .15f);
+            BuildLobbyDoor(room.transform, lobby);
+            Prop(room.transform, "Entrance Door", "Structure/Structure-DressingDoor", new Vector3(-1.62f, 0, -1.88f), 0);
+            Prop(room.transform, "Entrance Frame", "Structure/Structure-DressingDoorFrame", new Vector3(-1.62f, 0, -1.88f), 0);
+            Sign(room.transform, "入口", new Vector3(-1.15f, 2.42f, -1.87f), 180);
+            AddHints(canvas.transform, world, lobby);
+            new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+            if (!EditorSceneManager.SaveScene(scene, ScenePath)) throw new IOException("Could not save " + ScenePath);
+            if (!string.IsNullOrEmpty(oldGuid) && oldGuid != AssetDatabase.AssetPathToGUID(ScenePath)) throw new InvalidOperationException("DressingRoom GUID changed unexpectedly.");
+            var scenes = EditorBuildSettings.scenes.Where(value => value.path != ScenePath).ToList();
+            scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true)); EditorBuildSettings.scenes = scenes.ToArray();
+            AssetDatabase.SaveAssets();
+            Debug.Log("DRESSING_ROOM_REBUILT|ceiling=1|mirrors=2|stools=1|guid=" + AssetDatabase.AssetPathToGUID(ScenePath));
+            ToiletLobbySetup.Build();
         }
 
-        private static void ConfigureCamera()
+        private static void BuildShell(Transform room)
         {
-            var cameraObject = GameObject.Find("Main Camera");
-            if (cameraObject == null) cameraObject = new GameObject("Main Camera");
-            var camera = cameraObject.GetComponent<UnityEngine.Camera>() ?? cameraObject.AddComponent<UnityEngine.Camera>();
-            cameraObject.tag = "MainCamera";
-            camera.fieldOfView = 65f;
-            camera.nearClipPlane = .05f;
-            camera.transform.position = new Vector3(0f, 1.6f, -3.25f);
-            camera.transform.rotation = Quaternion.identity;
-            if (cameraObject.GetComponent<AudioListener>() == null)
-                cameraObject.AddComponent<AudioListener>();
-        }
-
-        private static void CreateFloor(Transform parent, Material material)
-        {
-            var defaultPlane = GameObject.Find("Plane");
-            if (defaultPlane != null && defaultPlane.transform.position == Vector3.zero && defaultPlane.transform.localScale == Vector3.one)
+            Box(room, "Floor Collision", new Vector3(0, -.09f, 0), new Vector3(5, .18f, 4), ceramic);
+            for (int x = 0; x < 5; x++) for (int z = 0; z < 4; z++)
+                Prop(room, $"Floor Tile {x}-{z}", "Structure/Structure-FloorTile", new Vector3(x - 2.5f, .005f, z - 2), 0);
+            Box(room, "Left Wall", new Vector3(-2.6f, 1.4f, 0), new Vector3(.2f, 2.8f, 4.4f), plaster);
+            Box(room, "Right Wall", new Vector3(2.6f, 1.4f, 0), new Vector3(.2f, 2.8f, 4.4f), plaster);
+            Box(room, "Front Wall", new Vector3(0, 1.4f, -2.1f), new Vector3(5.4f, 2.8f, .2f), plaster);
+            Box(room, "Back Wall", new Vector3(0, 1.4f, 2.1f), new Vector3(5.4f, 2.8f, .2f), plaster);
+            Box(room, "Ceiling", new Vector3(0, 2.9f, 0), new Vector3(5.4f, .2f, 4.4f), plaster);
+            Box(room, "Wash Wall Tiles", new Vector3(2.48f, .70f, 0), new Vector3(.025f, 1.4f, 4), ceramic);
+            Box(room, "Wash Wall Trim", new Vector3(2.455f, 1.42f, 0), new Vector3(.035f, .055f, 4), trim);
+            for (int z = 0; z < 8; z++) Box(room, "Tile Joint " + z, new Vector3(2.46f, .70f, z * .5f - 1.75f), new Vector3(.008f, 1.38f, .006f), plaster, false);
+            for (int y = 1; y < 4; y++) Box(room, "Horizontal Tile Joint " + y, new Vector3(2.46f, y * .35f, 0), new Vector3(.008f, .006f, 4), plaster, false);
+            foreach (float z in new[] { -.8f, .9f })
             {
-                defaultPlane.name = "Floor";
-                defaultPlane.transform.SetParent(parent, true);
-                defaultPlane.transform.localScale = new Vector3(1.2f, 1f, .8f);
-                defaultPlane.GetComponent<Renderer>().sharedMaterial = material;
-                return;
+                Box(room, "Ceiling Light", new Vector3(0, 2.775f, z), new Vector3(.85f, .04f, .22f), ceramic, false);
+                var lamp = new GameObject("Room Light").AddComponent<Light>(); lamp.transform.SetParent(room, false);
+                lamp.transform.position = new Vector3(.2f, 2.45f, z); lamp.type = LightType.Point;
+                lamp.range = 5; lamp.intensity = 2.4f; lamp.color = new Color(1, .94f, .82f); lamp.shadows = LightShadows.Soft;
             }
-
-            Box(parent, "Floor", new Vector3(0f, -.1f, 0f), new Vector3(12f, .2f, 8f), material);
         }
-
-        private static void CreateRoomShell(Transform parent, Material material)
+        private static CameraController CameraRig()
         {
-            Box(parent, "Left Wall", new Vector3(-6f, 1.5f, 0f), new Vector3(.2f, 3f, 8f), material);
-            Box(parent, "Right Wall", new Vector3(6f, 1.5f, 0f), new Vector3(.2f, 3f, 8f), material);
-            Box(parent, "Front Wall", new Vector3(0f, 1.5f, -4f), new Vector3(12f, 3f, .2f), material);
-            Box(parent, "Back Wall Left", new Vector3(-5.5f, 1.5f, 4f), new Vector3(1f, 3f, .2f), material);
-            Box(parent, "Door Header", new Vector3(-4.25f, 2.65f, 4f), new Vector3(1.5f, .7f, .2f), material);
-            Box(parent, "Mirror Wall", new Vector3(1.25f, 1.5f, 4f), new Vector3(9.5f, 3f, .2f), material);
+            var rig = new GameObject("Local Camera").AddComponent<CameraController>();
+            rig.Output = Child(rig.transform, "Main Camera").gameObject.AddComponent<UnityEngine.Camera>(); rig.Output.tag = "MainCamera";
+            rig.Output.nearClipPlane = .05f; rig.Output.farClipPlane = 50; rig.Output.fieldOfView = 65;
+            rig.Output.GetUniversalAdditionalCameraData().renderPostProcessing = true;
+            rig.Output.gameObject.AddComponent<AudioListener>(); rig.Brain = rig.Output.gameObject.AddComponent<CinemachineBrain>();
+            rig.Brain.UpdateMethod = CinemachineBrain.UpdateMethods.LateUpdate; rig.Brain.BlendUpdateMethod = CinemachineBrain.BrainUpdateMethods.LateUpdate;
+            rig.Eye = Child(rig.transform, "Eye Target"); rig.Shoulder = Child(rig.transform, "Shoulder Target");
+            rig.FirstPerson = Child(rig.transform, "First Person Rig").gameObject.AddComponent<CinemachineCamera>();
+            rig.FirstPerson.Follow = rig.Eye; rig.FirstPerson.Lens.FieldOfView = 65; rig.FirstPerson.Lens.NearClipPlane = .05f;
+            rig.FirstPerson.gameObject.AddComponent<CinemachineHardLockToTarget>(); rig.FirstPerson.gameObject.AddComponent<CinemachineRotateWithFollowTarget>();
+            rig.ThirdPerson = Child(rig.transform, "Third Person Rig").gameObject.AddComponent<CinemachineCamera>();
+            rig.ThirdPerson.Follow = rig.Shoulder; rig.ThirdPerson.Lens.FieldOfView = 65; rig.ThirdPerson.Lens.NearClipPlane = .05f;
+            rig.ThirdPerson.gameObject.AddComponent<CinemachineThirdPersonFollow>(); return rig;
         }
-
-        private static GameObject CreateMirror(Transform parent, Material mirror, Material frame)
+        private static void BuildWashStation(Transform room, LobbyController lobby, UnityEngine.Camera viewer, string id, float z)
         {
-            var mirrorRoot = new GameObject("Mirror");
-            mirrorRoot.transform.SetParent(parent, false);
-            Box(mirrorRoot.transform, "Mirror Surface", new Vector3(1.1f, 1.5f, 3.87f), new Vector3(4.8f, 2.35f, .05f), mirror);
-            Box(mirrorRoot.transform, "Mirror Frame Top", new Vector3(1.1f, 2.72f, 3.84f), new Vector3(5.05f, .1f, .1f), frame);
-            Box(mirrorRoot.transform, "Mirror Frame Bottom", new Vector3(1.1f, .28f, 3.84f), new Vector3(5.05f, .1f, .1f), frame);
-            Box(mirrorRoot.transform, "Mirror Frame Left", new Vector3(-1.35f, 1.5f, 3.84f), new Vector3(.1f, 2.55f, .1f), frame);
-            Box(mirrorRoot.transform, "Mirror Frame Right", new Vector3(3.55f, 1.5f, 3.84f), new Vector3(.1f, 2.55f, .1f), frame);
-            return mirrorRoot;
+            var station = Child(room, "Wash Station " + id);
+            var sink = Prop(station, "Sink " + id, "Facilities/Facilities-Sink", new Vector3(2.43f, 0, z), 90);
+            var obstruction = sink.AddComponent<BoxCollider>(); obstruction.center = new Vector3(0, .82f, -.21f); obstruction.size = new Vector3(.64f, .37f, .49f);
+            var mirror = Prop(station, "Mirror " + id, "Facilities/Facilities-SinkMirror", new Vector3(2.43f, 1.18f, z), 90);
+            var glass = mirror.GetComponentsInChildren<Renderer>().Single(renderer => renderer.sharedMaterials.Any(material => material != null && material.name.Contains("Mirror")));
+            var bounds = glass.bounds;
+            var normal = -mirror.transform.forward;
+            var size = new Vector2(2 * Vector3.Dot(Abs(mirror.transform.right), bounds.extents), 2 * bounds.extents.y);
+            float depth = Vector3.Dot(Abs(normal), bounds.extents);
+            var plane = Child(mirror.transform, "Reflection Surface");
+            plane.SetPositionAndRotation(bounds.center + normal * (depth + .001f), mirror.transform.rotation);
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(Materials + "/MirrorSurface.asset");
+            if (mesh == null) { mesh = new Mesh { name = "Mirror Surface Full UV" }; AssetDatabase.CreateAsset(mesh, Materials + "/MirrorSurface.asset"); }
+            mesh.Clear();
+            mesh.vertices = new[] { new Vector3(-size.x/2, -size.y/2, 0), new Vector3(size.x/2, -size.y/2, 0), new Vector3(-size.x/2, size.y/2, 0), new Vector3(size.x/2, size.y/2, 0) };
+            mesh.uv = new[] { new Vector2(1, 0), new Vector2(0, 0), new Vector2(1, 1), new Vector2(0, 1) };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.RecalculateNormals(); mesh.RecalculateBounds(); EditorUtility.SetDirty(mesh);
+            plane.gameObject.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var surface = plane.gameObject.AddComponent<MeshRenderer>(); surface.sharedMaterial = mirrorMaterial;
+            surface.shadowCastingMode = ShadowCastingMode.Off; surface.receiveShadows = false;
+            glass.enabled = false; // Scene override only; preserve the imported FBX and frame.
+            var camera = Child(mirror.transform, "Reflection Camera").gameObject.AddComponent<UnityEngine.Camera>();
+            camera.transform.SetPositionAndRotation(new Vector3(2.34f, 1.48f, z), Quaternion.Euler(0, 270, 0));
+            camera.targetTexture = mirrorTexture; camera.enabled = false; camera.depth = -2; camera.fieldOfView = 60; camera.nearClipPlane = .035f; camera.farClipPlane = 20;
+            camera.cullingMask = ~(1 << 5); camera.allowHDR = false;
+            var reflection = mirror.AddComponent<PlanarMirror>(); reflection.ReflectionCamera = camera; reflection.Surface = surface;
+            reflection.ViewerCamera = viewer; reflection.Size = size;
+            var target = mirror.AddComponent<BoxCollider>(); target.isTrigger = true; target.center = new Vector3(0, .4f, -.025f); target.size = new Vector3(.72f, .82f, .18f);
+            var interaction = mirror.AddComponent<DressingMirror>(); interaction.InteractionDistance = 1.9f;
+            interaction.StandingPoint = Child(station, "MirrorStandingPoint"); interaction.StandingPoint.position = new Vector3(1.28f, .02f, z);
+            interaction.StandingPoint.rotation = Quaternion.Euler(0, 90, 0);
+            UnityEventTools.AddPersistentListener(interaction.Interacted, lobby.OpenOutfitPanel);
+            Prop(station, "Soap " + id, "Facilities/Facilities-SoapDispenser", new Vector3(2.42f, 1.06f, z + .43f), 90);
+            Prop(station, "Mirror Light " + id, "Fixtures/Fixtures-WallLight", new Vector3(2.42f, 2.18f, z), 90);
         }
-
-        private static void ConfigureMirrorReflection(GameObject mirrorRoot, Material mirrorMaterial)
+        private static void BuildLobbyDoor(Transform room, LobbyController lobby)
         {
-            var surface = mirrorRoot.transform.Find("Mirror Surface")?.GetComponent<Renderer>();
-            if (surface == null)
-                throw new InvalidOperationException("DressingRoom mirror surface was not found.");
-
-            var sourceTexture = AssetDatabase.LoadAssetAtPath<RenderTexture>(MirrorTexturePath);
-            if (sourceTexture == null)
+            var door = Prop(room, "Lobby Door", "Structure/Structure-DressingDoor", new Vector3(2.40f, 0, 1.94f), 90);
+            Prop(room, "Lobby Door Frame", "Structure/Structure-DressingDoorFrame", door.transform.position, 90);
+            var target = door.AddComponent<BoxCollider>(); target.isTrigger = true; target.center = new Vector3(.45f, 1, 0); target.size = new Vector3(.95f, 2, .25f);
+            var interaction = door.AddComponent<LobbyDoor>(); interaction.InteractionDistance = 1.85f;
+            interaction.StandingPoint = Child(room, "DoorInteractionPoint");
+            interaction.StandingPoint.position = new Vector3(1.25f, .02f, 1.48f);
+            interaction.StandingPoint.rotation = Quaternion.Euler(0, 90, 0);
+            UnityEventTools.AddPersistentListener(interaction.Interacted, lobby.OpenLobby);
+            Sign(room, "大厅", new Vector3(2.36f, 2.43f, 1.48f), 90);
+        }
+        private static GameObject BuildStool()
+        {
+            var stool = new GameObject("DressingRoomStool");
+            try
             {
-                sourceTexture = new RenderTexture(new RenderTextureDescriptor(1024, 512, RenderTextureFormat.ARGB32, 24))
-                {
-                    name = "DressingRoomMirror"
-                };
-                AssetDatabase.CreateAsset(sourceTexture, MirrorTexturePath);
+                var collider = stool.AddComponent<BoxCollider>(); collider.center = new Vector3(0, .18f, 0); collider.size = new Vector3(.50f, .36f, .44f);
+                stool.AddComponent<DressingRoomStool>(); Box(stool.transform, "Seat", new Vector3(0, .325f, 0), new Vector3(.50f, .07f, .44f), wood, false);
+                foreach (float x in new[] { -.18f, .18f }) foreach (float z in new[] { -.15f, .15f })
+                    Box(stool.transform, "Leg", new Vector3(x, .145f, z), new Vector3(.065f, .29f, .065f), wood, false);
+                return PrefabUtility.SaveAsPrefabAsset(stool, StoolPath);
             }
-
-            if (mirrorMaterial.HasProperty("_BaseColor")) mirrorMaterial.SetColor("_BaseColor", Color.white);
-            if (mirrorMaterial.HasProperty("_BaseMap"))
-            {
-                mirrorMaterial.SetTexture("_BaseMap", sourceTexture);
-                mirrorMaterial.SetTextureScale("_BaseMap", new Vector2(1f, -1f));
-                mirrorMaterial.SetTextureOffset("_BaseMap", new Vector2(0f, 1f));
-            }
-            if (mirrorMaterial.HasProperty("_MainTex"))
-            {
-                mirrorMaterial.SetTexture("_MainTex", sourceTexture);
-                mirrorMaterial.SetTextureScale("_MainTex", new Vector2(1f, -1f));
-                mirrorMaterial.SetTextureOffset("_MainTex", new Vector2(0f, 1f));
-            }
-            EditorUtility.SetDirty(mirrorMaterial);
-
-            var cameraTransform = mirrorRoot.transform.Find("Reflection Camera");
-            if (cameraTransform == null)
-            {
-                var cameraObject = new GameObject("Reflection Camera");
-                cameraObject.transform.SetParent(mirrorRoot.transform, false);
-                cameraTransform = cameraObject.transform;
-            }
-
-            var reflectionCamera = cameraTransform.GetComponent<UnityEngine.Camera>();
-            if (reflectionCamera == null)
-                reflectionCamera = cameraTransform.gameObject.AddComponent<UnityEngine.Camera>();
-            reflectionCamera.enabled = true;
-            reflectionCamera.targetTexture = sourceTexture;
-            reflectionCamera.clearFlags = CameraClearFlags.SolidColor;
-            reflectionCamera.backgroundColor = new Color(.10f, .12f, .15f, 1f);
-            reflectionCamera.fieldOfView = 48f;
-            reflectionCamera.nearClipPlane = .05f;
-            reflectionCamera.farClipPlane = 30f;
-            reflectionCamera.cullingMask = ~0;
-            cameraTransform.position = new Vector3(1.1f, 1.5f, 3.78f);
-            cameraTransform.rotation = Quaternion.LookRotation(new Vector3(0f, -.12f, -1f), Vector3.up);
-
-            var listener = cameraTransform.GetComponent<AudioListener>();
-            if (listener != null) UnityEngine.Object.DestroyImmediate(listener);
-
-            var planarMirror = mirrorRoot.GetComponent<PlanarMirror>();
-            if (planarMirror == null)
-                planarMirror = mirrorRoot.AddComponent<PlanarMirror>();
-            planarMirror.ReflectionCamera = reflectionCamera;
-            planarMirror.Surface = surface;
-            EditorUtility.SetDirty(reflectionCamera);
-            EditorUtility.SetDirty(planarMirror);
+            finally { Object.DestroyImmediate(stool); }
         }
-
-        private static GameObject ConfigurePublicWashroomProps()
+        private static void AddHints(Transform parent, NatureCalls.Map.Playground world, LobbyController lobby)
         {
-            var props = GameObject.Find(PropsRootName);
-            if (props == null)
-                props = new GameObject(PropsRootName);
-
-            // Keep the mirror wall and its standing point clear. The two sinks face into the room from the right wall.
-            EnsureProp(props.transform, "Sink A", SinkPrefabPath, new Vector3(5.89f, 0f, 1.10f), Quaternion.Euler(0f, -90f, 0f), Vector3.one * 1.25f);
-            EnsureProp(props.transform, "Sink B", SinkPrefabPath, new Vector3(5.89f, 0f, -0.55f), Quaternion.Euler(0f, -90f, 0f), Vector3.one * 1.25f);
-            EnsureProp(props.transform, "Soap A", SoapPrefabPath, new Vector3(5.42f, .98f, 1.10f), Quaternion.Euler(0f, -90f, 0f), Vector3.one);
-            EnsureProp(props.transform, "Soap B", SoapPrefabPath, new Vector3(5.42f, .98f, -0.55f), Quaternion.Euler(0f, -90f, 0f), Vector3.one);
-            EnsureProp(props.transform, "Hand Dryer", DryerPrefabPath, new Vector3(5.84f, 1.35f, -2.15f), Quaternion.Euler(0f, -90f, 0f), Vector3.one);
-            EnsureProp(props.transform, "Waste Bin", TrashPrefabPath, new Vector3(5.38f, 0f, 2.45f), Quaternion.Euler(0f, -90f, 0f), Vector3.one * 1.25f);
-            var signPosition = new Vector3(-2.55f, 1.60f, 3.84f);
-            var sign = EnsureProp(props.transform, "Restroom Sign", SignPrefabPath, signPosition, Quaternion.Euler(0f, 180f, 0f), Vector3.one * 1.5f);
-            if (Vector3.Distance(sign.transform.position, new Vector3(-3.35f, 1.60f, 3.84f)) < .001f)
-                sign.transform.position = signPosition;
-            EnsureProp(props.transform, "Lamp A", LampPrefabPath, new Vector3(-1.30f, 2.74f, 3.65f), Quaternion.Euler(0f, 180f, 0f), Vector3.one);
-            EnsureProp(props.transform, "Lamp B", LampPrefabPath, new Vector3(3.50f, 2.74f, 3.65f), Quaternion.Euler(0f, 180f, 0f), Vector3.one);
-            return props;
+            var text = new GameObject("Dressing Room Interaction Hint", typeof(RectTransform), typeof(Text)).GetComponent<Text>(); text.transform.SetParent(parent, false);
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); text.fontSize = 24; text.alignment = TextAnchor.MiddleCenter; text.color = Color.white; text.raycastTarget = false;
+            text.rectTransform.anchorMin = text.rectTransform.anchorMax = new Vector2(.5f, 0); text.rectTransform.pivot = new Vector2(.5f, 0);
+            text.rectTransform.anchoredPosition = new Vector2(0, 24); text.rectTransform.sizeDelta = new Vector2(1100, 88);
+            text.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(1, -1);
+            var hints = text.gameObject.AddComponent<DressingRoomHints>(); hints.World = world; hints.Lobby = lobby; hints.Label = text;
         }
-
-        private static GameObject EnsureProp(Transform parent, string name, string prefabPath, Vector3 position, Quaternion rotation, Vector3 scale)
+        private static void ConfigureMirrorMaterial()
         {
-            var existing = parent.Find(name);
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            if (prefab == null)
-                throw new FileNotFoundException("DressingRoom prop prefab is missing.", prefabPath);
-
-            if (existing != null && PrefabUtility.GetCorrespondingObjectFromSource(existing.gameObject) == prefab)
-            {
-                if (existing.localScale == Vector3.one && scale != Vector3.one)
-                    existing.localScale = scale;
-                return existing.gameObject;
-            }
-
-            if (existing != null)
-            {
-                position = existing.position;
-                rotation = existing.rotation;
-                UnityEngine.Object.DestroyImmediate(existing.gameObject);
-            }
-
-            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
-            instance.name = name;
-            instance.transform.SetPositionAndRotation(position, rotation);
-            instance.transform.localScale = scale;
-            return instance;
+            var path = Materials + "/Mirror.renderTexture"; mirrorTexture = AssetDatabase.LoadAssetAtPath<RenderTexture>(path);
+            if (mirrorTexture == null) { mirrorTexture = new RenderTexture(896, 1024, 24) { name = "DressingRoom Mirror" }; AssetDatabase.CreateAsset(mirrorTexture, path); }
+            mirrorMaterial = AssetDatabase.LoadAssetAtPath<Material>(Materials + "/Mirror.mat");
+            if (mirrorMaterial == null) { mirrorMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit")); AssetDatabase.CreateAsset(mirrorMaterial, Materials + "/Mirror.mat"); }
+            mirrorMaterial.SetTexture("_BaseMap", mirrorTexture); mirrorMaterial.SetColor("_BaseColor", Color.white); EditorUtility.SetDirty(mirrorMaterial);
+            mirrorMaterial.SetTextureScale("_BaseMap", Vector2.one); mirrorMaterial.SetTextureOffset("_BaseMap", Vector2.zero);
         }
-
-        private static void CreateDoor(Transform parent, Material material)
+        private static Material Material(string name, Color color)
         {
-            var doorRoot = new GameObject("Door");
-            doorRoot.transform.SetParent(parent, false);
-            Box(doorRoot.transform, "Door Placeholder", new Vector3(-4.25f, 1.1f, 3.86f), new Vector3(1.4f, 2.2f, .08f), material);
-            Box(doorRoot.transform, "Door Handle", new Vector3(-3.78f, 1.1f, 3.79f), new Vector3(.08f, .08f, .08f), Material("DressingRoomHandle", new Color(.82f, .64f, .18f), .75f, .25f));
+            var path = Materials + "/" + name + ".mat"; var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null) { material = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(material, path); }
+            material.SetColor("_BaseColor", color); material.SetFloat("_Smoothness", .25f); EditorUtility.SetDirty(material); return material;
         }
-
-        private static void CreateAnchor(Transform parent, string name, Vector3 position)
+        private static T Require<T>(string path) where T : Object => AssetDatabase.LoadAssetAtPath<T>(path) ?? throw new FileNotFoundException("Required DressingRoom asset missing", path);
+        private static Vector3 Abs(Vector3 value) => new Vector3(Mathf.Abs(value.x), Mathf.Abs(value.y), Mathf.Abs(value.z));
+        private static Transform Child(Transform parent, string name) { var child = new GameObject(name).transform; child.SetParent(parent, false); return child; }
+        private static GameObject Prop(Transform parent, string name, string model, Vector3 position, float yaw)
         {
-            var anchor = new GameObject(name);
-            anchor.transform.SetParent(parent, false);
-            anchor.transform.position = position;
+            var value = (GameObject)PrefabUtility.InstantiatePrefab(Require<GameObject>("Assets/Art/Models/" + model + ".fbx")); value.name = name;
+            value.transform.SetParent(parent, false); value.transform.SetPositionAndRotation(position, Quaternion.Euler(0, yaw, 0)); return value;
         }
-
-        private static GameObject Box(Transform parent, string name, Vector3 position, Vector3 size, Material material)
+        private static GameObject Box(Transform parent, string name, Vector3 position, Vector3 size, Material material, bool collision = true)
         {
-            var result = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            result.name = name;
-            result.transform.SetParent(parent, false);
-            result.transform.position = position;
-            result.transform.localScale = size;
-            result.GetComponent<Renderer>().sharedMaterial = material;
-            return result;
+            var value = GameObject.CreatePrimitive(PrimitiveType.Cube); value.name = name; value.transform.SetParent(parent, false);
+            value.transform.localPosition = position; value.transform.localScale = size; value.GetComponent<Renderer>().sharedMaterial = material;
+            if (!collision) Object.DestroyImmediate(value.GetComponent<Collider>()); return value;
         }
-
-        private static Material Material(string name, Color color, float smoothness, float metallic)
+        private static void Sign(Transform parent, string label, Vector3 position, float yaw)
         {
-            var path = MaterialsFolder + "/" + name + ".mat";
-            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material == null)
-            {
-                material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                AssetDatabase.CreateAsset(material, path);
-            }
-            material.SetColor("_BaseColor", color);
-            material.SetFloat("_Smoothness", smoothness);
-            material.SetFloat("_Metallic", metallic);
-            return material;
+            var sign = Child(parent, label + " Sign").gameObject.AddComponent<TextMesh>(); sign.text = label; sign.fontSize = 64; sign.characterSize = .045f;
+            sign.color = trim.color; sign.anchor = TextAnchor.MiddleCenter; sign.transform.SetPositionAndRotation(position, Quaternion.Euler(0, yaw, 0));
         }
     }
 }

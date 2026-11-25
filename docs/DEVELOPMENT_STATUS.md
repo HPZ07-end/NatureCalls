@@ -1,5 +1,31 @@
 # 实际开发状态
 
+2026-11-26 准备房扩容与吸入转场已接入，因视觉问题按用户要求暂停：双隔间房纵深 4.4→6.4 m；可中断俯视并在连接后关闭界面恢复行走，避免反复自动拉回；删除额外金色按头并绑定原马桶 Flush Button；最终选图 E 确认后播放旋涡、人物卷入、下潜淡出及加载淡入，联机增加服务器转场完成协调。PlayMode 52 Passed + 1 Relay Ignored，EditMode 34/34，仓库检查通过。但新俯视取景在测试分辨率下裁掉水面页最下方状态文字，视觉验收未通过，尚需修复取景后复验。未执行真实双端 LAN／Relay，未提交或合并。Semantic-Diff: changed；详见 [实现与暂停记录](records/lobby-departure-2026-11-26.md)。
+
+2026-11-26 四项大厅修复已完成本机验收：换装间隐藏联机房文字；两隔间增加已有门模型和 E 开关交互；新 Blender 小绳吊牌及两张中文贴图导入并挂到门叶；水面文字放大疏排，移除程序场景名后缀；选择地图只保存待确认，由领队／离线玩家按 E 操作实体冲水按钮后才加载，服务器重新校验人数和准备。最终 PlayMode 51 Passed + 1 Relay Ignored，EditMode 34/34，最后排版专项 1/1、仓库及 Semantic Diff 检查通过。已查看闭门吊牌、无穿透文字、水面与待确认截图。未做真实双端 LAN／Relay 验收，未提交或合并。详见 [完成记录](records/lobby-four-fixes-2026-11-26.md)；以下暂停段落为历史记录。
+
+2026-11-26 四项大厅修复进行中，按用户要求暂停：已新建 Blender 小绳吊牌源、两种中文贴图并导入 Unity；隔间门、房外字隐藏、水面疏排及选图待冲水确认代码和场景已生成，编译验证通过。首轮 PlayMode 为 45 Passed、5 Failed、1 Relay Ignored：4 个 Host 用例绕过两人前置条件，被新确认校验拒绝；另一个 Map2 用例未执行新选图确认即读取地图。尚需适配测试、补闭门牌子正面和待确认页的视觉验收，不声明完成。按「遇到问题停下来」停止重试，未提交或合并。Semantic-Diff: changed；见 [修复与暂停记录](records/lobby-four-fixes-2026-11-26.md)。
+
+2026-11-26 冲水改为实体按钮：已删除可点击的「冲水 · 确认连接」字幕，两个马桶增加金色实体按头及按压回弹。俯视界面中将鼠标指向实体按钮后按既有 E 提交，不新增键位；输入框编辑中和连接进行中拒绝误触／重复提交，CreateRoom、JoinRoom 等连接接口保持。场景生成通过，全量 PlayMode 49 Passed + 1 Relay Ignored，实体按钮命中、无字幕和输入防误触已覆盖；其余最终检查见 [记录](records/physical-flush-2026-11-26.md)。Semantic-Diff: changed，范围 Lobby。
+
+2026-11-26 双隔间联机方式房间已接入原 DressingRoom：原大厅门按 E 进入，LAN／Relay 两隔间，近距离看向马桶自动平滑俯视，世界空间文字与输入浮在水面。选择创建或加入后点击冲水提交，沿用原 CreateRoom、JoinRoom、PressPrimary、ChooseMap 和 StartOffline；准备、领队选图及原地图加载接口保持。无人物吸入和新转场。Unity API 场景生成、编译与引用通过；PlayMode 全量 49 Passed + 1 Relay Ignored，EditMode 34/34；最终水面和文字调整后专项 2/2。脚本单测 31/31、仓库及 Semantic Diff 检查通过。未执行真实双设备 LAN／Relay 和正式构建，未提交或合并。Semantic-Diff 为 changed，路径 Lobby、DressingRoom；见 [实施记录](records/toilet-lobby-2026-11-26.md)。
+
+2026-11-25 换装 UI 已更新为镜旁世界空间漂浮文字，移除整块面板背景和按钮底色。三种体型、服装颜色各自单选，方框勾选跟随预览；逐行淡入、轻微漂浮和鼠标点击已接入，确认保存与取消恢复沿用原流程。当前工程 Unity 6000.3.26f1 生成验证通过，EditMode 34/34、PlayMode 47 Passed + 1 Relay Ignored，含实际 EventSystem 命中及点击用例；已查看 UI 运行截图。脚本单测 31/31 和仓库检查通过。Semantic-Diff: none；详见 [UI 记录](records/floating-outfit-ui-2026-11-25.md)。
+
+2026-11-25 新换装间已覆盖到当前工程原 `Assets/Scenes/DressingRoom.unity`：旧布局整体替换，GUID 与启动／回房入口保留；天花板、右侧双洗手台双镜、动态镜面、本地可搬凳子和换装动作反馈已接入。当前分支的旧输入由仅用于准备房的 compat 组件适配，原有角色与 Map2 改动经哈希核对保留。Unity 6000.3.26f1 场景生成和编译通过，EditMode 34/34、PlayMode 46 Passed + 1 Relay Ignored；仓库检查、脚本单测 31/31 与工作区 Semantic Diff 校验通过。当前工程可直接打开该场景 Play。双坑位实体大厅、水面 UI 和卷入转场尚未实现，未执行跨设备联机或正式构建。Semantic-Diff 为 `changed`，范围 `NatureCalls/Content/Map/DressingRoom`；详情见 [覆盖记录](records/dressing-room-adoption-2026-11-25.md)。
+
+2026-11-24 Map2 井口及卷纸修复：A 井使用井口周边的站立范围，遮挡检查略过井口自身构件，提示与 E 键共享目标判定。应急卷纸移到出生点旁的柜台，拾取距离从角色躯干附近计算。售纸仍按一枚金币换一卷纸，并在手中有物品时显示限制。Unity 6000.3.26f1 PlayMode 42 项通过，1 项 Relay 跳过。从真实出生点步行拾纸并从 A 井侧边到达 −3.20 m 落脚台通过，离线购纸和本机房主进井通过。`Semantic-Diff: none`。
+
+2026-11-24 DressingRoom 与 Map2 接入（工作基线 `fbf02bb`，已同步 `origin/dev` `036f15f`）：Player、换装镜和房间共享矮快、均衡、高伸三款油画角色。服装色只覆盖可换色衣料。独立 Generic 骨架接入步态、跳跃、如厕、爬行及伸手。旧版性别型 PlayerPrefs 只在新字段缺失时用于迁移，保留至下一次存档版本升级。
+
+Map2 进入单人、联机和随机选图目录，复用设施、HUD、计时和回房流程。地图交互包括 A 井下滑与 B 井爬梯、短暂湿地惯性、金币购纸及 A 支路五步维修。短阶视觉保留，通行碰撞改为连续坡面。Unity 6000.3.26f1 EditMode 31 项通过，PlayMode 41 项通过、1 项 Relay 云测试跳过。单人用例实际走通地下高差，房主用例验证了购纸、竖井授予及维修状态。未执行双设备联机。Semantic Diff 为 `changed`，覆盖 `Content/Map/DressingRoom`、`Content/Map/MapSelection`、`Content/Map/Map2`、`Gameplay/Facility/Pipe`、`Gameplay/Facility/PaperVendingMachine`，用户批准来源记录在 Glossary。
+
+2026-11-24 油画风角色资产：矮快、均衡、高伸三款角色各用独立 15 骨 Generic 绑定、专属油画贴图、Animator 与 Prefab。每款含站立、走路、跑步、伸手四段原地动画，各自的走跑周期已调整。Unity 6000.3.26f1 标准 `validate` 通过，逐一采样 12 段动画并渲染检查贴图和朝向。尚未替换 Player 或接入换装、角色属性与物品交互。`Semantic-Diff: none`。
+
+2026-11-23 Map2 场景：新增 `Assets/Scenes/Map2.unity`。地上 15.4 × 11.6 m，布置错位隔间、双洗手台、湿滑近路外观、破损绕行和补给角。A 竖井对接 −3.20 m 落脚台，地下有 −3.80 m 检修槽、−2.70 m 回流栈道与 B 短梯井；A 支路布置上游观察窗、阀门、检修口和回流观察窗。场景使用 Blender 样板笔触贴图与独立 URP 油画材质。Unity 6000.3.26f1 保存并重开后核对井口净空、落点、楼层标高和坡面，标准 `validate` 通过，地上与地下预览已检查。尚未加入大厅选图、角色通行控制、湿滑判定、售纸和维修联动。`Semantic-Diff: none`。
+
+2026-11-23 Map2 美术资产：新增并导入 14 个模型，包括井盖与竖井、地下高差通行模块、检修管件和地面障碍及补给道具。Blender 4.5 逐个重开验证，确认井盖和检修盖打开后中心通道无网格遮挡。Unity 6000.3.26f1 核对模型层级、铰链、米制定位点、共享材质及观察窗透明材质，标准 `validate` 通过。README 清单共 73 个基础模型。尚未放入 Map2 场景或接入交互。`Semantic-Diff: none`。
+
 2026-11-23 Map1 布局与美术细化：地上占地由 26 × 20 m 收到 23.5 × 16.85 m。三间隔间后端接外墙，门扇、门框、门碰撞与前板统一正面基准。B1 门前净空与风道槽口分开；隔间归属同时核对楼层高度。新制 6 件 Blender 模块已导入 Unity 并映射共享材料，README 清单为 59 件。Unity 6000.3.26f1 保存并重开核对，Map1 与原模块厕所 PlayMode 7/7。未进行四人实机走查。`Semantic-Diff: none`。
 
 2026-11-23 Map1 大厅与风道：MapCatalog 和构建场景列表加入 Map1。A、B 风道都配置了双向爬行，使用独立姿态、0.85 m 胶囊与低位第一人称视点，通行后按净空恢复站立。Unity 6000.3.26f1 标准验证通过，Map1 专项 PlayMode 5/5，覆盖大厅离线选图、单进程 LAN Host 加载与姿态发布、两条风道双向通行及现有交互。爬行外观为低姿占位表现，未进行跨客户端或 Relay 验收。`Semantic-Diff: changed`（新增 Crawling，更新 MapSelection，批准见 Glossary）。

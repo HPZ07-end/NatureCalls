@@ -27,11 +27,17 @@
 | [DEVELOPMENT_STATUS](DEVELOPMENT_STATUS.md) | 当前实际状态（只写现状） |
 | [ROADMAP](ROADMAP.md) | 阶段路线与课程截止日 |
 
+## 设计提案
+
+- [维修与清理第一版设计初稿](repair-and-cleaning/README.md)：工具与对象分类、清洁与维修流程、交互方案及完成清单；Proposed Change，待批准。
+- [人物参数第一版初稿](character-parameters/README.md)：统一参数与矮快型（小孩）、均衡型、高伸型三者差异参数；小孩移动最快、瞄准最稳定；Proposed Change，具体数值待批准。
+
 ## 记录与历史（只追加，不改写）
 
 | 文档 | 内容 |
 | --- | --- |
 | [records/status-log.md](records/status-log.md) | 按日期的开发与回归记录 |
+| [records/lobby-departure-2026-11-26.md](records/lobby-departure-2026-11-26.md) | 准备房扩容、退出修复、原马桶按钮与吸入转场 |
 | [records/setup-2026-10-19.md](records/setup-2026-10-19.md) | 首次环境验收 |
 | [records/governance-2026-10-19.md](records/governance-2026-10-19.md) | 治理任务记录与权限观察 |
 | [records/m1-2026-10-20.md](records/m1-2026-10-20.md) | M1 验收记录 |

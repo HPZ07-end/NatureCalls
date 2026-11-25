@@ -1,5 +1,17 @@
 # 测试与跨平台验证
 
+2026-11-26 准备房扩容与转场：新增退出用例检查打开途中取消、恢复移动和防止立即重新俯视，原 LAN 建房用例验证关闭界面保留连接。四地图离线用例检查最终冲水后暂不加载、人物缩小，再等待地图相机绑定、淡入结束及本地操作恢复。当前 PlayMode 52 Passed + 1 Relay Ignored、EditMode 34/34；但截图发现新俯视取景裁切底部状态文字，按用户要求暂停，不能以自动测试通过替代视觉验收。详见 [转场记录](records/lobby-departure-2026-11-26.md)。
+
+2026-11-26 四项修复：门与吊牌用例验证房外 lettering 关闭、两个已有 StallDoor 可开、材质关联两张正确文字贴图，并保存闭门正面截图；离线地图用例断言点击选图后目标地图未加载，再经真实物理射线操作冲水按钮加载。Host 单进程用准备完成的第二成员数据通过原准备条件，确认后移除无传输端的测试成员；该测试不能替代真实双客户端。新增准备条件被撤销后拒绝确认的用例。Host 需求值断言按实际经过时间计算增长上界，不改变初值与增长规则。最终结果与截图见 [记录](records/lobby-four-fixes-2026-11-26.md)。
+
+2026-11-26 实体冲水：双隔间测试不再点击冲水字幕，改用屏幕投射的物理射线命中当前马桶的 LobbyFlushButton，验证输入编辑时拒绝、结束编辑后按头可操作、原 LAN 建房和空输入处理保持。检查场景无 Flush Confirm UI 对象且实体按头在俯视画面中。按键入口复用 PlayerInput 的既有 E；人工键鼠手感与跨设备联机未执行。详情见 [实体冲水记录](records/physical-flush-2026-11-26.md)。
+
+2026-11-26 双隔间大厅回归：`ToiletLobbyLooksBlendToWaterAndReturnWithoutConnecting` 检查两种联机入口的真实视线触发、持续镜头过渡、水面世界空间 UI、文字按钮射线点击、空输入拒绝、反向恢复和返回换装间；`ToiletLobbyFlushCreatesLanRoomUsingExistingController` 检查选择创建不会连接、冲水才通过旧接口建 LAN 房间、单人不满足开始条件。保留离线地图和原联机回归。生成入口 `scripts/unity.py toilet-lobby`，结果见 [双隔间大厅记录](records/toilet-lobby-2026-11-26.md)。
+
+2026-11-25 漂浮换装 UI：`FloatingOutfitTextChecksPreviewChoicesAndReceivesMouseClicks` 验证世界空间文字无面板底图，体型／颜色各有一个勾选，EventSystem 射线命中实际可见行，点击切换预览、取消恢复、重新打开及确认保存，并保存 `floating-outfit-ui.png` 检查布局和倒影。重建 UI 使用 `scripts/unity.py dressing-room-ui`；实际结果见 [UI 记录](records/floating-outfit-ui-2026-11-25.md)。
+
+2026-11-25 换装间覆盖：`scripts/unity.py dressing-room` 通过 Unity API 在原场景路径重建并检查 GUID。EditMode 验证镜面投影、完整 UV、门牌朝向及资产引用；PlayMode 验证天花板、双镜预览与确认取消、E/F 搬放凳子、实际跳跃落在凳子上、两镜三模型两高度反射，以及现有大厅、地图和返回流程。当前工程使用房内 `DressingRoomInteraction` 适配现有输入接口；不以独立 worktree 的测试结果代替当前工程结果。实际结果见 [移植记录](records/dressing-room-adoption-2026-11-25.md)。
+
 地图接入回归（2026-11-16）：`DressingRoomTests` 新增从大厅离线及 Host 选择 MapLayoutPrototype 的用例，检查外观、本地第一人称绑定、设施生成和结束返回原房间；`MapLayoutTests` 检查四个出生点的地板与胶囊空间、三扇门、隔间归属、马桶占用以及卷纸和唯一拖把的拾取/归还。`scripts/server.py <Development Player> --map-index 1` 复用原三进程探针验证新地图；默认 0 继续验证原 Playground。运行结果以开发记录为准。
 
 大厅回归与 ServerProbe 客户端的屏幕相机检查仅统计已启用且 `targetTexture == null` 的相机，要求唯一且为地图的 Output，并跟随该端本地玩家；镜面 RenderTexture 相机不计入玩家视角。纯服务器的零相机检查仍统计全部启用相机。

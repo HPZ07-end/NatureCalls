@@ -12,7 +12,7 @@ namespace NatureCalls.Network
         public NetworkVariable<int> ColorIndex = new(0);
         // Server-write; -1 (direct play without a Lobby room) shows the identity color instead.
         public NetworkVariable<int> OutfitIndex = new(-1);
-        public NetworkVariable<PlayerGender> Gender = new(PlayerGender.Male);
+        public NetworkVariable<PlayerBodyType> BodyType = new(PlayerBodyType.Balanced);
         private PlayerAppearance appearance;
         private static readonly Color[] Colors = { new(.12f, .5f, .9f), new(.95f, .35f, .15f), new(.65f, .3f, .85f), new(.15f, .75f, .4f) };
 
@@ -22,24 +22,24 @@ namespace NatureCalls.Network
             if (IsServer) ColorIndex.Value = Session.Instance.Slot(OwnerClientId);
             ColorIndex.OnValueChanged += AppearanceChanged;
             OutfitIndex.OnValueChanged += AppearanceChanged;
-            Gender.OnValueChanged += GenderChanged;
+            BodyType.OnValueChanged += BodyTypeChanged;
             RefreshAppearance();
-            if (IsOwner && OutfitIndex.Value < 0) SetDirectGenderRpc(LocalProfile.Gender);
+            if (IsOwner && OutfitIndex.Value < 0) SetDirectBodyTypeRpc(LocalProfile.BodyType);
             name = "Player " + (ColorIndex.Value + 1) + (IsOwner ? " (you)" : " (remote)");
         }
 
         private void AppearanceChanged(int previous, int current) => RefreshAppearance();
-        private void GenderChanged(PlayerGender previous, PlayerGender current) => RefreshAppearance();
+        private void BodyTypeChanged(PlayerBodyType previous, PlayerBodyType current) => RefreshAppearance();
 
-        [Rpc(SendTo.Server, RequireOwnership = true)]
-        private void SetDirectGenderRpc(PlayerGender gender)
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void SetDirectBodyTypeRpc(PlayerBodyType bodyType)
         {
-            if (OutfitIndex.Value < 0 && OutfitSelection.IsValidGender(gender)) Gender.Value = gender;
+            if (OutfitIndex.Value < 0 && OutfitSelection.IsValidBodyType(bodyType)) BodyType.Value = bodyType;
         }
 
         private void RefreshAppearance()
         {
-            appearance.SetGender(Gender.Value);
+            appearance.SetBodyType(BodyType.Value);
             if (OutfitIndex.Value >= 0 && appearance.Catalog != null && appearance.Catalog.Contains(OutfitIndex.Value))
                 appearance.ApplyOutfit(OutfitIndex.Value);
             else
@@ -50,7 +50,7 @@ namespace NatureCalls.Network
         {
             ColorIndex.OnValueChanged -= AppearanceChanged;
             OutfitIndex.OnValueChanged -= AppearanceChanged;
-            Gender.OnValueChanged -= GenderChanged;
+            BodyType.OnValueChanged -= BodyTypeChanged;
         }
     }
 }

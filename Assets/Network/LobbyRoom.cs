@@ -9,20 +9,20 @@ using UnityEngine.SceneManagement;
 
 namespace NatureCalls.Network
 {
-    public enum LobbyPhase : byte { Waiting, SelectingMap, InGame }
+    public enum LobbyPhase : byte { Waiting, SelectingMap, InGame, ConfirmingMap, Departing }
 
     public struct LobbyMember : INetworkSerializeByMemcpy, IEquatable<LobbyMember>
     {
         public ulong ClientId;
         public int Slot;
         public int Outfit;
-        public PlayerGender Gender;
+        public PlayerBodyType BodyType;
         public bool Ready;
 
         public bool Equals(LobbyMember other) =>
-            ClientId == other.ClientId && Slot == other.Slot && Outfit == other.Outfit && Gender == other.Gender && Ready == other.Ready;
+            ClientId == other.ClientId && Slot == other.Slot && Outfit == other.Outfit && BodyType == other.BodyType && Ready == other.Ready;
         public override bool Equals(object obj) => obj is LobbyMember other && Equals(other);
-        public override int GetHashCode() => HashCode.Combine(ClientId, Slot, Outfit, Gender, Ready);
+        public override int GetHashCode() => HashCode.Combine(ClientId, Slot, Outfit, BodyType, Ready);
     }
 
     /// <summary>
@@ -37,10 +37,13 @@ namespace NatureCalls.Network
         [SerializeField] private MapCatalog maps;
         public NetworkList<LobbyMember> Members;
         public NetworkVariable<LobbyPhase> Phase = new(LobbyPhase.Waiting);
+        public NetworkVariable<int> SelectedMap = new(-1);
         // Server time at which the current round ends; -1 while no round is running.
         public NetworkVariable<double> RoundEndTime = new(-1);
         public const string RoundOverMessage = "时间到，本局结束，回到房间。";
         private readonly HashSet<ulong> loaded = new();
+        private readonly HashSet<ulong> departed = new();
+        private float departureDeadline;
         private bool spawnedPlayers;
         private bool serverLoaded;
 
@@ -62,7 +65,7 @@ namespace NatureCalls.Network
                 NetworkManager.OnClientDisconnectCallback += RemoveMember;
                 foreach (var id in NetworkManager.ConnectedClientsIds) AddMember(id);
             }
-            if (IsClient) SetAppearanceRpc(LocalProfile.Gender, LocalProfile.OutfitIndex);
+            if (IsClient) SetAppearanceRpc(LocalProfile.BodyType, LocalProfile.OutfitIndex);
         }
 
         public override void OnNetworkDespawn()
@@ -98,22 +101,27 @@ namespace NatureCalls.Network
         public bool CanStart => Phase.Value == LobbyPhase.Waiting && LobbyRules.CanStart(Members.Count, ReadyMembers());
 
         public void SetReady(bool ready) => SetReadyRpc(ready);
-        public void SetAppearance(PlayerGender gender, int outfit) => SetAppearanceRpc(gender, outfit);
+        public void SetAppearance(PlayerBodyType bodyType, int outfit) => SetAppearanceRpc(bodyType, outfit);
         public void RequestStart() => RequestStartRpc();
         public void CancelMapSelection() => CancelMapSelectionRpc();
         public void ChooseMap(int choice) => ChooseMapRpc(choice);
+        public void ConfirmMap() => ConfirmMapRpc();
 
         private void AddMember(ulong clientId)
         {
             if ((!IsHost && clientId == NetworkManager.ServerClientId) || TryGetMember(clientId, out _)) return;
+            if (Phase.Value == LobbyPhase.ConfirmingMap) { SelectedMap.Value = -1; Phase.Value = LobbyPhase.Waiting; }
             Members.Add(new LobbyMember { ClientId = clientId, Slot = Session.Instance.Slot(clientId), Outfit = 0 });
         }
 
         private void RemoveMember(ulong clientId)
         {
+            if (Phase.Value == LobbyPhase.ConfirmingMap) { SelectedMap.Value = -1; Phase.Value = LobbyPhase.Waiting; }
             for (int index = 0; index < Members.Count; index++)
                 if (Members[index].ClientId == clientId) { Members.RemoveAt(index); break; }
             loaded.Remove(clientId);
+            departed.Remove(clientId);
+            if (Phase.Value == LobbyPhase.Departing) TryFinishDeparture();
             if (Members.Count == 0)
             {
                 if (Phase.Value == LobbyPhase.InGame) EndRound("");
@@ -136,13 +144,13 @@ namespace NatureCalls.Network
         private bool FromLeader(RpcParams rpc) => Members.Count > 0 && rpc.Receive.SenderClientId == LeaderId;
 
         [Rpc(SendTo.Server)]
-        private void SetAppearanceRpc(PlayerGender gender, int outfit, RpcParams rpc = default)
+        private void SetAppearanceRpc(PlayerBodyType bodyType, int outfit, RpcParams rpc = default)
         {
-            if (!OutfitSelection.IsValidGender(gender)) return;
+            if (!OutfitSelection.IsValidBodyType(bodyType)) return;
             ChangeMember(rpc.Receive.SenderClientId, member =>
             {
                 member.Outfit = Mathf.Max(0, outfit);
-                member.Gender = gender;
+                member.BodyType = bodyType;
                 return member;
             });
         }
@@ -163,6 +171,8 @@ namespace NatureCalls.Network
         [Rpc(SendTo.Server)]
         private void CancelMapSelectionRpc(RpcParams rpc = default)
         {
+            if (FromLeader(rpc) && Phase.Value == LobbyPhase.ConfirmingMap)
+            { SelectedMap.Value = -1; Phase.Value = LobbyPhase.SelectingMap; return; }
             if (FromLeader(rpc) && Phase.Value == LobbyPhase.SelectingMap) Phase.Value = LobbyPhase.Waiting;
         }
 
@@ -170,7 +180,42 @@ namespace NatureCalls.Network
         private void ChooseMapRpc(int choice, RpcParams rpc = default)
         {
             if (!FromLeader(rpc) || Phase.Value != LobbyPhase.SelectingMap || !MapSelection.IsValid(choice, maps.Count)) return;
-            var mapIndex = MapSelection.Resolve(choice, maps.Count, count => UnityEngine.Random.Range(0, count));
+            SelectedMap.Value = MapSelection.Resolve(choice, maps.Count, count => UnityEngine.Random.Range(0, count));
+            Phase.Value = LobbyPhase.ConfirmingMap;
+        }
+
+        [Rpc(SendTo.Server)]
+        private void ConfirmMapRpc(RpcParams rpc = default)
+        {
+            if (!FromLeader(rpc) || Phase.Value != LobbyPhase.ConfirmingMap || SelectedMap.Value < 0 || SelectedMap.Value >= maps.Count) return;
+            if (!LobbyRules.CanStart(Members.Count, ReadyMembers())) { SelectedMap.Value = -1; Phase.Value = LobbyPhase.Waiting; return; }
+            int mapIndex = SelectedMap.Value;
+            Phase.Value = LobbyPhase.Departing;
+            departed.Clear(); departureDeadline = Time.unscaledTime + 10;
+            BeginDepartureRpc();
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void BeginDepartureRpc()
+        {
+            if (!IsClient) return;
+            var presentation = FindFirstObjectByType<NatureCalls.UI.ToiletLobby>();
+            if (presentation != null) presentation.PlayDeparture(() => DepartureReadyRpc());
+            else DepartureReadyRpc();
+        }
+
+        [Rpc(SendTo.Server)]
+        private void DepartureReadyRpc(RpcParams rpc = default)
+        {
+            if (Phase.Value != LobbyPhase.Departing || !TryGetMember(rpc.Receive.SenderClientId, out _)) return;
+            departed.Add(rpc.Receive.SenderClientId); TryFinishDeparture();
+        }
+
+        private void TryFinishDeparture()
+        {
+            if (!IsServer || Phase.Value != LobbyPhase.Departing || Members.Count == 0) return;
+            foreach (var member in Members) if (!departed.Contains(member.ClientId)) return;
+            int mapIndex = SelectedMap.Value;
             Phase.Value = LobbyPhase.InGame;
             loaded.Clear();
             serverLoaded = false;
@@ -217,7 +262,7 @@ namespace NatureCalls.Network
                 var player = Instantiate(NetworkManager.NetworkConfig.PlayerPrefab, spawn.position, spawn.rotation);
                 var appearance = player.GetComponent<AvatarAppearance>();
                 appearance.OutfitIndex.Value = member.Outfit;
-                appearance.Gender.Value = member.Gender;
+                appearance.BodyType.Value = member.BodyType;
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(member.ClientId, true);
             }
             // The global round clock and everyone's needs start once everyone is on the map.
@@ -227,6 +272,8 @@ namespace NatureCalls.Network
 
         private void Update()
         {
+            if (IsServer && Phase.Value == LobbyPhase.Departing && Time.unscaledTime > departureDeadline)
+            { EndRound("转场等待超时，已返回准备房，请重试。"); return; }
             if (!IsServer || Phase.Value != LobbyPhase.InGame || RoundEndTime.Value < 0) return;
             // Any player's Urgency or Disgust at its threshold loses the round for everyone.
             foreach (var player in FindObjectsByType<NeedsSync>(FindObjectsSortMode.None))
@@ -242,6 +289,7 @@ namespace NatureCalls.Network
         // The round is over: everyone goes back to the DressingRoom and stays in the room for another round.
         private void EndRound(string message)
         {
+            SelectedMap.Value = -1;
             RoundEndTime.Value = -1;
             Phase.Value = LobbyPhase.Waiting;
             for (int index = 0; index < Members.Count; index++)

@@ -8,6 +8,7 @@ namespace NatureCalls.Map
     public sealed class LobbyDoor : MonoBehaviour
     {
         [Min(.1f)] public float InteractionDistance = 1.5f;
+        public Transform StandingPoint;
         public UnityEvent PlayerEntered = new UnityEvent();
         public UnityEvent PlayerExited = new UnityEvent();
         public UnityEvent Interacted = new UnityEvent();

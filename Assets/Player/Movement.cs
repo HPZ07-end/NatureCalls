@@ -1,4 +1,5 @@
 using NatureCalls.Map;
+using System.Collections;
 using UnityEngine;
 
 namespace NatureCalls.Player
@@ -18,6 +19,7 @@ namespace NatureCalls.Player
         public bool Airborne { get; private set; }
         public bool Aiming { get; set; }
         public bool Immobile { get; set; }
+        public bool IsTraversing { get; private set; }
         public bool IsCrawling => posture.IsCrawling;
         private const float CrawlingHeight = .85f;
         private const float CrawlingSpeed = 1.8f;
@@ -36,6 +38,8 @@ namespace NatureCalls.Player
         private bool usesRiggedBody;
         private float standingStep;
         private VentPassage[] passages;
+        private Map2Interactions map2;
+        private Vector3 planarVelocity;
         /// <summary>The toilet anchor the player is seated at, or null.</summary>
         public Transform Seat { get; private set; }
 #if UNITY_EDITOR
@@ -51,6 +55,7 @@ namespace NatureCalls.Player
             posture = GetComponent<Posture>();
             standingStep = controller.stepOffset;
             passages = FindObjectsByType<VentPassage>(FindObjectsSortMode.None);
+            map2 = FindFirstObjectByType<Map2Interactions>();
             usesRiggedBody = GetComponent<PlayerAppearance>()?.HasRiggedBody == true;
             if (Body != null)
             {
@@ -89,13 +94,15 @@ namespace NatureCalls.Player
         }
         public void Move(Vector2 direction, float deltaTime)
         {
-            if (!Controlled || !controller.enabled) return;
+            if (!Controlled || !controller.enabled || IsTraversing) return;
             RefreshVentPosture();
             var startPosition = transform.position;
             var movement = (posture.IsSquatting || Immobile) ? Vector3.zero : transform.TransformDirection(new Vector3(direction.x, 0, direction.y));
             movement = Vector3.ClampMagnitude(movement, 1) * (posture.IsCrawling ? CrawlingSpeed : Speed);
+            planarVelocity = !posture.IsSquatting && !Immobile && map2 != null && map2.IsWet(transform.position)
+                ? Vector3.MoveTowards(planarVelocity, movement, 8 * deltaTime) : movement;
             verticalSpeed = controller.isGrounded && verticalSpeed <= 0 ? -2 : Mathf.Max(verticalSpeed - 20 * deltaTime, -30);
-            controller.Move((movement + Vector3.up * verticalSpeed) * deltaTime);
+            controller.Move((planarVelocity + Vector3.up * verticalSpeed) * deltaTime);
             Airborne = !controller.isGrounded && !posture.IsSquatting;
             RefreshVentPosture();
 #if UNITY_EDITOR
@@ -116,6 +123,39 @@ namespace NatureCalls.Player
             Debug.Log($"PLAYER_JUMP_OK|player={name}|speed={JumpSpeed:F2}|position=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
 #endif
             return true;
+        }
+
+        internal bool Traverse(Vector3[] route, float seconds)
+        {
+            if (!Controlled || IsTraversing || Immobile || posture.State != PostureState.Standing) return false;
+            StartCoroutine(FollowTraversal(route, seconds));
+            return true;
+        }
+
+        private IEnumerator FollowTraversal(Vector3[] route, float seconds)
+        {
+            IsTraversing = true;
+            Airborne = true;
+            controller.enabled = false;
+            float elapsed = 0;
+            while (elapsed < seconds && Controlled)
+            {
+                float phase = Mathf.Clamp01(elapsed / seconds);
+                if (phase < .2f)
+                    transform.position = Vector3.Lerp(route[0], route[1], phase / .2f);
+                else if (phase < .8f)
+                    transform.position = Vector3.Lerp(route[1], route[2], (phase - .2f) / .6f);
+                else
+                    transform.position = Vector3.Lerp(route[2], route[3], (phase - .8f) / .2f);
+                yield return null;
+                elapsed += Time.deltaTime;
+            }
+            if (Controlled) transform.position = route[3];
+            verticalSpeed = 0;
+            planarVelocity = Vector3.zero;
+            Airborne = false;
+            IsTraversing = false;
+            controller.enabled = Controlled;
         }
         public void Enter(Transform anchor)
         {
