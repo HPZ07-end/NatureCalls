@@ -281,10 +281,15 @@ namespace NatureCalls.Network
             yield return Await(() => room.Phase.Value == LobbyPhase.SelectingMap, "map selection", 20);
             if (finished) yield break;
             if (leader) lobby.ChooseMap(MapIndex);
-            yield return Await(() => FindObjectsByType<Avatar>(FindObjectsSortMode.None).Count(a => a.IsSpawned) == 2,
-                "two visible players", 60);
+            // The approved dual-stall flow has a separate physical flush confirmation
+            // after choosing a map. Keep the probe on that state boundary as well.
+            yield return Await(() => room.Phase.Value == LobbyPhase.ConfirmingMap, "map pending confirmation", 20);
+            if (finished) yield break;
+            if (leader && HasArgument("-probe-confirm-map")) lobby.ConfirmMapSelection();
+            yield return Await(() => RemoteMapLoaded(MapIndex), "map transition and load", 60);
             if (finished) yield break;
             var avatars = FindObjectsByType<Avatar>(FindObjectsSortMode.None);
+            report.mapLoaded = RemoteMapLoaded(MapIndex);
             report.peerVisible = avatars.Length == 2 && avatars.All(a => a.IsSpawned &&
                 a.GetComponent<PlayerAppearance>() != null && a.GetComponent<PlayerAppearance>().ActiveAnimator != null);
             report.appearance = HasWorldAppearance(room);
@@ -370,6 +375,15 @@ namespace NatureCalls.Network
                     shared.BodyType.Value == (leader ? PlayerBodyType.Tall : PlayerBodyType.Balanced) &&
                     shared.OutfitIndex.Value == (leader ? 1 : 2);
             });
+        }
+
+        private static bool RemoteMapLoaded(int mapIndex)
+        {
+            var world = FindFirstObjectByType<Playground>();
+            var facilities = Facilities.Current;
+            return Match.MapIndex == mapIndex && world != null && world.OfflinePlayer == null &&
+                facilities != null && facilities.IsOwnedByServer && !facilities.NetworkObject.IsPlayerObject &&
+                FindObjectsByType<Avatar>(FindObjectsSortMode.None).Count(a => a.IsSpawned) == 2;
         }
         private IEnumerator Step(string name, bool acting, Func<bool> request, Func<bool> observed)
         {
