@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace NatureCalls.Facility
 {
-    public static class ToolSpeed { public static float Multiplier(Movement player) => 1f; }
+    // ToolSpeed lives in Player (PlayerNeeds.cs): endurance speeds up repairs too.
     public static class RepairTools
     {
         public static bool Repair(Movement player, Breakable target) => Item.FindCarriedBy(player) is Wrench && target != null && target.IsBroken && target.Repair(player);

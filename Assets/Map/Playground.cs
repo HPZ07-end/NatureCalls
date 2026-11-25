@@ -81,18 +81,13 @@ namespace NatureCalls.Map
             int index = messes.Count;
             var mess = droppingPool.Get().GetComponent<Mess>();
             mess.Configure(index, kind, position, toiletIndex, RoleRegistry.IsSaboteur(source));
+            mess.SetSource(source);
             if (kind == MessKind.Backflow && toiletIndex >= 0 && toiletIndex < stableToilets.Length) stableToilets[toiletIndex].SetBackflowShared(true);
             messes.Add(mess);
             MatchStats.Count(MatchStatKind.MessProduced);
             if (kind == MessKind.Accident) MatchStats.Count(MatchStatKind.Accident);
             if (kind == MessKind.Vomit) MatchStats.Count(MatchStatKind.Vomit);
             if (kind == MessKind.Backflow) MatchStats.Count(MatchStatKind.Backflow);
-            return index;
-        }
-        public int AddMess(MessKind kind, Vector3 position, int toiletIndex, Movement source)
-        {
-            var index = AddMess(kind, position, toiletIndex);
-            if (index >= 0 && index < messes.Count && messes[index] != null) messes[index].SetSource(source);
             return index;
         }
         public bool IsDirty(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.DirtyToilet && m.ToiletIndex == toiletIndex);
