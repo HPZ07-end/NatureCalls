@@ -53,6 +53,8 @@ namespace NatureCalls.Player
         public int PaperRequired { get; private set; }
         public Pipe UnwipedPipe { get; private set; }
         public bool Toileting { get; set; }
+        // PlayMode hook: lets tests isolate contact and cleaning costs from the vision channel.
+        public bool VisionSuppressedForTests { get; set; }
         public void MarkUnwiped(StallDoor stall) { unwipedStall = stall; Unwiped = true; }
         public void Wipe() { Unwiped = false; unwipedStall = null; }
         public void WipeByHand() { if (!Unwiped) return; Wipe(); HandsDirty = true; }
@@ -108,7 +110,11 @@ namespace NatureCalls.Player
                 if (!InEndurance && !IsOutOfControl && (Bladder >= 100 || Bowel >= 100)) { InEndurance = true; enduranceRemaining = NeedsRules.EnduranceDuration(UnityEngine.Random.value, CharacterProfile.For(bodyType).EnduranceBonus, Comfort); }
                 if (InEndurance) { enduranceRemaining -= Time.deltaTime; if (enduranceRemaining <= 0) { InEndurance = false; BeginLossOfControl(); } }
                 if (ComfortBoostRemaining > 0) ComfortBoostRemaining -= Time.deltaTime;
-                if (!Vomiting) { if (ComfortBoostRemaining > 0) AddComposure(3f * Time.deltaTime); else if (Composure > 0) AddComposure(Time.deltaTime); }
+                if (!Vomiting)
+                {
+                    if (ComfortBoostRemaining > 0) AddComposure(3f * Time.deltaTime);
+                    else if (Composure > 0 && !VisionSuppressedForTests && DirtField.Local(transform.position) <= 0) AddComposure(Time.deltaTime);
+                }
                 if (Composure <= 0 && !Vomiting) { Vomiting = true; VomitProgress = 0; }
                 if (Vomiting) TickVomit(Time.deltaTime);
                 }
@@ -116,13 +122,6 @@ namespace NatureCalls.Player
             if (!Ticking) return;
             TickVision(Time.deltaTime);
             if (Unwiped && unwipedStall != null && !unwipedStall.Contains(GetComponent<Movement>())) LeaveUnwiped();
-            var world = FindFirstObjectByType<Map.Playground>();
-            if (world != null) foreach (var mess in world.Messes)
-                if (mess != null && mess.Kind == MessKind.Puddle)
-                {
-                    float amount = NeedsRules.PuddleDisgust(Vector3.ProjectOnPlane(transform.position - mess.transform.position, Vector3.up).magnitude, Time.deltaTime);
-                    if (amount > 0) { AddDisgust(amount); break; }
-                }
             if (Toileting && Bowel > 0)
             {
                 if (GetComponent<Movement>().Pitch > 45f) AddComfort(Time.deltaTime / 100f);
@@ -210,6 +209,7 @@ namespace NatureCalls.Player
         }
         private void TickVision(float seconds)
         {
+            if (VisionSuppressedForTests) return;
             visionElapsed += seconds; if (visionElapsed < NeedsRules.VisionInterval) return; float interval = visionElapsed; visionElapsed = 0;
             var movement = GetComponent<Movement>(); if (movement == null) return;
             var sync = GetComponent<Network.FacilitySync>(); if (sync != null && sync.IsSpawned && !sync.IsServer) return;
@@ -243,7 +243,7 @@ namespace NatureCalls.Player
         {
             VomitProgress += seconds * (1f + Mathf.Min(2f, .5f * DirtField.Local(transform.position)));
             if (VomitProgress < 8f) return;
-            Vomiting = false; VomitProgress = 0; Composure = 50; OnVomit?.Invoke();
+            Vomiting = false; VomitProgress = 0; Composure = 50.1f; OnVomit?.Invoke();
             MessSinkRegistry.Current?.AddMess(MessKind.Vomit, transform.position, -1, GetComponent<Movement>());
             foreach (var player in FindObjectsByType<Movement>(FindObjectsSortMode.None)) if (player != GetComponent<Movement>() && Vector3.Distance(player.transform.position, transform.position) <= 1.5f) BodyEvents.Splash(player, BodyEvents.SplashKind.Vomit);
         }
