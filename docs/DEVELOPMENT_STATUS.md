@@ -1,5 +1,7 @@
 # 实际开发状态
 
+2026-11-25 团队分工：用户负责一层（Map2）装置与如厕体验，GLOSSARY 记录了角色参数（CharacterProfile）、小便镜头与反弹、卷纸纸量耐久、全部用水装置倒灌、Map3 后室，以及急迫值与一局推进方式的重做方向；均未实现，对象拆分见 [ROADMAP](ROADMAP.md)。
+
 2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器仍运行 #30 之前的版本，需重新部署才能与当前客户端（三款体型外观字段）联机。
 
 2026-11-25 E/F 交互与通用状态：E 按准星目标选择设施，F 处理擦拭和拖把清洁；设施状态和移动效果均通过可注册接口复用。Unity 6000.3.26f1 EditMode 36/36，PlayMode 42/43（1 Relay 跳过），build-server 通过。同日整理：`Map2Interactions` 拆为 Facility `PaperVendingMachine` 与 Map `WetZone`、`Map2Repair`；门、马桶、小便池改用通用 `SharedFacilityState`，Map2 场景与 Facilities prefab 经 Unity API 重建；整理后 EditMode 36/36，PlayMode 42/43（1 Relay 跳过），build-server 通过。
