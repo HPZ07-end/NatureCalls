@@ -13,6 +13,9 @@
 *.asset text eol=lf whitespace=-blank-at-eol
 *.meta text eol=lf whitespace=-blank-at-eol
 *.mat text eol=lf whitespace=-blank-at-eol
+*.anim text eol=lf whitespace=-blank-at-eol
+*.controller text eol=lf whitespace=-blank-at-eol
+*.renderTexture text eol=lf whitespace=-blank-at-eol
 *.shader text eol=lf
 *.txt text eol=lf
 *.pdf binary

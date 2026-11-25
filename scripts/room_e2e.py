@@ -60,6 +60,11 @@ import os, pathlib, signal, subprocess, sys
 root=pathlib.Path(os.environ["ROOM_E2E_ROOT"]); server=pathlib.Path(os.environ["ROOM_E2E_SERVER"])
 cmd=sys.argv[1]; unit=sys.argv[2] if len(sys.argv)>2 else ""
 port=unit.rsplit("@",1)[-1].split(".")[0]; pidfile=root/(port+".pid"); logfile=root/"logs"/(port+".log")
+def alive(pid):
+ try:
+  stat=subprocess.check_output(["ps", "-o", "stat=", "-p", str(pid)], text=True).strip()
+  return bool(stat) and not stat.startswith("Z")
+ except (OSError, subprocess.CalledProcessError): return False
 if cmd == "start":
  p=subprocess.Popen([str(server),"-batchmode","-nographics","-server","-port",port,"-idle-exit","20","-logFile",str(logfile)], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
  pidfile.write_text(str(p.pid))
@@ -68,12 +73,15 @@ elif cmd == "stop":
   try: os.kill(int(pidfile.read_text()), signal.SIGTERM)
   except ProcessLookupError: pass
 elif cmd == "is-active":
- try: os.kill(int(pidfile.read_text()), 0); print("active"); sys.exit(0)
- except (FileNotFoundError, ProcessLookupError, ValueError): print("inactive"); sys.exit(3)
+ try:
+  if alive(int(pidfile.read_text())): print("active"); sys.exit(0)
+ except (FileNotFoundError, ValueError): pass
+ print("inactive"); sys.exit(3)
 elif cmd == "list-units":
  for p in root.glob("*.pid"):
-  try: os.kill(int(p.read_text()),0); print("naturecalls-room@"+p.stem+".service loaded active running")
-  except (ProcessLookupError,ValueError): pass
+  try:
+   if alive(int(p.read_text())): print("naturecalls-room@"+p.stem+".service loaded active running")
+  except ValueError: pass
 '''
 
 
@@ -87,14 +95,16 @@ def start_client(player, directory, role, broker, extra, remote=True):
 
 
 def run_remote(player, broker, directory, close_timeout=60):
-    leader, leader_log = start_client(player, directory, "leader", broker, ["-probe-create-server-room"])
+    leader, leader_log = start_client(player, directory, "leader", broker,
+                                      ["-probe-create-server-room", "-probe-confirm-map"])
     code_path = directory / "room-code.txt"
     deadline = time.monotonic() + 60
     while not code_path.exists() and leader.poll() is None and time.monotonic() < deadline:
         time.sleep(.2)
     if not code_path.exists(): raise RuntimeError("leader did not publish room-code.txt")
     code = code_path.read_text().strip()
-    follower, follower_log = start_client(player, directory, "follower", broker, ["-probe-join", code])
+    follower, follower_log = start_client(player, directory, "follower", broker,
+                                          ["-probe-join", code, "-probe-confirm-map"])
     try:
         leader_report = wait_report(directory / "leader.json", leader)
         follower_report = wait_report(directory / "follower.json", follower)

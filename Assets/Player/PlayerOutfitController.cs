@@ -66,6 +66,7 @@ namespace NatureCalls.Player
         {
             appearance.SetBodyType(selection.PreviewBodyType);
             appearance.ApplyOutfit(index);
+            if (selection.IsSelecting) appearance.PlayReach();
         }
     }
 }
