@@ -84,13 +84,13 @@ namespace NatureCalls.Tests
             Align();
             yield return null;
             Assert.That(Find("ToiletingPanel").activeSelf, Is.True);
-            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("保持"));
-            Assert.That(Find("AccuracyLabel").activeSelf, Is.True);
-            Assert.That(Find("TargetOverlay").activeSelf, Is.True, "The target circle is drawn while holding.");
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("用力中"));
+            Assert.That(Find("AccuracyLabel").activeSelf, Is.False, "Defecation is blind: no live accuracy (GLOSSARY 统一如厕过程).");
+            Assert.That(Find("TargetOverlay").activeSelf, Is.False, "No target circle while holding; only the timed look-down marker.");
             Assert.That(Find("LandingMarker").activeSelf, Is.True);
             Score(5, 5);
             yield return null;
-            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Not.Contain("保持"), "The toileting prompt hides when the toileting ends.");
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Not.Contain("用力中"), "The toileting prompt hides when the toileting ends.");
             Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("F  用手擦拭"), "Unwiped without paper, the F wipe prompt is offered.");
             Assert.That(Find("AccuracyLabel").activeSelf, Is.False);
             Assert.That(Find("TargetOverlay").activeSelf, Is.False);
