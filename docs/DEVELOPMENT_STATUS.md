@@ -1,5 +1,7 @@
 # 实际开发状态
 
+2026-11-25：服务器房间号 broker、动态房间空闲退出和局域网信标已实现并在本机验证 broker 生命周期；EditMode 41/41、PlayMode 42/43（1 个既有 Relay Ignored）、macOS 与 Linux Server 构建通过。未部署课程服务器，两个 UI 客户端房间号加入和真实局域网双实例仍未验收。
+
 2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器仍运行 #30 之前的版本，需重新部署才能与当前客户端（三款体型外观字段）联机。
 
 2026-11-25 E/F 交互与通用状态：E 按准星目标选择设施，F 处理擦拭和拖把清洁；设施状态和移动效果均通过可注册接口复用。Unity 6000.3.26f1 EditMode 36/36，PlayMode 42/43（1 Relay 跳过），build-server 通过。同日整理：`Map2Interactions` 拆为 Facility `PaperVendingMachine` 与 Map `WetZone`、`Map2Repair`；门、马桶、小便池改用通用 `SharedFacilityState`，Map2 场景与 Facilities prefab 经 Unity API 重建；整理后 EditMode 36/36，PlayMode 42/43（1 Relay 跳过），build-server 通过。

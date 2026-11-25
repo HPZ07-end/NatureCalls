@@ -42,6 +42,16 @@ python3 -m unittest discover -s scripts/tests -v
 
 ## 双客户端与手工回归
 
+### 房间 broker 生命周期探针
+
+macOS 构建完成后，可在本机用假的 launcher 替代 `systemctl`，启动真实专用服务器进程并检查 broker 的 HTTP 生命周期：
+
+```sh
+python3 scripts/room_e2e.py Builds/macOS/<build-id>/NatureCalls.app
+```
+
+该探针使用 `-server -port <动态端口> -idle-exit 20 -logFile <日志>`，验证创建三位房间号、查询、专用服务器空闲退出、cleanup 移除和随后 404。它不连接课程服务器。两个可交互客户端的创建/加入仍需在有 UI 的 Player 中人工回归；LAN 广播同样需两实例和真实局域网，若 macOS 回环不转发广播必须记录为未验证。
+
 构建后运行（路径以当次输出为准）：
 
 ```sh

@@ -65,15 +65,23 @@ tar -xzf {archive} -C "$NEW"
 chmod +x "$NEW/NatureCalls"
 chown -R root:root "$NEW"
 {"install -m 644 /tmp/naturecalls@.service /etc/systemd/system/naturecalls@.service" if service_changed else ":"}
-{"install -m 644 /tmp/naturecalls-room@.service /etc/systemd/system/naturecalls-room@.service" if service_changed else ":"}
-{"install -m 644 /tmp/naturecalls-broker.service /etc/systemd/system/naturecalls-broker.service && install -m 755 /tmp/room_broker.py $ROOT/releases/{release}/scripts/room_broker.py" if broker_changed else ":"}
+install -m 644 /tmp/naturecalls-room@.service /etc/systemd/system/naturecalls-room@.service
+install -m 644 /tmp/naturecalls-broker.service /etc/systemd/system/naturecalls-broker.service
+install -m 755 /tmp/room_broker.py "$ROOT/releases/{release}/scripts/room_broker.py"
 systemctl daemon-reload
 ln -sfn "releases/{release}" "$ROOT/current.next" && mv -T "$ROOT/current.next" "$ROOT/current"
 STARTED=$(date '+%Y-%m-%d %H:%M:%S')
 for port in {rooms}; do if [ "$port" = 8000 ]; then systemctl enable naturecalls@$port >/dev/null 2>&1 || true; systemctl restart naturecalls@$port; fi; done
-systemctl enable --now naturecalls-broker.service
-curl --fail --silent --show-error http://127.0.0.1:8100/health >/dev/null
 ok=1
+if {"systemctl restart naturecalls-broker.service" if broker_changed else "systemctl start naturecalls-broker.service"}; then :; else
+  echo "BROKER_FAILED: systemctl restart"; ok=0
+fi
+broker_ok=0
+for i in $(seq 1 10); do
+  if curl --fail --silent --show-error --max-time 2 http://127.0.0.1:8100/health >/dev/null; then broker_ok=1; break; fi
+  sleep 1
+done
+if [ "$broker_ok" != 1 ]; then echo "BROKER_FAILED: health check"; ok=0; fi
 for port in {rooms}; do
   for i in $(seq 1 20); do
     if systemctl is-active --quiet naturecalls@$port && ss -lun | grep -q ":$port " \\
@@ -88,6 +96,7 @@ if [ "$ok" != 1 ]; then
   if [ -n "$PREV" ]; then
     ln -sfn "$PREV" "$ROOT/current.next" && mv -T "$ROOT/current.next" "$ROOT/current"
     for port in {rooms}; do systemctl restart naturecalls@$port || true; done
+    systemctl restart naturecalls-broker.service || true
     echo "ROLLED_BACK $PREV"
   fi
   rm -f {archive}
@@ -149,12 +158,12 @@ def main():
 
     # A dry run is intentionally offline: it must not probe or mutate the course server.
     ports = args.ports or (DEFAULT_PORTS if args.dry_run else remote_ports(args.host))
-    release = release_name(commit, build) if build else f"{commit}-<build-id>"
+    release = release_name(commit, build) if build else f"{commit}-build-id"
     archive = f"/tmp/naturecalls-{release}.tar.gz"
     service_changed = True if args.dry_run else remote_service_differs(args.host)
     broker_changed = True
     script = remote_script(release, archive, ports, args.keep, service_changed, broker_changed)
-    print(f"Release {release} -> {args.host}:{REMOTE_ROOT}/releases, rooms {ports}, dynamic rooms are left running, broker update: {broker_changed}")
+    print(f"Release {release} -> {args.host}:{REMOTE_ROOT}/releases, rooms {ports}, dynamic rooms are left running; room template and broker service are always installed; broker restart: {broker_changed}")
     if args.dry_run:
         print(script)
         return 0

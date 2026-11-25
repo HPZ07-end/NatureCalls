@@ -116,7 +116,9 @@ namespace NatureCalls.Network
                 request.timeout = 10;
                 await SendAsync(request);
                 var response = JsonUtility.FromJson<BrokerRoomResponse>(request.downloadHandler.text);
-                if (request.result != UnityWebRequest.Result.Success || response == null || response.protocol != 1 || response.port <= 0)
+                if (response != null && response.protocol != 1)
+                    throw new InvalidOperationException("客户端版本与服务器不一致，请更新。");
+                if (request.result != UnityWebRequest.Result.Success || response == null || response.port <= 0)
                     throw new InvalidOperationException(string.IsNullOrEmpty(response?.error) ? "服务器网络不通。" : response.error);
                 ServerRoomCode = response.code;
                 LobbyMode = true;
@@ -138,7 +140,9 @@ namespace NatureCalls.Network
                 request.timeout = 10;
                 await SendAsync(request);
                 var response = JsonUtility.FromJson<BrokerRoomResponse>(request.downloadHandler.text);
-                if (request.result != UnityWebRequest.Result.Success || response == null || response.protocol != 1 || response.port <= 0)
+                if (response != null && response.protocol != 1)
+                    throw new InvalidOperationException("客户端版本与服务器不一致，请更新。");
+                if (request.result != UnityWebRequest.Result.Success || response == null || response.port <= 0)
                     throw new InvalidOperationException(request.responseCode == 404 ? "房间不存在或已关闭。" : response?.error ?? "服务器网络不通。");
                 ServerRoomCode = code;
                 LobbyMode = true;
@@ -252,6 +256,10 @@ namespace NatureCalls.Network
         private void Disconnected(ulong id)
         {
             slots.Remove(id);
+            if (id == Manager.LocalClientId)
+            {
+                ServerRoomCode = 0;
+            }
             if (id == Manager.LocalClientId && !Busy)
             {
                 Status = string.IsNullOrEmpty(Manager.DisconnectReason) ? "Connection ended." : Manager.DisconnectReason;
@@ -260,6 +268,7 @@ namespace NatureCalls.Network
         }
         private void Stopped(bool wasHost)
         {
+            ServerRoomCode = 0;
             if (destroyed || Busy) return;
             if (World != null) World.Camera.Unbind();
             PlayerInput.Unlock();
@@ -268,8 +277,8 @@ namespace NatureCalls.Network
             else LobbyMode = false;
             if (Match.Mode == MatchMode.Networked) Match.ReturnToDressingRoom(wasHost ? "" : "与服务器的连接已断开。");
         }
-        private void TransportFailed() { Status = "Transport failed. Check the address, firewall and host."; PlayerInput.Unlock(); }
-        private void Removed() { session = null; Status = "Session closed or player removed."; PlayerInput.Unlock(); }
+        private void TransportFailed() { ServerRoomCode = 0; Status = "Transport failed. Check the address, firewall and host."; PlayerInput.Unlock(); }
+        private void Removed() { ServerRoomCode = 0; session = null; Status = "Session closed or player removed."; PlayerInput.Unlock(); }
 
         private async Task Authenticate()
         {
@@ -440,6 +449,7 @@ namespace NatureCalls.Network
             }
             finally
             {
+                ServerRoomCode = 0;
                 slots.Clear();
                 if (World != null) World.Camera.Unbind();
                 PlayerInput.Unlock();

@@ -4,7 +4,6 @@ using System.Net;
 using NatureCalls.Core;
 using NatureCalls.Map;
 using NatureCalls.Network;
-using NatureCalls.Core;
 using NatureCalls.Player;
 using UnityEngine;
 using UnityEngine.UI;
@@ -63,7 +62,12 @@ namespace NatureCalls.UI
             view.LeaveButton.onClick.AddListener(LeaveRoom);
             view.MapBack.onClick.AddListener(BackFromMap);
             if (view.LanRoomTemplate != null) view.LanRoomTemplate.gameObject.SetActive(false);
-            try { lanListener = new LanBeaconListener(); } catch (System.Net.Sockets.SocketException) { lanListener = null; }
+            try { lanListener = new LanBeaconListener(); }
+            catch (System.Net.Sockets.SocketException)
+            {
+                lanListener = null;
+                message = "局域网发现不可用。";
+            }
             BuildMapButtons();
             HideAll();
         }
@@ -263,6 +267,7 @@ namespace NatureCalls.UI
             view.EntryGroup.SetActive(!inRoom && !offlineMapSelection);
             view.RoomGroup.SetActive(inRoom && !selectingMap);
             view.MapPanel.SetActive(selectingMap);
+            if (view.LanRooms != null) view.LanRooms.gameObject.SetActive(!inRoom && !offlineMapSelection);
             bool canChoose = offlineMapSelection || (inRoom && room.IsLeader);
             foreach (var button in mapButtons) button.gameObject.SetActive(canChoose);
             view.MapBack.gameObject.SetActive(canChoose);

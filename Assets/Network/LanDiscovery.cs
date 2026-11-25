@@ -17,11 +17,18 @@ namespace NatureCalls.Network
         public bool SelectingMap;
         private UdpClient socket;
         private float next;
-        private void OnEnable() { socket = new UdpClient { EnableBroadcast = true }; }
+        private void OnEnable()
+        {
+            socket = new UdpClient { EnableBroadcast = true };
+            HostName = System.Environment.MachineName;
+        }
         private void Update()
         {
             if (Time.unscaledTime < next) return;
             next = Time.unscaledTime + 1f;
+            var room = LobbyRoom.Current;
+            Players = room != null ? room.Members.Count : 0;
+            SelectingMap = room != null && room.Phase.Value != LobbyPhase.Waiting;
             var bytes = System.Text.Encoding.UTF8.GetBytes(new LanBeacon(HostName, GamePort, Players, MaxPlayers, SelectingMap).ToJson());
             try { socket.Send(bytes, bytes.Length, new IPEndPoint(IPAddress.Broadcast, LanBeacon.Port)); } catch (SocketException) { }
         }
@@ -39,9 +46,15 @@ namespace NatureCalls.Network
     /// <summary>Receives and expires LAN beacons. UI can consume Snapshot without owning sockets.</summary>
     public sealed class LanBeaconListener : IDisposable
     {
-        private readonly UdpClient socket = new(LanBeacon.Port);
+        private readonly UdpClient socket;
         private readonly Dictionary<string, LanRoomEntry> rooms = new();
-        public LanBeaconListener() { socket.Client.ReceiveTimeout = 20; }
+        public LanBeaconListener()
+        {
+            socket = new UdpClient(AddressFamily.InterNetwork);
+            socket.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            socket.Client.Bind(new IPEndPoint(IPAddress.Any, LanBeacon.Port));
+            socket.Client.ReceiveTimeout = 20;
+        }
         public IReadOnlyCollection<LanRoomEntry> Snapshot(float now)
         {
             while (socket.Available > 0)

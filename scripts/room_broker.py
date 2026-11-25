@@ -11,6 +11,7 @@ import json
 import os
 import random
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -47,6 +48,7 @@ class RoomBroker:
         self.clock = clock
         self.lock = threading.RLock()
         self.rooms: dict[int, int] = {}
+        self.pending: set[tuple[int, int]] = set()
         self.requests: defaultdict[str, deque[float]] = defaultdict(deque)
         self.load()
 
@@ -94,11 +96,12 @@ class RoomBroker:
             self.save()
 
     def _new_pair(self):
-        used = set(self.rooms.values())
+        used = set(self.rooms.values()) | {port for _, port in self.pending}
         ports = [p for p in range(PORT_MIN, PORT_MAX + 1) if p not in used]
         if not ports:
             raise BrokerError(503, "动态房间端口已耗尽，请稍后再试。")
-        codes = [c for c in range(CODE_MIN, CODE_MAX + 1) if c not in self.rooms]
+        codes = [c for c in range(CODE_MIN, CODE_MAX + 1)
+                 if c not in self.rooms and all(pending_code != c for pending_code, _ in self.pending)]
         if not codes:
             raise BrokerError(503, "房间号已耗尽，请稍后再试。")
         return random.choice(codes), random.choice(ports)
@@ -111,21 +114,29 @@ class RoomBroker:
                 recent.popleft()
             if len(recent) >= 5:
                 raise BrokerError(429, "同一地址每分钟最多创建 5 个房间。")
-            if len(self.rooms) >= self.max_rooms:
+            if len(self.rooms) + len(self.pending) >= self.max_rooms:
                 raise BrokerError(503, "服务器房间已满，请稍后再试。")
             code, port = self._new_pair()
-            try:
-                self.command(["systemctl", "start", f"naturecalls-room@{port}"], check=True)
-                deadline = self.clock() + self.start_timeout
-                while self.clock() < deadline:
-                    if self.is_listening(port) and self.log_ready(port):
+            self.pending.add((code, port))
+        # Starting a process and waiting for readiness must not hold the broker lock:
+        # health and lookup remain responsive while systemd starts a room.
+        try:
+            self.command(["systemctl", "start", f"naturecalls-room@{port}"], check=True)
+            deadline = self.clock() + self.start_timeout
+            while self.clock() < deadline:
+                if self.is_listening(port) and self.log_ready(port):
+                    with self.lock:
+                        self.pending.discard((code, port))
                         self.rooms[code] = port
+                        recent = self.requests[client_ip]
                         recent.append(now)
                         self.save()
-                        return {"protocol": PROTOCOL, "code": code, "port": port}
-                    time.sleep(0.05)
-            except (OSError, subprocess.CalledProcessError):
-                pass
+                    return {"protocol": PROTOCOL, "code": code, "port": port}
+                time.sleep(0.05)
+        except (OSError, subprocess.CalledProcessError):
+            pass
+        with self.lock:
+            self.pending.discard((code, port))
             try:
                 self.command(["systemctl", "stop", f"naturecalls-room@{port}"], check=False)
             finally:
@@ -161,8 +172,11 @@ class RoomBroker:
     def _udp_listening(port):
         # ss is intentionally queried without a shell; it is only a readiness check.
         try:
-            result = subprocess.run(["ss", "-lun"], capture_output=True, text=True, check=False)
-            return bool(re.search(rf":{port}(?:\s|$)", result.stdout))
+            if shutil.which("ss"):
+                result = subprocess.run(["ss", "-lun"], capture_output=True, text=True, check=False)
+                return bool(re.search(rf":{port}(?:\s|$)", result.stdout))
+            result = subprocess.run(["lsof", "-nP", f"-iUDP:{port}"], capture_output=True, text=True, check=False)
+            return result.returncode == 0 and bool(result.stdout.strip())
         except OSError:
             return False
 
@@ -224,8 +238,21 @@ def main(argv=None):
     parser.add_argument("--port", type=int, default=8100)
     parser.add_argument("--max-rooms", type=int, default=12)
     parser.add_argument("--state", type=Path, default=Path("/var/lib/naturecalls-broker/rooms.json"))
+    parser.add_argument("--launcher", type=Path, help="test-only launcher replacing systemctl")
+    parser.add_argument("--log-dir", type=Path, help="test-only readiness logs, named <port>.log")
     args = parser.parse_args(argv)
-    broker = RoomBroker(args.state, args.max_rooms)
+    command = None
+    if args.launcher:
+        def command(argv, **kwargs):
+            return subprocess.run([str(args.launcher), *argv[1:]], **kwargs)
+    log_ready = None
+    if args.log_dir:
+        def log_ready(port):
+            try:
+                return f"Server listening on UDP {port}" in (args.log_dir / f"{port}.log").read_text()
+            except OSError:
+                return False
+    broker = RoomBroker(args.state, args.max_rooms, command=command, log_ready=log_ready)
     broker.restore()
     Handler.broker = broker
     httpd = ThreadingHTTPServer((args.bind, args.port), Handler)

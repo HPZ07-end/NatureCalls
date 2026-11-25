@@ -1,6 +1,8 @@
 import importlib.util
 import json
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -88,6 +90,29 @@ class BrokerTests(unittest.TestCase):
         self.broker.rooms = {100 + i: 8001 + i for i in range(99)}
         with self.assertRaisesRegex(broker_module.BrokerError, "耗尽"):
             self.broker.create("x")
+
+    def test_pending_reservations_do_not_block_lookup_or_collide(self):
+        ready = threading.Event()
+        self.broker.max_rooms = 2
+        self.broker.is_listening = lambda port: ready.is_set()
+        self.broker.log_ready = lambda port: ready.is_set()
+        results = []
+        threads = [threading.Thread(target=lambda ip: results.append(self.broker.create(ip)), args=(f"ip-{i}",))
+                   for i in range(2)]
+        for thread in threads:
+            thread.start()
+        for _ in range(100):
+            if len(self.broker.pending) == 2:
+                break
+            time.sleep(0.005)
+        self.assertEqual(self.broker.health()["rooms"], 0)
+        self.assertEqual(len(self.broker.pending), 2)
+        ready.set()
+        for thread in threads:
+            thread.join(2)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(len({item["code"] for item in results}), 2)
+        self.assertEqual(len({item["port"] for item in results}), 2)
 
 
 if __name__ == "__main__":

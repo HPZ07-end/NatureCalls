@@ -26,8 +26,19 @@ class DeployTests(unittest.TestCase):
         self.assertIn("Server listening on UDP $port", script)
         self.assertIn("ROLLED_BACK", script)
         self.assertIn("tail -n +4", script, "Keeps the new release plus three older ones.")
-        self.assertNotIn("install -m 644", script, "The service template is only installed when it changed.")
-        self.assertIn("install -m 644", deploy.remote_script("r", "/tmp/a", [8000], 3, service_changed=True))
+        self.assertIn("install -m 644 /tmp/naturecalls-room@.service", script)
+        self.assertIn("install -m 644 /tmp/naturecalls-broker.service", script)
+        self.assertIn("BROKER_FAILED: health check", script)
+        self.assertIn("systemctl restart naturecalls-broker.service || true", script)
+        self.assertIn("seq 1 10", script)
+
+    def test_dynamic_service_logs_to_journal_and_is_not_enabled(self):
+        service = (Path(__file__).parents[1] / "naturecalls-room@.service").read_text()
+        self.assertIn("-idle-exit 300 -logFile -", service)
+        self.assertIn("User=ubuntu", service)
+        self.assertIn("NoNewPrivileges=true", service)
+        self.assertIn("StandardOutput=journal", service)
+        self.assertNotIn("[Install]", service)
 
 
 if __name__ == "__main__":
