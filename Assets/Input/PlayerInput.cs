@@ -144,6 +144,7 @@ namespace NatureCalls.Input
         }
         public bool TryToilet()
         {
+            if (needs != null && needs.Vomiting) return false;
             movement.RefreshVentPosture();
             if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             var stall = StallDoor.Containing(movement);
@@ -288,6 +289,7 @@ namespace NatureCalls.Input
             if (movement.IsTraversing) return false;
             RefreshFocus();
             if (Focus == null) return false;
+            if (needs != null && needs.Vomiting && Focus is not StallDoor && Focus is not Toilet) return false;
             if (!Focus.Perform(Context())) return false;
             GetComponent<PlayerAppearance>()?.PlayReach();
             var avatar = GetComponent<Network.Avatar>();
@@ -297,6 +299,7 @@ namespace NatureCalls.Input
 
         public bool TryAction()
         {
+            if (needs != null && needs.Vomiting) return false;
             if (Unwiped)
             {
                 if (HeldItem is PaperRoll paper)

@@ -1,5 +1,7 @@
 # 实际开发状态
 
+2026-11-26 对抗身体分支：PlayerNeeds/NeedsRules 已加入 Bladder、Bowel、Composure、Endurance、Vomiting、Comfort 与移动限制接口；NeedsSync 已同步新状态。主流程联机/失控冲向马桶和完整视野射线扣除仍待合并验收。
+
 2026-11-25 服务器房间号与局域网自动发现（分支 `feat/server-room-codes`，尚未合入 dev）：broker（TCP 8100）分配随机三位房间号，按需启动 UDP 8001–8099 动态房间，空置 300 秒后房间自行退出；8000 常驻房间保留。局域网直连房间经 UDP 47777 广播，大厅自动列出，IP:端口直连与 Relay 保留。EditMode 41/41、PlayMode 42/43（1 个既有 Relay Ignored）、macOS 与 Linux Server 构建通过；本机 broker 生命周期、两客户端房间号加入、局域网列表点击加入通过。已部署到课程服务器：版本目录 `/opt/naturecalls/releases/9dd8172-20261125T165824Z-f3ed9a`，8000 与 broker active；从公网用两个 macOS 客户端经 UI 创建并以房间号 328 加入同一房间通过，离开后房间 300 秒自行退出（退出码 0）、房间号查询返回 404。记录 `Artifacts/20261125T172149Z-deploy-server/summary.json`、`Artifacts/20261125T172222Z-2730b3-room-e2e/`。未执行：真人跨公网联机、Windows 客户端、两台真实设备的局域网发现。
 
 2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器同日先更新到 dev `a58cf77`（#32），之后又部署了 `feat/server-room-codes` 的 `9dd8172`（见上一条）。

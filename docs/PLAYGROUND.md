@@ -139,6 +139,10 @@ Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance
 
 ## 验证状态与限制
 
+## 对抗身体规则（feat/versus-body）
+
+离线 Playground 中由 `PlayerNeeds` 驱动两条急迫值：`Bladder`、`Bowel`，`Urgency` 是两者最大值的兼容读数。UI 可读取 `Composure`、`InEndurance`、`EnduranceIntensity`、`Vomiting`、`VomitProgress`、`ComfortIntensity` 和 `ComfortBoostRemaining`；事件 `OnAccident`、`OnRelieved`、`OnVomit` 可用于统计与表现。移动限制通过 `IMovementEffectSource` 自动合并。网络模式由 `NeedsSync` 发布相同状态，极限忍耐只发布布尔值。
+
 实际日志及测试结果见 [M1 验收记录](records/m1-2026-10-20.md)，2026-10-30 居中镜头回归见 [开发记录](records/status-log.md)。本机通过与待验收项分别列出；直连不能证明 Relay 可用。
 
 原型以可调镜头验证为目标；马桶有一人占用和准度结算，但没有排队或冲水，不要把它当成正式如厕系统。Owner-authoritative 移动只用于 M1 响应速度，设施与需求结算以 IsServer 为准，兼容 Host 与专用服务器；Tidiness 尚未实现。没有 Host 迁移、完整大厅、玩家间推挤或正式动画。隔间外 C 原地如厕不保证有马桶构图；马桶 Anchor 是可复现的可见性测试位置。

@@ -10,6 +10,11 @@ namespace NatureCalls.Core
     public static class NeedsRules
     {
         public const float UrgencyMax = 100f;
+        public const float BladderFullSeconds = 70f, BowelFullSeconds = 90f;
+        public const float BladderPerSecond = UrgencyMax / BladderFullSeconds, BowelPerSecond = UrgencyMax / BowelFullSeconds;
+        public const float ComposureMax = 100f, ViewRadius = 8f, GroundMessRadius = 1f;
+        public const float EnduranceMinimumSeconds = 15f, EnduranceMaximumSeconds = 25f;
+        public const float ComfortBowelDelay = .3f, ComfortWindowSeconds = 60f;
         public const float UrgencyFullSeconds = 60f;
         public const float UrgencyPerSecond = UrgencyMax / UrgencyFullSeconds;
         /// <summary>Starting Urgency is drawn from [0, this) so players are not in step.</summary>
@@ -43,6 +48,15 @@ namespace NatureCalls.Core
         public static float PuddleDisgust(float distance, float seconds) => distance <= PuddleRadius ? PuddleDisgustPerSecond * Math.Max(0, seconds) : 0;
 
         public static float InitialUrgency(float random01) => Math.Clamp(random01, 0f, 1f) * InitialUrgencyMax;
+        public static float TickBladder(float value, float seconds, float profileScale = 1f, bool paused = false) => paused ? value : Math.Clamp(value + BladderPerSecond * Math.Max(0, seconds) * Math.Max(0, profileScale), 0, UrgencyMax);
+        public static float TickBowel(float value, float seconds, float matchScale = 1f, float profileScale = 1f, float comfort = 0, bool saboteur = false, bool paused = false, float earlyScale = 1f) => paused ? value : Math.Clamp(value + BowelPerSecond * Math.Max(0, seconds) * Math.Max(0, matchScale) * Math.Max(0, profileScale) * (1f - ComfortBowelDelay * Math.Clamp(comfort, 0, 1)) * (saboteur ? .5f : 1f) * Math.Max(0, earlyScale), 0, UrgencyMax);
+        public static float Highest(float bladder, float bowel) => Math.Max(bladder, bowel);
+        public static bool BlocksJump(float urgency) => urgency >= 40f;
+        public static bool BlocksRun(float urgency) => urgency >= 70f;
+        public static float MovementScale(float urgency) => BlocksRun(urgency) ? .8f : 1f;
+        public static float ViewNarrowing(float urgency) => Math.Clamp((urgency - 90f) / 10f, 0, 1);
+        public static float ComfortBowelScale(float comfort) => 1f - ComfortBowelDelay * Math.Clamp(comfort, 0, 1);
+        public static float EnduranceDuration(float random01, float profileBonus = 0, float comfort = 0) => EnduranceMinimumSeconds + Math.Clamp(random01, 0, 1) * (EnduranceMaximumSeconds - EnduranceMinimumSeconds) + Math.Max(0, profileBonus) + Math.Clamp(comfort, 0, 1) * 5f;
 
         public static float TickUrgency(float urgency, float deltaSeconds, bool toileting) =>
             toileting ? urgency : Math.Min(UrgencyMax, urgency + UrgencyPerSecond * Math.Max(0f, deltaSeconds));
