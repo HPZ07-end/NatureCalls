@@ -7,6 +7,7 @@ using System.Linq;
 using UnityEngine.Pool;
 using NatureCalls.Core;
 using NatureCalls.Facility;
+using NatureCalls.Network;
 
 namespace NatureCalls.Map
 {
@@ -51,12 +52,15 @@ namespace NatureCalls.Map
             }
             Match.StartOfflineRound();
             if (Match.Mode == MatchMode.Offline && OfflinePlayer != null)
+            {
+                RoleRegistry.Clear();
+                RoleRegistry.Set(OfflinePlayer, MatchDirector.ForceSaboteur || MatchDirector.CommandLineSaboteur ? PlayerRole.Saboteur : PlayerRole.Keeper);
                 OfflinePlayer.GetComponent<PlayerNeeds>()?.BeginRound(Random.value);
+            }
         }
         private void Update()
         {
             var needs = Match.Mode == MatchMode.Offline && OfflinePlayer != null ? OfflinePlayer.GetComponent<PlayerNeeds>() : null;
-            if (needs != null && needs.Failed) { Match.ReturnToDressingRoom(Match.FailureMessage("", NeedsRules.UrgencyFailed(needs.Urgency))); return; }
             Match.TickOfflineRound();
         }
 
@@ -65,29 +69,34 @@ namespace NatureCalls.Map
         private Toilet[] stableToilets = System.Array.Empty<Toilet>();
         public IReadOnlyList<Mess> Messes => messes;
         /// <summary>Online: the server-owned mess list (set by Network/Facilities while spawned). Offline: null, messes are local.</summary>
-        public static System.Func<MessKind, Vector3, int, int> MessAuthority;
+        public static System.Func<MessKind, Vector3, int, Movement, int> MessAuthority;
         public void Drop(Vector3 position) => AddMess(MessKind.Dropping, position);
-        public int AddMess(MessKind kind, Vector3 position, int toiletIndex = -1)
+        public int AddMess(MessKind kind, Vector3 position, int toiletIndex = -1) => AddMess(kind, position, toiletIndex, OfflinePlayer);
+        public int AddMess(MessKind kind, Vector3 position, int toiletIndex, Movement source)
         {
             if (kind == MessKind.None) return -1;
             if (kind == MessKind.DirtyToilet && messes.Any(m => m != null && m.Kind == kind && m.ToiletIndex == toiletIndex)) return -1;
-            if (MessAuthority != null) return MessAuthority(kind, position, toiletIndex);
+            if (MessAuthority != null) return MessAuthority(kind, position, toiletIndex, source);
             int index = messes.Count;
             var mess = droppingPool.Get().GetComponent<Mess>();
-            mess.Configure(index, kind, position, toiletIndex);
+            mess.Configure(index, kind, position, toiletIndex, RoleRegistry.IsSaboteur(source));
             if (kind == MessKind.Backflow && toiletIndex >= 0 && toiletIndex < stableToilets.Length) stableToilets[toiletIndex].SetBackflowShared(true);
             messes.Add(mess);
+            MatchStats.Count(MatchStatKind.MessProduced);
+            if (kind == MessKind.Accident) MatchStats.Count(MatchStatKind.Accident);
+            if (kind == MessKind.Vomit) MatchStats.Count(MatchStatKind.Vomit);
+            if (kind == MessKind.Backflow) MatchStats.Count(MatchStatKind.Backflow);
             return index;
         }
         public bool IsDirty(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.DirtyToilet && m.ToiletIndex == toiletIndex);
         public bool IsBackflow(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.Backflow && m.ToiletIndex == toiletIndex);
         /// <summary>Shows the shared mess at <paramref name="index"/> (MessKind.None removes it). Called by Network/Facilities for every list entry.</summary>
-        public void ShowMess(int index, MessKind kind, Vector3 position, int toiletIndex)
+        public void ShowMess(int index, MessKind kind, Vector3 position, int toiletIndex, bool saboteurSource = false)
         {
             while (messes.Count <= index) messes.Add(null);
             if (kind == MessKind.None) { RemoveMess(index); return; }
             if (messes[index] == null) messes[index] = droppingPool.Get().GetComponent<Mess>();
-            messes[index].Configure(index, kind, position, toiletIndex);
+            messes[index].Configure(index, kind, position, toiletIndex, saboteurSource);
             if (kind == MessKind.Backflow && toiletIndex >= 0 && toiletIndex < stableToilets.Length) stableToilets[toiletIndex].SetBackflowShared(true);
         }
         public void RemoveDropping(int index) => RemoveMess(index);

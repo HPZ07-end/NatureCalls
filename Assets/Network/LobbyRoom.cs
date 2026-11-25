@@ -39,6 +39,13 @@ namespace NatureCalls.Network
         public NetworkVariable<LobbyPhase> Phase = new(LobbyPhase.Waiting);
         // Server time at which the current round ends; -1 while no round is running.
         public NetworkVariable<double> RoundEndTime = new(-1);
+        public NetworkVariable<MatchPhase> VersusPhase = new(MatchPhase.None);
+        public NetworkVariable<double> VersusElapsed = new(0);
+        public NetworkVariable<float> VersusTidiness = new(100);
+        public NetworkList<MatchRoleEntry> Roles;
+        public NetworkVariable<int> EventKind = new(-1);
+        public NetworkVariable<int> EventSerial = new(0);
+        private double nextRandomEvent = -1;
         public const string RoundOverMessage = "时间到，本局结束，回到房间。";
         private readonly HashSet<ulong> loaded = new();
         private bool spawnedPlayers;
@@ -49,7 +56,7 @@ namespace NatureCalls.Network
         public ulong LeaderId => Members.Count > 0 ? Members[0].ClientId : ulong.MaxValue;
         public ulong LocalClientId => NetworkManager.LocalClientId;
 
-        private void Awake() { Members = new NetworkList<LobbyMember>(); }
+        private void Awake() { Members = new NetworkList<LobbyMember>(); Roles = new NetworkList<MatchRoleEntry>(); }
 
         public override void OnNetworkSpawn()
         {
@@ -221,28 +228,47 @@ namespace NatureCalls.Network
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(member.ClientId, true);
             }
             // The global round clock and everyone's needs start once everyone is on the map.
-            RoundEndTime.Value = NetworkManager.ServerTime.Time + Match.RoundSeconds;
+            RoundEndTime.Value = NetworkManager.ServerTime.Time + MatchRules.RevealSeconds + Match.RoundSeconds + MatchRules.CleanupSeconds;
+            VersusPhase.Value = MatchPhase.Reveal; VersusElapsed.Value = 0; VersusTidiness.Value = 100; nextRandomEvent = NetworkManager.ServerTime.Time + UnityEngine.Random.Range(MatchRules.RandomEventMinSeconds, MatchRules.RandomEventMaxSeconds);
+            Roles.Clear();
+            var saboteur = (MatchDirector.ForceSaboteur || MatchDirector.CommandLineSaboteur) ? Members[0].ClientId : Members[UnityEngine.Random.Range(0, Members.Count)].ClientId;
+            foreach (var member in Members) Roles.Add(new MatchRoleEntry { ClientId = member.ClientId, Role = member.ClientId == saboteur ? PlayerRole.Saboteur : PlayerRole.Keeper });
             foreach (var player in FindObjectsByType<NeedsSync>(FindObjectsSortMode.None)) player.BeginNeeds();
         }
 
         private void Update()
         {
-            if (!IsServer || Phase.Value != LobbyPhase.InGame || RoundEndTime.Value < 0) return;
-            // Any player's Urgency or Disgust at its threshold loses the round for everyone.
-            foreach (var player in FindObjectsByType<NeedsSync>(FindObjectsSortMode.None))
-            {
-                if (!player.IsSpawned || !player.NeedsFailed) continue;
-                var who = TryGetMember(player.OwnerClientId, out var member) ? $"玩家 {member.Slot + 1}" : "一名玩家";
-                EndRound(Match.FailureMessage(who, player.UrgencyFailed));
-                return;
-            }
-            if (RoundClock.IsOver(RoundEndTime.Value, NetworkManager.ServerTime.Time)) EndRound(RoundOverMessage);
+            if (Phase.Value != LobbyPhase.InGame) return;
+            ApplyPublishedMatch();
+            if (!IsServer || RoundEndTime.Value < 0) return;
+            var now = NetworkManager.ServerTime.Time;
+            var elapsed = now - (RoundEndTime.Value - (MatchRules.RevealSeconds + Match.RoundSeconds + MatchRules.CleanupSeconds));
+            VersusElapsed.Value = System.Math.Max(0, elapsed - MatchRules.RevealSeconds);
+            if (VersusPhase.Value == MatchPhase.Reveal && elapsed >= MatchRules.RevealSeconds) VersusPhase.Value = MatchPhase.Playing;
+            if (nextRandomEvent > 0 && now >= nextRandomEvent) { PublishRandomEvent(); nextRandomEvent = now + UnityEngine.Random.Range(MatchRules.RandomEventMinSeconds, MatchRules.RandomEventMaxSeconds); }
+            var dirt = NatureCalls.Facility.DirtField.Total();
+            VersusTidiness.Value = MatchRules.Tidiness(dirt);
+            if (VersusPhase.Value == MatchPhase.Playing && VersusTidiness.Value <= 0) { EndRound("干净值归零，捣蛋者获胜。"); return; }
+            if (VersusPhase.Value != MatchPhase.Ended && RoundClock.IsOver(RoundEndTime.Value, now)) { VersusPhase.Value = MatchPhase.Ended; EndRound("收尾完成，保洁队获胜。"); }
+        }
+
+        private void PublishRandomEvent()
+        {
+            var kind = (RandomEventKind)UnityEngine.Random.Range(0, 5);
+            EventKind.Value = (int)kind; EventSerial.Value++;
+        }
+
+        private void ApplyPublishedMatch()
+        {
+            MatchContext.Phase = VersusPhase.Value; MatchContext.Elapsed = VersusElapsed.Value; MatchContext.Tidiness = VersusTidiness.Value; MatchContext.Schedule = MatchRules.Schedule(Match.RoundSeconds);
+            foreach (var role in Roles) MatchDirector.ApplyRole(role.ClientId, role.Role);
         }
 
         // The round is over: everyone goes back to the DressingRoom and stays in the room for another round.
         private void EndRound(string message)
         {
             RoundEndTime.Value = -1;
+            VersusPhase.Value = MatchPhase.Ended;
             Phase.Value = LobbyPhase.Waiting;
             for (int index = 0; index < Members.Count; index++)
             {
