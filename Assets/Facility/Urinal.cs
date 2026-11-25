@@ -4,7 +4,7 @@ using NatureCalls.Core;
 using UnityEngine;
 namespace NatureCalls.Facility
 {
-    public sealed class Urinal : MonoBehaviour, ISharedFacilityState
+    public sealed class Urinal : MonoBehaviour, ISharedFacilityState, IWaterFixture
     {
         public Vector3 Center;
         public Vector3 Front;
@@ -13,6 +13,9 @@ namespace NatureCalls.Facility
         public float TargetRadius => NeedsRules.TargetRadius;
         public Movement Occupant { get; private set; }
         public bool IsOccupied => Occupant != null;
+        [SerializeField] private Pipe pipe;
+        public Pipe ConnectedPipe => pipe;
+        public void SetPipe(Pipe value) => pipe = value;
         public int SharedEntryCount => 1;
         public SharedFacilityValue ReadShared(int index)
         {
@@ -30,6 +33,7 @@ namespace NatureCalls.Facility
         }
         public void ApplySharedOccupant(Movement player) => Occupant = player;
         public void Release(Movement player) { if (Occupant == player) Occupant = null; }
+        public void Backflow() => MessSinkRegistry.Current?.AddMess(Core.MessKind.Puddle, FrontPosition);
         private static Movement FindMovement(ulong owner)
         {
             if (owner == 0) return null;

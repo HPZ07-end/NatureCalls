@@ -119,13 +119,13 @@ namespace NatureCalls.Tests
             var focusInfo = "focus " + (input.Focus?.Target != null ? input.Focus.Target.name : "none") + " posture " + player.GetComponent<Posture>().State + " seat " + (player.Seat != null) + " crawl " + player.IsCrawling + " aiming " + player.Aiming + " pitch " + player.Pitch.ToString("F1");
             Assert.That(input.TryInteract(), Is.True, focusInfo); Assert.That(input.Unwiped, Is.True); Assert.That(needs.Disgust, Is.Zero);
             Assert.That(input.HeldItem, Is.SameAs(paper), focusInfo);
-            for (int i = 2; i >= 0; i--)
+            for (int i = 5; i >= 3; i--)
             {
-                needs.MarkUnwiped(toilet.GetComponentInParent<StallDoor>());
+                if (i != 5) PlayerInput.ApplyResult(player, toilet, null, 1, toilet.TargetCenter, PlayerInput.ToiletIndex(toilet));
                 Assert.That(input.TryAction(), Is.True); Assert.That(input.Unwiped, Is.False);
                 Assert.That(paper.RemainingUses, Is.EqualTo(i));
             }
-            Assert.That(paper.gameObject.activeSelf, Is.False); Assert.That(input.HeldItem, Is.Null);
+            Assert.That(paper.gameObject.activeSelf, Is.True); Assert.That(input.HeldItem, Is.SameAs(paper));
         }
         [UnityTest] public IEnumerator UnwipedDoorAndWalkingOutChargeOnceEach()
         {
@@ -136,6 +136,99 @@ namespace NatureCalls.Tests
             Place(world.Spawns[0].position, Vector3.forward);
             yield return null; Assert.That(needs.Disgust, Is.EqualTo(15), "Walking out unwiped charges once."); Assert.That(input.Unwiped, Is.False);
             yield return null; Assert.That(needs.Disgust, Is.EqualTo(15));
+        }
+
+        [Test] public void BackflowDefecationBecomesOutsideMessWithoutPaper()
+        {
+            var toilet = Align();
+            var pipe = toilet.ConnectedPipe;
+            Assert.That(pipe, Is.Not.Null);
+            toilet.SetBackflowShared(true);
+            var before = pipe.Accumulation;
+            var landing = toilet.TargetCenter + Vector3.forward;
+            var beforeDroppingCount = world.Messes.Count(m => m != null && m.Kind == MessKind.Dropping);
+            PlayerInput.ApplyResult(player, toilet, null, 1, landing, PlayerInput.ToiletIndex(toilet));
+            Assert.That(needs.Unwiped, Is.False);
+            Assert.That(needs.Disgust, Is.EqualTo(NeedsRules.OutsideStallDisgust));
+            Assert.That(pipe.Accumulation, Is.EqualTo(before));
+            var dropping = world.Messes.Where(m => m != null && m.Kind == MessKind.Dropping).ToArray();
+            Assert.That(dropping, Has.Length.EqualTo(beforeDroppingCount + 1));
+            Assert.That(dropping.Single().transform.position, Is.EqualTo(landing + Vector3.up * .11f));
+        }
+
+        [Test] public void PaperShortageKeepsUnwipedState()
+        {
+            var toilet = Align(); Score(5, 5);
+            var paper = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).First();
+            paper.ApplyUses(2); needs.SetPaperRequired(3);
+            paper.transform.position = player.transform.position + player.transform.forward * .7f + Vector3.up * .6f; Physics.SyncTransforms();
+            TestAim.AimAt(player, paper); input.RefreshFocus(); Assert.That(input.TryInteract(), Is.True);
+            Assert.That(input.TryAction(), Is.True);
+            Assert.That(paper.RemainingUses, Is.Zero); Assert.That(input.Unwiped, Is.True); Assert.That(needs.PaperRequired, Is.EqualTo(1));
+        }
+
+        [Test] public void ThreeDefecationResultsSetPaperRequiredAndConsumeExactUnits()
+        {
+            var toilet = Object.FindFirstObjectByType<Toilet>();
+            var paper = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).First();
+            paper.transform.position = player.transform.position;
+            Assert.That(paper.Pickup(player), Is.True);
+            var index = PlayerInput.ToiletIndex(toilet);
+            PlayerInput.ApplyResult(player, toilet, null, 1f, toilet.TargetCenter, index);
+            Assert.That(needs.PaperRequired, Is.EqualTo(1)); Assert.That(input.TryAction(), Is.True); Assert.That(paper.RemainingUses, Is.EqualTo(5));
+            PlayerInput.ApplyResult(player, toilet, null, .5f, toilet.TargetCenter, index);
+            Assert.That(needs.PaperRequired, Is.EqualTo(2)); Assert.That(input.TryAction(), Is.True); Assert.That(paper.RemainingUses, Is.EqualTo(3));
+            PlayerInput.ApplyResult(player, toilet, null, 0f, toilet.TargetCenter + Vector3.forward, index);
+            Assert.That(needs.PaperRequired, Is.EqualTo(3)); Assert.That(input.TryAction(), Is.True); Assert.That(paper.RemainingUses, Is.EqualTo(0));
+        }
+
+        [Test] public void HandWipeThenSinkClearsHandsDirty()
+        {
+            var sink = Object.FindFirstObjectByType<Sink>(); Assert.That(sink, Is.Not.Null);
+            needs.MarkUnwiped(Object.FindFirstObjectByType<Toilet>().GetComponentInParent<StallDoor>()); needs.SetPaperRequired(1); needs.WipeByHand();
+            Assert.That(needs.HandsDirty, Is.True);
+            Place(sink.transform.position - sink.transform.forward * .6f, sink.transform.forward); TestAim.AimAt(player, sink); input.RefreshFocus();
+            Assert.That(input.TryInteract(), Is.True); Assert.That(needs.HandsDirty, Is.False);
+        }
+
+        [Test] public void BlockedPipeFlushBackflowsAtThatToilet()
+        {
+            var toilet = Object.FindFirstObjectByType<Toilet>();
+            var pipe = toilet.ConnectedPipe; Assert.That(pipe, Is.Not.Null);
+            pipe.AddPaper(20); Assert.That(pipe.IsBlocked, Is.True);
+            Place(toilet.Target.position - toilet.transform.forward * .6f, toilet.transform.forward);
+            TestAim.AimAt(player, toilet.Target); input.RefreshFocus();
+            Assert.That(input.TryInteract(), Is.True);
+            Assert.That(toilet.IsBackflow, Is.True);
+            var toiletIndex = PlayerInput.ToiletIndex(toilet);
+            Assert.That(world.Messes.Count(m => m != null && m.Kind == MessKind.Backflow && m.ToiletIndex == toiletIndex), Is.EqualTo(1));
+        }
+
+        [Test] public void MopClearsBackflowAndToiletCanAddStoolAfterward()
+        {
+            var toilet = Object.FindFirstObjectByType<Toilet>(); var pipe = toilet.ConnectedPipe; Assert.That(pipe, Is.Not.Null);
+            pipe.AddPaper(20); pipe.TriggerBackflow(toilet);
+            var toiletIndex = PlayerInput.ToiletIndex(toilet);
+            var mess = world.Messes.Single(m => m != null && m.Kind == MessKind.Backflow && m.ToiletIndex == toiletIndex);
+            var box = Object.FindFirstObjectByType<Toolbox>(); Place(box.transform.position, Vector3.forward); Assert.That(box.Interact(player), Is.True);
+            Place(mess.transform.position - Vector3.forward * .5f, Vector3.forward);
+            Assert.That(input.BeginCleaning(mess), Is.True); input.ContinueCleaning(true, NeedsRules.CleaningSeconds);
+            Assert.That(toilet.IsBackflow, Is.False); Assert.That(world.Messes.Count(m => m != null && m.Kind == MessKind.Backflow && m.ToiletIndex == toiletIndex), Is.Zero);
+            var before = pipe.Accumulation;
+            PlayerInput.ApplyResult(player, toilet, null, 1f, toilet.TargetCenter, toiletIndex);
+            Assert.That(pipe.Accumulation, Is.EqualTo(before + PlumbingRules.StoolContribution));
+            Assert.That(needs.PaperRequired, Is.EqualTo(1));
+        }
+
+        [Test] public void SeatedPlayerCanCloseAndLockDoorWhileFlushStaysOutOfFocus()
+        {
+            var toilet = Object.FindFirstObjectByType<Toilet>(); var stall = toilet.GetComponentInParent<StallDoor>();
+            stall.ApplySharedState(StallDoorState.Open);
+            Align();
+            TestAim.AimAt(player, stall); input.RefreshFocus(); Assert.That(input.Focus, Is.SameAs(stall));
+            Assert.That(input.TryInteract(), Is.True); Assert.That(stall.State, Is.EqualTo(StallDoorState.Closed));
+            TestAim.AimAt(player, stall); input.RefreshFocus(); Assert.That(input.Focus, Is.SameAs(stall));
+            Assert.That(input.TryInteract(), Is.True); Assert.That(stall.State, Is.EqualTo(StallDoorState.Locked));
         }
         [Test] public void ToolboxCapacityThrowPickupAndReturn()
         {
@@ -218,6 +311,22 @@ namespace NatureCalls.Tests
             Assert.That(world.DroppingCount, Is.Zero); Assert.That(needs.Disgust, Is.EqualTo(5));
             Assert.That(sync.RequestToolbox(box), Is.True); yield return null;
             Assert.That(Enumerable.Range(0, Facilities.Current.SharedItems.Count).Any(i => Facilities.Current.SharedItems[i].Mode == ItemSnapshot.Stored), Is.True);
+        }
+
+        [UnityTest] public IEnumerator HostPublishesAndAppliesPipeAccumulation()
+        {
+            var session = Object.FindFirstObjectByType<Session>(); Assert.That(session.StartDirect(true), Is.True);
+            float deadline = Time.time + 5;
+            while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
+            var pipe = Object.FindFirstObjectByType<Pipe>(); Assert.That(pipe, Is.Not.Null);
+            pipe.AddPaper(7); var expected = pipe.Accumulation;
+            Facilities.Current.PublishShared(); yield return null;
+            Assert.That(Facilities.Current.TryGetShared(pipe, 0, out var entry), Is.True);
+            Assert.That(entry.State, Is.EqualTo(expected));
+            var replica = new GameObject("Pipe shared replica").AddComponent<Pipe>();
+            replica.ApplyShared(0, new SharedFacilityValue(entry.State));
+            Assert.That(replica.Accumulation, Is.EqualTo(expected));
+            Object.Destroy(replica.gameObject);
         }
     }
 }

@@ -241,3 +241,6 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 分支 `feat/map-lobby-integration`，基线 `8d3800759478f461b887912093b989d3e262dabf` 加本次未提交工作树，Windows / Unity 6000.3.26f1。MapLayoutPrototype 复用原框架接入选图、角色、第一人称、出生点、HUD 与设施。首次 PlayMode 的相机总数断言失败后按用户要求暂停；获明确继续授权后改为只统计屏幕输出相机并验证其身份与本地目标，保留镜面相机。
 
 最终 PlayMode 32 Passed + 1 Relay Ignored、EditMode 30/30、Windows Development 构建及新地图服务器＋双客户端本机 UDP 全部通过，Python 31/31、仓库检查通过。详细命令、Artifacts 和 Semantic Diff 见 [本次记录](map-lobby-integration-2026-11-16.md)。未执行公网部署、Relay、跨设备或人工手感验收。
+
+2026-11-25 一层装置第一批：加入 Pipe、Sink、Toilet 冲水入口、纸量规则与 CharacterProfile 骨架；堵塞/倒灌数值均标注暂定，待用户确认。
+2026-11-26 回归修复：冲水目标改为独立把手目标并避让坐下玩家；Facility 通过 IMessSink 注册点产生污物；Pipe 权威和纸量同步边界修正；Playground/Map2 完成 Unity API 场景接线。
