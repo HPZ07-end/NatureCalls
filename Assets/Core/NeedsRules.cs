@@ -15,6 +15,8 @@ namespace NatureCalls.Core
         public const float ComposureMax = 100f, ViewRadius = 8f, GroundMessRadius = 1f;
         public const float EnduranceMinimumSeconds = 15f, EnduranceMaximumSeconds = 25f;
         public const float ComfortBowelDelay = .3f, ComfortWindowSeconds = 60f;
+        public const float VisionInterval = .25f, VisionRadius = 8f, VisionRate = 1f, VisionCap = 4f, GroundComposureRate = 2f;
+        public const float LossOfControlBase = .3f, LossOfControlTimeout = 8f, LossOfControlInputWeight = .3f;
         public const float UrgencyFullSeconds = 60f;
         public const float UrgencyPerSecond = UrgencyMax / UrgencyFullSeconds;
         /// <summary>Starting Urgency is drawn from [0, this) so players are not in step.</summary>
@@ -57,6 +59,9 @@ namespace NatureCalls.Core
         public static float ViewNarrowing(float urgency) => Math.Clamp((urgency - 90f) / 10f, 0, 1);
         public static float ComfortBowelScale(float comfort) => 1f - ComfortBowelDelay * Math.Clamp(comfort, 0, 1);
         public static float EnduranceDuration(float random01, float profileBonus = 0, float comfort = 0) => EnduranceMinimumSeconds + Math.Clamp(random01, 0, 1) * (EnduranceMaximumSeconds - EnduranceMinimumSeconds) + Math.Max(0, profileBonus) + Math.Clamp(comfort, 0, 1) * 5f;
+        public static float VisionComposureLoss(float totalWeight, float seconds, bool habituated) => Math.Min(VisionCap, Math.Max(0, totalWeight) * VisionRate * Math.Max(0, seconds) * (habituated ? .5f : 1f));
+        public static float LossOfControlProbability(float distanceFactor, float control) => Math.Clamp(LossOfControlBase + Math.Max(0, distanceFactor) + (1f - Math.Clamp(control, 0, 1)), 0, 1);
+        public static int PaperRequiredForSaboteur(MessKind result, bool saboteur) => saboteur ? Math.Max(1, (PaperRequired(result) + 1) / 2) : PaperRequired(result);
 
         public static float TickUrgency(float urgency, float deltaSeconds, bool toileting) =>
             toileting ? urgency : Math.Min(UrgencyMax, urgency + UrgencyPerSecond * Math.Max(0f, deltaSeconds));

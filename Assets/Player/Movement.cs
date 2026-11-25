@@ -20,6 +20,8 @@ namespace NatureCalls.Player
         public bool Airborne { get; private set; }
         public bool Aiming { get; set; }
         public bool Immobile { get; set; }
+        public float LastInputMagnitude { get; private set; }
+        public Vector2 LastMoveInput { get; private set; }
         public bool IsTraversing { get; private set; }
         public bool IsCrawling => posture.IsCrawling;
         private const float CrawlingHeight = .85f;
@@ -104,7 +106,9 @@ namespace NatureCalls.Player
         public void Move(Vector2 direction, float deltaTime)
         {
             if (!Controlled || !controller.enabled || IsTraversing) return;
+            LastMoveInput = direction; LastInputMagnitude = direction.magnitude;
             RefreshVentPosture();
+            if (MovementEffectRegistry.ForcedInput(this, ref direction)) { LastMoveInput = direction; LastInputMagnitude = direction.magnitude; }
             var startPosition = transform.position;
             var effect = MovementEffectRegistry.Combine(this);
             var movement = (posture.IsSquatting || Immobile) ? Vector3.zero : transform.TransformDirection(new Vector3(direction.x, 0, direction.y));

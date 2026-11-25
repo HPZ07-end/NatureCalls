@@ -20,6 +20,8 @@ namespace NatureCalls.Network
         public NetworkVariable<bool> SharedVomiting = new(false);
         public NetworkVariable<float> SharedVomitProgress = new(0);
         public NetworkVariable<float> SharedComfortBoost = new(0);
+        public NetworkVariable<float> SharedComfort = new(0);
+        public NetworkVariable<bool> SharedOutOfControl = new(false);
         public NetworkVariable<float> SharedDisgust = new(0);
         public NetworkVariable<bool> SharedUnwiped = new(false);
         public NetworkVariable<bool> SharedHandsDirty = new(false);
@@ -50,7 +52,7 @@ namespace NatureCalls.Network
             SharedHandsDirty.Value = needs.HandsDirty;
             SharedPaperRequired.Value = needs.PaperRequired;
             SharedBladder.Value = needs.Bladder; SharedBowel.Value = needs.Bowel; SharedComposure.Value = needs.Composure;
-            SharedEndurance.Value = needs.InEndurance; SharedVomiting.Value = needs.Vomiting; SharedVomitProgress.Value = needs.VomitProgress; SharedComfortBoost.Value = needs.ComfortBoostRemaining;
+            SharedEndurance.Value = needs.InEndurance; SharedVomiting.Value = needs.Vomiting; SharedVomitProgress.Value = needs.VomitProgress; SharedComfortBoost.Value = needs.ComfortBoostRemaining; SharedComfort.Value = needs.Comfort; SharedOutOfControl.Value = needs.IsOutOfControl;
             if (Mathf.Abs(SharedUrgency.Value - needs.Urgency) > .05f) SharedUrgency.Value = needs.Urgency;
             if (Mathf.Abs(SharedDisgust.Value - needs.Disgust) > .05f) SharedDisgust.Value = needs.Disgust;
         }
@@ -58,7 +60,7 @@ namespace NatureCalls.Network
         private void Update()
         {
             if (!IsSpawned || needs == null) return;
-            if (!IsServer) { needs.ApplyShared(SharedUrgency.Value, SharedDisgust.Value, SharedUnwiped.Value, SharedHandsDirty.Value, SharedPaperRequired.Value); needs.ApplyVersusShared(SharedBladder.Value, SharedBowel.Value, SharedComposure.Value, SharedEndurance.Value, SharedVomiting.Value, SharedVomitProgress.Value, SharedComfortBoost.Value); }
+            if (!IsServer) { needs.ApplyShared(SharedUrgency.Value, SharedDisgust.Value, SharedUnwiped.Value, SharedHandsDirty.Value, SharedPaperRequired.Value); needs.ApplyVersusShared(SharedBladder.Value, SharedBowel.Value, SharedComposure.Value, SharedEndurance.Value, SharedVomiting.Value, SharedVomitProgress.Value, SharedComfortBoost.Value, SharedComfort.Value, SharedOutOfControl.Value); }
             else if (Time.time >= nextNeedsUpdate) { nextNeedsUpdate = Time.time + .2f; PublishNeeds(); }
         }
     }
