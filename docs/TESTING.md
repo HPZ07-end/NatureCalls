@@ -54,6 +54,24 @@ python3 -m unittest discover -s scripts/tests -v
 
 ## 双客户端与手工回归
 
+### 房间号双客户端与 broker 生命周期
+
+macOS 构建完成后，可在本机用假的 launcher 替代 `systemctl`，启动真实专用服务器进程；leader 通过 `LobbyView.CodeInput` 的真实 UI 路径创建房间，follower 通过同一路径输入三位房间号加入：
+
+```sh
+python3 scripts/room_e2e.py Builds/macOS/<build-id>/NatureCalls.app --broker 127.0.0.1:18100 --local
+```
+
+该探针使用 `-server -port <动态端口> -idle-exit 20 -logFile <日志>`，断言两个客户端进入同一房间、成员数为 2、领队顺序、外观和双方可见玩家，双方离开后轮询房间号直到 404。它不连接课程服务器。部署后可使用同一脚本但省略 `--local`，例如 `--broker 49.233.132.244:8100`；线上房间空置 300 秒才关闭，远程模式默认等待 360 秒（`--close-timeout` 可调）。
+
+局域网列表点击探针：
+
+```sh
+python3 scripts/room_e2e.py Builds/macOS/<build-id>/NatureCalls.app --broker 127.0.0.1:18101 --lan
+```
+
+该模式启动直连 PreferLan Host，等待 `RefreshLanRooms` 产生可点击按钮并调用按钮事件加入。端口 47777 在 macOS 回环无法收到时必须保留失败日志，不能改成手动 IP 加入冒充通过。
+
 构建后运行（路径以当次输出为准）：
 
 ```sh

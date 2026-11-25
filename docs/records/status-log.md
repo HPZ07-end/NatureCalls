@@ -250,5 +250,15 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 - SSH 只读复核：`readlink /opt/naturecalls/current` → `releases/a58cf77-20261125T092630Z-ff2725`；`naturecalls@8000` active，NRestarts=0，MainPID 3501883；`ss -lun` 显示 `0.0.0.0:8000` 正在监听；journal 中有 `Server listening on UDP 8000.`（17:51:01 CST）。
 - 未执行：跨公网的真人联机验收、Windows 客户端连接。登录只用 SSH 密钥；没有改动 SSH、防火墙或系统配置。
 
+## 2026-11-25 服务器房间号与局域网自动发现部署
+
+- 分支 `feat/server-room-codes`，部署提交 `9dd8172`（实现 `69fc627`、`45bd0bb`、`de04c88`，Glossary `9dd8172`）。用户在本会话批准：开放 8000–8100，房间号联机，按需启动、空闲关闭，随机不重复三位房间号，局域网自动发现并保留 IP 直连。
+- 端口用途：UDP 8000 常驻房间；UDP 8001–8099 动态房间（`naturecalls-room@.service`，`-idle-exit 300`）；TCP 8100 broker（`naturecalls-broker.service`，`scripts/room_broker.py`，最多 12 个动态房间）；UDP 47777 局域网信标。云防火墙由用户放行。
+- 本机验证（Codex 执行，Claude 复核 JSON 报告）：Python 41 项、`check.py --require-generated`、EditMode 41/41、PlayMode 42 Passed + 1 Relay Ignored、build-macos、build-server 通过；`room_e2e.py --local` 通过（`Artifacts/20261125T160347Z-8f7f9a-room-e2e/`）；`room_e2e.py --lan` 通过（`Artifacts/20261125T155746Z-99dc65-room-e2e/`，同机两实例）。
+- `python3 scripts/deploy_server.py`：通过，`ROOM_OK 8000`，`DEPLOYED 9dd8172-20261125T165824Z-f3ed9a`，未回滚；首次 broker 健康检查连接被拒，重试后通过。记录 `Artifacts/20261125T172149Z-deploy-server/summary.json`。
+- SSH 只读复核：`current` → `releases/9dd8172-20261125T165824Z-f3ed9a`，`naturecalls@8000` 与 `naturecalls-broker` active，broker NRestarts=0。公网 `GET http://49.233.132.244:8100/health` 正常。
+- 公网端到端 `room_e2e.py --broker 49.233.132.244:8100`：两个客户端经 UI 创建并以房间号 328 加入（端口 8036），成员 2、外观同步、双方可见，均通过。脚本原先只等 60 秒，所以报“房间号未移除”；后改为远程默认等待 360 秒（`--close-timeout`）。另外等待确认：最后成员离开约 300 秒后 `naturecalls-room@8036` 记录 `No clients connected for the configured idle period; exiting.`，Result=success、退出码 0，房间号查询返回 404，broker rooms=0。Artifacts `20261125T172222Z-2730b3-room-e2e/`。
+- 未执行：真人跨公网联机、Windows 客户端、两台真实设备上的局域网发现。注意：回滚到不含 broker 的旧版本时 broker 无法重启，8000 房间不受影响。
+
 2026-11-25 一层装置第一批：加入 Pipe、Sink、Toilet 冲水入口、纸量规则与 CharacterProfile 骨架；堵塞/倒灌数值均标注暂定，待用户确认。
 2026-11-26 回归修复：冲水目标改为独立把手目标并避让坐下玩家；Facility 通过 IMessSink 注册点产生污物；Pipe 权威和纸量同步边界修正；Playground/Map2 完成 Unity API 场景接线。

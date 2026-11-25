@@ -127,3 +127,5 @@ MonoBehaviour:
   EnvironmentName: production
   MaxPlayers: 4
   Port: 7777
+  BrokerHost: 49.233.132.244
+  BrokerPort: 8100

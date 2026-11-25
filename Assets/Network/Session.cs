@@ -12,6 +12,7 @@ using Unity.Services.Core.Environments;
 using Unity.Services.Multiplayer;
 using NatureCalls.Map;
 using UnityEngine;
+using UnityEngine.Networking;
 using PlayerInput = NatureCalls.Input.PlayerInput;
 
 namespace NatureCalls.Network
@@ -31,6 +32,10 @@ namespace NatureCalls.Network
         public string EnvironmentName = "production";
         [Range(2, 4)] public int MaxPlayers = 4;
         public ushort Port = 7777;
+        [Header("Room broker")]
+        public string BrokerHost = "49.233.132.244";
+        public ushort BrokerPort = 8100;
+        public int ServerRoomCode { get; private set; }
         public string Status { get; private set; } = "Offline practice / Cloud not connected";
         public bool Busy { get; private set; }
         public bool Active => session != null || Manager.IsListening || Manager.ShutdownInProgress;
@@ -41,6 +46,9 @@ namespace NatureCalls.Network
         private ISession session;
         private readonly Dictionary<ulong, int> slots = new();
         private bool destroyed;
+        private IdleExitTimer idleExit;
+        private bool idleExitRequested;
+        private LanBeaconBroadcaster beacon;
 
         private void Awake()
         {
@@ -51,6 +59,7 @@ namespace NatureCalls.Network
                 return;
             }
             Instance = this;
+            ApplyBrokerArgument(Environment.GetCommandLineArgs());
             Manager.ConnectionApprovalCallback = Approve;
             Manager.OnServerStarted += ServerStarted;
             Manager.OnClientConnectedCallback += Connected;
@@ -64,6 +73,7 @@ namespace NatureCalls.Network
             Application.targetFrameRate = 30;
             QualitySettings.vSyncCount = 0;
             var args = Environment.GetCommandLineArgs();
+            ApplyBrokerArgument(args);
             int index = Array.IndexOf(args, "-port");
             Port = 8000;
             if (index >= 0 && (index + 1 >= args.Length || !ushort.TryParse(args[index + 1], out Port) || Port == 0))
@@ -72,7 +82,96 @@ namespace NatureCalls.Network
                 Application.Quit(1);
                 return;
             }
+            idleExit = new IdleExitTimer(ParseIdleExit(args));
             if (!StartServer()) { Debug.LogError(Status); Application.Quit(1); }
+        }
+
+        public void ApplyBrokerArgument(string[] args)
+        {
+            int index = Array.IndexOf(args ?? Array.Empty<string>(), "-broker");
+            if (index < 0 || index + 1 >= args.Length) return;
+            var value = args[index + 1];
+            var split = value.LastIndexOf(':');
+            if (split > 0 && ushort.TryParse(value.Substring(split + 1), out var port) && port > 0)
+            { BrokerHost = value.Substring(0, split); BrokerPort = port; }
+            else if (!string.IsNullOrWhiteSpace(value)) BrokerHost = value;
+        }
+
+        [Serializable] private sealed class BrokerRoomResponse { public int protocol; public int code; public int port; public string error; }
+        private static Task<UnityWebRequest> SendAsync(UnityWebRequest request)
+        {
+            var completion = new TaskCompletionSource<UnityWebRequest>();
+            request.SendWebRequest().completed += _ => completion.TrySetResult(request);
+            return completion.Task;
+        }
+
+        public async Task<bool> CreateServerRoomAsync()
+        {
+            if (Busy || Active) return false;
+            Busy = true;
+            try
+            {
+                using var request = new UnityWebRequest($"http://{BrokerHost}:{BrokerPort}/rooms", "POST");
+                request.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes("{}"));
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.timeout = 10;
+                await SendAsync(request);
+                var response = JsonUtility.FromJson<BrokerRoomResponse>(request.downloadHandler.text);
+                if (response != null && response.protocol != 1)
+                    throw new InvalidOperationException("客户端版本与服务器不一致，请更新。");
+                if (request.result != UnityWebRequest.Result.Success || response == null || response.port <= 0)
+                    throw new InvalidOperationException(string.IsNullOrEmpty(response?.error) ? "服务器网络不通。" : response.error);
+                ServerRoomCode = response.code;
+                LobbyMode = true;
+                Busy = false;
+                if (!StartDirect(false, $"{BrokerHost}:{response.port}")) throw new InvalidOperationException(Status);
+                Status = $"服务器房间 {ServerRoomCode} 已创建。";
+                return true;
+            }
+            catch (Exception error) { Status = "创建服务器房间失败：" + error.Message; return false; }
+            finally { Busy = false; }
+        }
+
+        public async Task<bool> JoinServerRoomAsync(int code)
+        {
+            if (Busy || Active) return false;
+            Busy = true;
+            try
+            {
+                using var request = UnityWebRequest.Get($"http://{BrokerHost}:{BrokerPort}/rooms/{code}");
+                request.timeout = 10;
+                await SendAsync(request);
+                var response = JsonUtility.FromJson<BrokerRoomResponse>(request.downloadHandler.text);
+                if (response != null && response.protocol != 1)
+                    throw new InvalidOperationException("客户端版本与服务器不一致，请更新。");
+                if (request.result != UnityWebRequest.Result.Success || response == null || response.port <= 0)
+                    throw new InvalidOperationException(request.responseCode == 404 ? "房间不存在或已关闭。" : response?.error ?? "服务器网络不通。");
+                ServerRoomCode = code;
+                LobbyMode = true;
+                Busy = false;
+                return StartDirect(false, $"{BrokerHost}:{response.port}");
+            }
+            catch (Exception error) { Status = "加入服务器房间失败：" + error.Message; return false; }
+            finally { Busy = false; }
+        }
+
+        private static int ParseIdleExit(string[] args)
+        {
+            int index = Array.IndexOf(args, "-idle-exit");
+            if (index < 0 || index + 1 >= args.Length || !int.TryParse(args[index + 1], out var seconds) || seconds <= 0)
+                return -1;
+            return seconds;
+        }
+
+        private void Update()
+        {
+            if (!RuntimeMode.Dedicated || idleExit == null || idleExitRequested || Manager == null) return;
+            if (idleExit.Tick(Time.unscaledDeltaTime, Manager.ConnectedClientsIds.Count))
+            {
+                idleExitRequested = true;
+                Debug.Log("No clients connected for the configured idle period; exiting.");
+                Application.Quit(0);
+            }
         }
 
         public bool StartServer()
@@ -160,6 +259,10 @@ namespace NatureCalls.Network
         private void Disconnected(ulong id)
         {
             slots.Remove(id);
+            if (id == Manager.LocalClientId)
+            {
+                ServerRoomCode = 0;
+            }
             if (id == Manager.LocalClientId && !Busy)
             {
                 Status = string.IsNullOrEmpty(Manager.DisconnectReason) ? "Connection ended." : Manager.DisconnectReason;
@@ -168,6 +271,7 @@ namespace NatureCalls.Network
         }
         private void Stopped(bool wasHost)
         {
+            ServerRoomCode = 0;
             if (destroyed || Busy) return;
             if (World != null) World.Camera.Unbind();
             PlayerInput.Unlock();
@@ -176,8 +280,8 @@ namespace NatureCalls.Network
             else LobbyMode = false;
             if (Match.Mode == MatchMode.Networked) Match.ReturnToDressingRoom(wasHost ? "" : "与服务器的连接已断开。");
         }
-        private void TransportFailed() { Status = "Transport failed. Check the address, firewall and host."; PlayerInput.Unlock(); }
-        private void Removed() { session = null; Status = "Session closed or player removed."; PlayerInput.Unlock(); }
+        private void TransportFailed() { ServerRoomCode = 0; Status = "Transport failed. Check the address, firewall and host."; PlayerInput.Unlock(); }
+        private void Removed() { ServerRoomCode = 0; session = null; Status = "Session closed or player removed."; PlayerInput.Unlock(); }
 
         private async Task Authenticate()
         {
@@ -303,6 +407,13 @@ namespace NatureCalls.Network
             if (Busy || Active) return false;
             try
             {
+                if (Port == 7777)
+                {
+                    var argument = Array.IndexOf(Environment.GetCommandLineArgs(), "-port");
+                    if (argument >= 0 && argument + 1 < Environment.GetCommandLineArgs().Length &&
+                        ushort.TryParse(Environment.GetCommandLineArgs()[argument + 1], out var probePort) && probePort > 0)
+                        Port = probePort;
+                }
                 if (!LobbyMode) World.StopPractice();
                 slots.Clear();
                 Transport.UseWebSockets = false; // LAN rooms use plain UDP.
@@ -313,6 +424,11 @@ namespace NatureCalls.Network
                 Transport.SetConnectionData(ip, Port, host ? "0.0.0.0" : null);
                 Status = host ? "Local test Host (no Relay)." : "Connecting to local test Host...";
                 bool started = host ? Manager.StartHost() : Manager.StartClient();
+                if (started && host && LobbyMode)
+                {
+                    beacon = gameObject.GetComponent<LanBeaconBroadcaster>() ?? gameObject.AddComponent<LanBeaconBroadcaster>();
+                    beacon.GamePort = Port; beacon.MaxPlayers = MaxPlayers;
+                }
                 if (!started) Status = "Local transport could not start. Check address and port.";
                 return started;
             }
@@ -332,6 +448,7 @@ namespace NatureCalls.Network
                     session = null;
                 }
                 else if (Manager.IsListening) Manager.Shutdown();
+                if (beacon != null) { Destroy(beacon); beacon = null; }
                 Status = "Disconnected. Offline practice is available.";
             }
             catch (Exception error)
@@ -342,6 +459,7 @@ namespace NatureCalls.Network
             }
             finally
             {
+                ServerRoomCode = 0;
                 slots.Clear();
                 if (World != null) World.Camera.Unbind();
                 PlayerInput.Unlock();

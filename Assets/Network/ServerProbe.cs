@@ -9,6 +9,7 @@ using NatureCalls.Map;
 using NatureCalls.Player;
 using NatureCalls.UI;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace NatureCalls.Network
 {
@@ -19,11 +20,15 @@ namespace NatureCalls.Network
         private sealed class Report
         {
             public string role, status = "running", error = "";
-            public bool connected, mapLoaded, appearance, facilities, leaderSuccession, returned, empty;
+            public bool connected, mapLoaded, appearance, facilities, leaderSuccession, returned, empty, peerVisible, lanList;
+            public int members;
+            public int roomCode;
         }
         private Report report;
         private string directory;
         private bool finished;
+        private bool RemoteMode => HasArgument("-probe-remote");
+        private bool LanMode => HasArgument("-probe-lan") || HasArgument("-probe-lan-host");
         private int MapIndex => int.TryParse(Argument("-probe-map"), out var index) ? index : 0;
         private string Marker(string name) => Path.Combine(directory, name + ".marker");
         private void Mark(string name) => File.WriteAllText(Marker(name), "observed");
@@ -34,6 +39,7 @@ namespace NatureCalls.Network
             int index = Array.IndexOf(args, name);
             return index >= 0 && index + 1 < args.Length ? args[index + 1] : "";
         }
+        private static bool HasArgument(string name) => Environment.GetCommandLineArgs().Contains(name);
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Launch()
         {
@@ -46,7 +52,10 @@ namespace NatureCalls.Network
         private IEnumerator Start()
         {
             if (string.IsNullOrEmpty(directory)) { Debug.LogError("Missing probe directory"); Application.Quit(1); yield break; }
-            yield return report.role == "server" ? Server() : Client();
+            if (report.role == "server") yield return Server();
+            else if (RemoteMode) yield return RemoteClient();
+            else if (LanMode) yield return LanClient();
+            else yield return Client();
         }
         private IEnumerator Await(Func<bool> condition, string label, float seconds = 15)
         {
@@ -93,7 +102,9 @@ namespace NatureCalls.Network
             if (finished) yield break;
             var lobby = FindFirstObjectByType<LobbyController>();
             lobby.OpenLobby();
-            lobby.GetComponent<LobbyView>().CodeInput.text = "127.0.0.1:" + Argument("-port");
+            var joinText = Argument("-probe-join");
+            lobby.GetComponent<LobbyView>().CodeInput.text = string.IsNullOrEmpty(joinText)
+                ? "127.0.0.1:" + Argument("-port") : joinText;
             lobby.JoinRoom();
             yield return Await(() => LobbyRoom.Current != null && LobbyRoom.Current.TryGetMember(Session.Instance.Manager.LocalClientId, out _), "room membership");
             if (finished) yield break;
@@ -216,6 +227,149 @@ namespace NatureCalls.Network
             var leave = Session.Instance.LeaveAsync();
             yield return Await(() => leave.IsCompleted, "follower leave");
             if (!finished) Finish(report.mapLoaded && report.returned ? "" : "Follower assertion failed.");
+        }
+
+        private IEnumerator RemoteClient()
+        {
+            bool leader = report.role == "leader";
+            var lobby = FindFirstObjectByType<LobbyController>();
+            lobby.OpenLobby();
+            if (leader && HasArgument("-probe-create-server-room"))
+            {
+                lobby.CreateServerRoom();
+                yield return Await(() => Session.Instance != null && Session.Instance.ServerRoomCode >= 100 && LobbyRoom.Current != null,
+                    "server room creation", 40);
+                if (finished) yield break;
+                report.roomCode = Session.Instance.ServerRoomCode;
+                File.WriteAllText(Path.Combine(directory, "room-code.txt"), report.roomCode.ToString());
+            }
+            else
+            {
+                yield return Await(() => File.Exists(Path.Combine(directory, "room-code.txt")), "leader room code", 40);
+                if (finished) yield break;
+                var join = Argument("-probe-join");
+                if (string.IsNullOrEmpty(join)) join = File.ReadAllText(Path.Combine(directory, "room-code.txt")).Trim();
+                lobby.GetComponent<LobbyView>().CodeInput.text = join;
+                lobby.JoinRoom();
+            }
+            yield return Await(() => LobbyRoom.Current != null &&
+                LobbyRoom.Current.TryGetMember(Session.Instance.Manager.LocalClientId, out _), "room membership", 40);
+            if (finished) yield break;
+            var room = LobbyRoom.Current;
+            report.members = room.Members.Count;
+            report.connected = room.IsLeader == leader;
+            if (!report.connected) { Finish("Wrong initial leader."); yield break; }
+            if (leader) Mark("leader-connected");
+            yield return Await(() => room.Members.Count == 2, "two members", 40);
+            if (finished) yield break;
+            report.members = room.Members.Count;
+            room.SetAppearance(leader ? PlayerBodyType.Tall : PlayerBodyType.Balanced, leader ? 1 : 2);
+            yield return Await(() => HasBothAppearances(room), "appearance sync", 20);
+            if (finished) yield break;
+            if (leader)
+            {
+                yield return Await(() => Marked("remote-follower-ready"), "follower ready", 30);
+                lobby.PressPrimary();
+            }
+            else
+            {
+                room.SetReady(true);
+                yield return Await(() => room.CanStart, "ready replication", 20);
+                if (finished) yield break;
+                Mark("remote-follower-ready");
+            }
+            yield return Await(() => room.Phase.Value == LobbyPhase.SelectingMap, "map selection", 20);
+            if (finished) yield break;
+            if (leader) lobby.ChooseMap(MapIndex);
+            yield return Await(() => FindObjectsByType<Avatar>(FindObjectsSortMode.None).Count(a => a.IsSpawned) == 2,
+                "two visible players", 60);
+            if (finished) yield break;
+            var avatars = FindObjectsByType<Avatar>(FindObjectsSortMode.None);
+            report.peerVisible = avatars.Length == 2 && avatars.All(a => a.IsSpawned &&
+                a.GetComponent<PlayerAppearance>() != null && a.GetComponent<PlayerAppearance>().ActiveAnimator != null);
+            report.appearance = HasWorldAppearance(room);
+            if (!report.peerVisible || !report.appearance) { Finish("Remote client peer or appearance assertion failed."); yield break; }
+            Mark("remote-" + report.role + "-verified");
+            yield return Await(() => Marked("remote-leader-verified") && Marked("remote-follower-verified"), "peer verification", 20);
+            if (finished) yield break;
+            var leaving = Session.Instance.LeaveAsync();
+            yield return Await(() => leaving.IsCompleted, "client leave", 20);
+            if (!finished) Finish("");
+        }
+
+        private IEnumerator LanClient()
+        {
+            bool host = HasArgument("-probe-lan-host");
+            var lobby = FindFirstObjectByType<LobbyController>();
+            lobby.OpenLobby();
+            if (host)
+            {
+                lobby.PreferLan = true;
+                lobby.CreateRoom();
+                yield return Await(() => LobbyRoom.Current != null && LobbyRoom.Current.TryGetMember(Session.Instance.Manager.LocalClientId, out _), "LAN host", 30);
+                if (finished) yield break;
+                Mark("lan-host-connected");
+            }
+            else
+            {
+                yield return Await(() => Marked("lan-host-connected"), "LAN host marker", 30);
+                if (finished) yield break;
+                var view = lobby.GetComponent<LobbyView>();
+                Button found = null;
+                float deadline = Time.realtimeSinceStartup + 15;
+                while (found == null && Time.realtimeSinceStartup < deadline)
+                {
+                    if (view.LanRooms != null)
+                        found = view.LanRooms.GetComponentsInChildren<Button>(false).FirstOrDefault(button => button.gameObject.activeInHierarchy && button.interactable);
+                    if (found == null) yield return null;
+                }
+                if (found == null) { Finish("LAN room list did not produce an actionable button."); yield break; }
+                report.lanList = true;
+                found.onClick.Invoke();
+            }
+            yield return Await(() => LobbyRoom.Current != null && LobbyRoom.Current.TryGetMember(Session.Instance.Manager.LocalClientId, out _), "LAN membership", 30);
+            if (finished) yield break;
+            var room = LobbyRoom.Current;
+            yield return Await(() => room.Members.Count == 2, "LAN two members", 30);
+            if (finished) yield break;
+            report.members = room.Members.Count;
+            report.connected = room.IsLeader == host;
+            if (!report.connected) { Finish("LAN initial leader assertion failed."); yield break; }
+            Mark("lan-" + (host ? "host" : "follower") + "-verified");
+            yield return Await(() => Marked("lan-host-verified") && Marked("lan-follower-verified"), "LAN peer verification", 20);
+            if (finished) yield break;
+            var leaving = Session.Instance.LeaveAsync();
+            yield return Await(() => leaving.IsCompleted, "LAN client leave", 20);
+            if (!finished) Finish("");
+        }
+
+        private static bool HasAppearance(LobbyRoom room, PlayerBodyType bodyType, int outfit)
+        {
+            for (int index = 0; index < room.Members.Count; index++)
+                if (room.Members[index].BodyType == bodyType && room.Members[index].Outfit == outfit) return true;
+            return false;
+        }
+
+        private static bool HasBothAppearances(LobbyRoom room)
+        {
+            return room.Members.Count == 2 &&
+                HasAppearance(room, PlayerBodyType.Tall, 1) &&
+                HasAppearance(room, PlayerBodyType.Balanced, 2);
+        }
+
+        private static bool HasWorldAppearance(LobbyRoom room)
+        {
+            return FindObjectsByType<Avatar>(FindObjectsSortMode.None).All(player =>
+            {
+                bool leader = player.OwnerClientId == room.LeaderId;
+                var appearance = player.GetComponent<PlayerAppearance>();
+                var shared = player.GetComponent<AvatarAppearance>();
+                return appearance != null && shared != null &&
+                    appearance.BodyType == (leader ? PlayerBodyType.Tall : PlayerBodyType.Balanced) &&
+                    appearance.OutfitIndex == (leader ? 1 : 2) &&
+                    shared.BodyType.Value == (leader ? PlayerBodyType.Tall : PlayerBodyType.Balanced) &&
+                    shared.OutfitIndex.Value == (leader ? 1 : 2);
+            });
         }
         private IEnumerator Step(string name, bool acting, Func<bool> request, Func<bool> observed)
         {

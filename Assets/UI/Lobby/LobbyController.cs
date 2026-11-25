@@ -33,6 +33,8 @@ namespace NatureCalls.UI
         public bool CanConfirmMap => AwaitingMapConfirmation && (offlineMapSelection || Room.IsLeader);
         private bool awaitingConnection;
         private bool wasInRoom;
+        private LanBeaconListener lanListener;
+        private readonly Dictionary<string, Button> lanButtons = new();
         private string message = "";
         // How the last round ended; shown above the room status until the next round starts.
         private string roundResult = "";
@@ -61,11 +63,14 @@ namespace NatureCalls.UI
             view.OutfitSwift.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Swift));
             view.OfflineButton.onClick.AddListener(StartOffline);
             view.CreateButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.SelectCreate(); else CreateRoom(); });
+            if (view.CreateServerButton != null) view.CreateServerButton.onClick.AddListener(CreateServerRoom);
             view.JoinButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.SelectJoin(); else JoinRoom(); });
             view.CloseButton.onClick.AddListener(CloseLobby);
             view.PrimaryButton.onClick.AddListener(PressPrimary);
             view.LeaveButton.onClick.AddListener(LeaveRoom);
             view.MapBack.onClick.AddListener(BackFromMap);
+            if (view.LanRoomTemplate != null) view.LanRoomTemplate.gameObject.SetActive(false);
+            try { lanListener = new LanBeaconListener(); } catch (System.Net.Sockets.SocketException) { message = "局域网发现不可用。"; }
             BuildMapButtons();
             HideAll();
         }
@@ -141,6 +146,7 @@ namespace NatureCalls.UI
         private void OnDestroy()
         {
             if (outfitText != null && outfitText.transform.parent == null) Destroy(outfitText.gameObject);
+            lanListener?.Dispose();
         }
 
         private static string BodyTypeName(PlayerBodyType bodyType) => bodyType switch
@@ -186,11 +192,12 @@ namespace NatureCalls.UI
         {
             if (InRoom || Busy) return;
             PreferLan = lan;
-            if (!lan && !Session.CloudLinked) { message = "Relay 需要关联 Unity Cloud，当前不能连接。"; return; }
             if (!creating)
             {
                 var code = view.CodeInput.text.Trim();
                 if (code.Length == 0) { message = lan ? "请输入房主 IP 或 IP:端口。" : "请输入 Relay 房间号。"; return; }
+                if (code.Length == 3 && int.TryParse(code, out _)) { JoinRoom(); return; }
+                if (!lan && !Session.CloudLinked) { message = "Relay 需要关联 Unity Cloud，当前不能连接。"; return; }
                 if (Session.TryAddress(code, 7777, out _, out _) != lan) { message = lan ? "局域网入口需要有效 IP 地址。" : "此入口需要 Relay 房间号，请到 LAN 隔间输入 IP。"; return; }
             }
             if (creating) CreateRoom(); else JoinRoom();
@@ -213,6 +220,11 @@ namespace NatureCalls.UI
             var code = view.CodeInput.text.Trim();
             if (string.IsNullOrEmpty(code)) { message = "请输入房间号或 IP:端口。"; return; }
             var isAddress = Session.TryAddress(code, 7777, out _, out _);
+            if (code.Length == 3 && int.TryParse(code, out var roomCode))
+            {
+                var server = EnsureSession(); server.LobbyMode = true; awaitingConnection = true;
+                message = "正在查询服务器房间…"; _ = server.JoinServerRoomAsync(roomCode); return;
+            }
             if (!isAddress && (code.Contains(":") || code.Contains("."))) { message = "地址无效，请输入 IP:端口（1–65535）。"; return; }
             if (!isAddress && !Session.CloudLinked) { message = "未关联 Unity Cloud：请输入服务器 IP:端口。"; return; }
             var session = EnsureSession();
@@ -221,6 +233,13 @@ namespace NatureCalls.UI
             message = "正在加入房间…";
             if (isAddress) { if (!session.StartDirect(false, code)) message = session.Status; }
             else _ = session.ConnectRelayAsync(false, code);
+        }
+
+        public void CreateServerRoom()
+        {
+            if (InRoom || Busy) return;
+            var session = EnsureSession(); session.LobbyMode = true; awaitingConnection = true;
+            message = "正在创建服务器房间…"; _ = session.CreateServerRoomAsync();
         }
 
         public void PressPrimary()
@@ -284,6 +303,7 @@ namespace NatureCalls.UI
             view.EntryGroup.SetActive(!inRoom && !offlineMapSelection);
             view.RoomGroup.SetActive(inRoom && !selectingMap);
             view.MapPanel.SetActive(selectingMap);
+            if (view.LanRooms != null) view.LanRooms.gameObject.SetActive(!inRoom && !offlineMapSelection && (toiletLobby == null || toiletLobby.Mode == 0));
             view.LobbyPanel.transform.Find("Title").gameObject.SetActive(!selectingMap);
             view.Status.gameObject.SetActive(!selectingMap);
             bool canChoose = offlineMapSelection || (inRoom && room.IsLeader);
@@ -306,6 +326,7 @@ namespace NatureCalls.UI
 
             bool busy = Busy;
             view.OfflineButton.interactable = view.CreateButton.interactable = view.JoinButton.interactable = !busy;
+            if (view.CreateServerButton != null) view.CreateServerButton.interactable = !busy;
             if (inRoom) { awaitingConnection = false; RefreshRoom(room, session); }
             else if (session != null && !busy && !session.Active && (awaitingConnection || wasInRoom))
             {
@@ -317,11 +338,40 @@ namespace NatureCalls.UI
             if (inRoom && room.Phase.Value != LobbyPhase.Waiting) roundResult = "";
             var status = busy && session != null ? session.Status : message;
             view.Status.text = string.IsNullOrEmpty(roundResult) || status == roundResult ? status : roundResult + "\n" + status;
+            RefreshLanRooms();
+        }
+
+        private void RefreshLanRooms()
+        {
+            if (lanListener == null || view.LanRooms == null || view.LanRoomTemplate == null) return;
+            var seen = new HashSet<string>();
+            foreach (var entry in lanListener.Snapshot(Time.unscaledTime))
+            {
+                seen.Add(entry.Address);
+                if (!lanButtons.TryGetValue(entry.Address, out var button))
+                {
+                    button = Instantiate(view.LanRoomTemplate, view.LanRooms); button.gameObject.SetActive(true); lanButtons[entry.Address] = button;
+                }
+                button.interactable = entry.Beacon.Joinable && !InRoom && !Busy;
+                var label = button.GetComponentInChildren<Text>(true);
+                if (label != null) label.text = $"{entry.Beacon.HostName}  {entry.Address}:{entry.Beacon.GamePort}  {entry.Beacon.Players}/{entry.Beacon.MaxPlayers}" + (entry.Beacon.Joinable ? "" : "（不可加入）");
+                var address = entry.Address + ":" + entry.Beacon.GamePort;
+                button.onClick.RemoveAllListeners(); button.onClick.AddListener(() => JoinLan(address));
+            }
+            foreach (var pair in new Dictionary<string, Button>(lanButtons))
+                if (!seen.Contains(pair.Key)) { Destroy(pair.Value.gameObject); lanButtons.Remove(pair.Key); }
+        }
+
+        private void JoinLan(string address)
+        {
+            if (InRoom || Busy) return;
+            var session = EnsureSession(); session.LobbyMode = true; awaitingConnection = true; message = "正在加入局域网房间…";
+            if (!session.StartDirect(false, address)) message = session.Status;
         }
 
         private void RefreshRoom(LobbyRoom room, Session session)
         {
-            view.RoomCode.text = "房间号：" + (session.IsRelay ? session.JoinCode : session.Manager.IsHost ? LanRoomCode() : session.Transport.ConnectionData.Address + ":" + session.Port);
+            view.RoomCode.text = "房间号：" + (session.ServerRoomCode > 0 ? session.ServerRoomCode.ToString() : session.IsRelay ? session.JoinCode : session.Manager.IsHost ? LanRoomCode() : session.Transport.ConnectionData.Address + ":" + session.Port);
             var catalog = LocalCatalog;
             for (int slot = 0; slot < view.Slots.Length; slot++)
             {
