@@ -65,7 +65,7 @@ namespace NatureCalls.UI
                 progressFill.transform.parent.gameObject.SetActive(timed);
                 progressFill.fillAmount = phase == PlayerInput.Stage.Cleaning ? input.CleaningProgress
                     : timed ? Mathf.Clamp01(input.Elapsed / input.Duration) : 0;
-                bool scored = phase == PlayerInput.Stage.Holding || phase == PlayerInput.Stage.Urinating;
+                bool scored = phase == PlayerInput.Stage.Urinating; // defecation is blind (GLOSSARY 统一如厕过程)
                 accuracyLabel.gameObject.SetActive(scored);
                 if (scored)
                 {
@@ -87,7 +87,7 @@ namespace NatureCalls.UI
         private static string Prompt(PlayerInput.Stage phase) => phase switch
         {
             PlayerInput.Stage.Aligning => "对位：移动让落点进入圆圈，按 C 蹲下",
-            PlayerInput.Stage.Holding => "保持：用 WASD 把落点留在圆圈里",
+            PlayerInput.Stage.Holding => "用力中：鼠标往下低头看落点（只有几秒），WASD 小幅挪动",
             PlayerInput.Stage.Urinating => "小便：用鼠标把落点留在圆圈里",
             PlayerInput.Stage.Cleaning => "清理中：按住 F",
             _ => ""
@@ -102,7 +102,8 @@ namespace NatureCalls.UI
 
         private void DrawTarget(PlayerInput input, PlayerInput.Stage phase)
         {
-            bool aiming = phase == PlayerInput.Stage.Aligning || phase == PlayerInput.Stage.Holding || phase == PlayerInput.Stage.Urinating;
+            // No target circle while holding: defecation is blind except for the timed look-down marker (ToiletGaze).
+            bool aiming = phase == PlayerInput.Stage.Aligning || phase == PlayerInput.Stage.Urinating;
             var camera = world.Camera.Output;
             overlay.gameObject.SetActive(aiming && camera != null);
             if (!aiming || camera == null) return;
