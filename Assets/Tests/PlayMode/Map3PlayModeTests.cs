@@ -55,7 +55,7 @@ namespace NatureCalls.Tests
         [UnityTest]
         public IEnumerator PortalTeleportsPlayerAndCarriedPaperExactly()
         {
-            var portal = Object.FindObjectsByType<Portal>(FindObjectsSortMode.None).First();
+            var portal = Object.FindObjectsByType<Portal>(FindObjectsSortMode.None).First(p => p.CrossingDirectionX > 0);
             var roll = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).First();
             player.transform.position = portal.transform.position + portal.transform.right * .2f;
             roll.ApplySharedPickup(player);

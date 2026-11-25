@@ -57,8 +57,9 @@ namespace NatureCalls.Editor
                 if (collider is BoxCollider box)
                 {
                     var bounds = mesh.bounds;
-                    box.center = bounds.center;
-                    box.size = bounds.size;
+                    box.center = mesh.transform.InverseTransformPoint(bounds.center);
+                    var size = mesh.transform.InverseTransformVector(bounds.size);
+                    box.size = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z));
                 }
             }
             foreach (var name in new[] { "Segment_N", "Segment_M" })
@@ -142,6 +143,17 @@ namespace NatureCalls.Editor
                 EditorSceneManager.CloseScene(templateScene, true);
             }
             world.Spawns = Enumerable.Range(1, 4).Select(i => root.GetComponentsInChildren<Transform>(true).First(t => t.name == $"Marker_Spawn_{i:00}")).ToArray();
+            Physics.SyncTransforms();
+            foreach (var spawn in world.Spawns)
+            {
+                var origin = spawn.position + Vector3.up * 2f;
+                if (Physics.Raycast(origin, Vector3.down, out var hit, 10f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    var position = spawn.position;
+                    position.y = hit.point.y;
+                    spawn.position = position;
+                }
+            }
         }
 
         private static void ConfigureLobby(Scene scene)

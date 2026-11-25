@@ -56,13 +56,16 @@ namespace NatureCalls.Map
         private void Move(Transform root)
         {
             var target = root.position + Offset;
-            // The owner-side NetworkTransform publishes this one-frame transform delta as a teleport.
+            var controller = root.GetComponent<CharacterController>();
+            if (controller != null) controller.enabled = false;
             var networkTransform = root.GetComponent<NetworkTransform>();
-            if (networkTransform != null) networkTransform.Teleport(target, root.rotation, root.localScale);
+            // A spawned owner commits through NetworkTransform; offline and unspawned practice players move locally.
+            if (networkTransform != null && networkTransform.CanCommitToTransform) networkTransform.Teleport(target, root.rotation, root.localScale);
             else root.SetPositionAndRotation(target, root.rotation);
 
             foreach (var item in FindObjectsByType<Item>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 if (item.PickedUpBy == root.GetComponent<Movement>()) item.transform.position += Offset;
+            if (controller != null) controller.enabled = true;
             CinemachineCore.OnTargetObjectWarped(root, Offset);
             Physics.SyncTransforms();
         }
