@@ -25,6 +25,19 @@ namespace NatureCalls.Facility
 
         public void Burst(int count) { for (int i = 0; i < count; i++) Spawn(); }
 
+        /// <summary>Sends the live puffs mainly along <paramref name="direction"/> (a directed splash).</summary>
+        public Wisps Aim(Vector3 direction, float speed)
+        {
+            for (int i = 0; i < puffs.Count; i++)
+            {
+                var p = puffs[i];
+                if (p.Age >= p.Life) continue;
+                p.Velocity = direction.normalized * speed * Random.Range(.6f, 1.1f) + Random.insideUnitSphere * speed * .35f;
+                puffs[i] = p;
+            }
+            return this;
+        }
+
         private void Update()
         {
             float dt = Time.deltaTime;

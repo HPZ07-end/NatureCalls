@@ -151,6 +151,16 @@ namespace NatureCalls.Network
             host.SharedItems[index] = flying;
         }
 
+        /// <summary>The owner's urine rebounded onto them; the server applies it where needs tick.</summary>
+        public void ReportSplash() { if (IsSpawned && IsOwner) SplashRpc(); }
+
+        [Rpc(SendTo.Server)]
+        private void SplashRpc(RpcParams rpc = default)
+        {
+            if (rpc.Receive.SenderClientId != OwnerClientId) return;
+            BodyEvents.Splash(movement, BodyEvents.SplashKind.OwnRebound);
+        }
+
         public bool RequestSeat(Toilet toilet)
         {
             if (!IsSpawned || !IsOwner || toilets == null) return false;

@@ -17,9 +17,10 @@ namespace NatureCalls.Facility
         {
             if (Forced.HasValue) return Forced.Value;
             var needs = player != null ? player.GetComponent<PlayerNeeds>() : null;
-            float urgency01 = needs != null ? needs.Urgency / NeedsRules.UrgencyMax : 0;
-            // Comfort is implicit and owned by PlayerNeeds (versus body work); 0 until it is published there.
-            return StoolRules.Roll(RoleRegistry.IsSaboteur(player), urgency01, lossOfControl, 0, Random.value);
+            // Versus: bowel urge (0–100); otherwise the single M1 urgency.
+            float urgency01 = needs == null ? 0 : (MatchContext.Versus ? needs.Bowel : needs.Urgency) / NeedsRules.UrgencyMax;
+            bool lost = lossOfControl || (needs != null && (needs.IsOutOfControl || needs.InEndurance));
+            return StoolRules.Roll(RoleRegistry.IsSaboteur(player), urgency01, lost, needs != null ? needs.ComfortIntensity : 0, Random.value);
         }
 
         /// <summary>A stool lands on the floor. Hard stools become a kickable item; if none is free it falls back to a heap.</summary>

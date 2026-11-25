@@ -105,18 +105,22 @@ namespace NatureCalls.Facility
         }
 
         // Only the walker's own machine kicks, so every kick has exactly one simulator. The radius covers the capsule
-        // (0.32 m) plus the stool, so the kick lands before the controller is blocked and its velocity drops to zero.
+        // (0.32 m) plus the stool, so the kick lands before the walker is blocked by it.
         private void TryKick()
         {
             foreach (var player in StoolPool.Players)
             {
                 if (player == null || !player.Controlled || player.Seat != null) continue;
-                var delta = transform.position - player.transform.position;
-                if (Mathf.Abs(delta.y) > .6f || Vector3.ProjectOnPlane(delta, Vector3.up).magnitude > KickRadius) continue;
-                var controller = player.GetComponent<CharacterController>();
-                var speed = controller != null ? Vector3.ProjectOnPlane(controller.velocity, Vector3.up) : Vector3.zero;
-                if (speed.magnitude < .4f) continue;
-                Kick(player, KickVelocity(player.transform.position, transform.position, speed));
+                if (!StoolPool.Motion(player, out var from, out var to, out var velocity)) continue;
+                // Swept: the walker's path this frame, so a long frame cannot step across the stool.
+                var segment = Vector3.ProjectOnPlane(to - from, Vector3.up);
+                var rel = Vector3.ProjectOnPlane(transform.position - from, Vector3.up);
+                float along = segment.sqrMagnitude > 1e-6f ? Mathf.Clamp01(Vector3.Dot(rel, segment) / segment.sqrMagnitude) : 1f;
+                var closest = from + segment * along;
+                var delta = transform.position - closest;
+                if (Mathf.Abs(transform.position.y - to.y) > .6f || Vector3.ProjectOnPlane(delta, Vector3.up).magnitude > KickRadius) continue;
+                if (velocity.magnitude < .4f) continue;
+                Kick(player, KickVelocity(closest, transform.position, velocity));
                 return;
             }
         }
@@ -155,10 +159,25 @@ namespace NatureCalls.Facility
             }
         }
 
+        private static readonly Dictionary<Movement, (Vector3 from, Vector3 to, int frame, float dt)> motion = new();
+
+        /// <summary>The player's horizontal path over the last frame and its velocity (tracked here, not from the controller,
+        /// which reports zero once it is blocked).</summary>
+        public static bool Motion(Movement player, out Vector3 from, out Vector3 to, out Vector3 velocity)
+        {
+            var now = player.transform.position;
+            if (!motion.TryGetValue(player, out var entry)) entry = (now, now, -1, 0);
+            // A gap in tracking (or a teleport) starts a fresh path rather than one long sweep.
+            if (entry.frame != Time.frameCount) { entry = (entry.frame == Time.frameCount - 1 ? entry.to : now, now, Time.frameCount, Time.deltaTime); motion[player] = entry; }
+            from = entry.from; to = entry.to;
+            velocity = entry.dt > 0 ? Vector3.ProjectOnPlane(to - from, Vector3.up) / entry.dt : Vector3.zero;
+            return entry.dt > 0;
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void Init()
         {
-            Stools.Clear(); Toilets = Array.Empty<Toilet>(); playersRefreshed = -1;
+            Stools.Clear(); Toilets = Array.Empty<Toilet>(); playersRefreshed = -1; motion.Clear();
             SceneManager.sceneLoaded -= Loaded; SceneManager.sceneLoaded += Loaded;
         }
 
@@ -170,6 +189,7 @@ namespace NatureCalls.Facility
             Stools.RemoveAll(stool => stool == null);
             if (!(MessSinkRegistry.Current is MonoBehaviour sink) || sink == null || sink.gameObject.scene != scene) return;
             Toilets = UnityEngine.Object.FindObjectsByType<Toilet>(FindObjectsSortMode.None);
+            motion.Clear(); playersRefreshed = -1;
             foreach (var root in scene.GetRootGameObjects()) if (root.name == "HardStoolPool") return;
             var pool = new GameObject("HardStoolPool");
             SceneManager.MoveGameObjectToScene(pool, scene);
