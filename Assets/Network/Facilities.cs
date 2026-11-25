@@ -28,11 +28,15 @@ namespace NatureCalls.Network
     public sealed class Facilities : NetworkBehaviour
     {
         public static Facilities Current { get; private set; }
+        // legacy: migrate to FacilityStateEntry (planned: next facility-state migration)
         public NetworkList<byte> SharedDoors;
+        // legacy: migrate to FacilityStateEntry (planned: next facility-state migration)
         public NetworkList<ItemSnapshot> SharedItems;
         // Toilet occupants: 0 when free, otherwise the sitting player's client id + 1.
+        // legacy: migrate to FacilityStateEntry (planned: next facility-state migration)
         public NetworkList<ulong> SharedToilets;
         // Where players toileted outside a stall during this round.
+        // legacy: migrate to FacilityStateEntry (planned: next facility-state migration)
         public NetworkList<MessSnapshot> SharedMesses;
         private Map.Playground world;
         internal ITraversalFacility[] TraversalSources { get; private set; } = Array.Empty<ITraversalFacility>();
