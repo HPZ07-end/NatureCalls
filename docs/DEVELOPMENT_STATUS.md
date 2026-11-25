@@ -1,12 +1,15 @@
 # 实际开发状态
 
-2026-11-25 服务器房间号与局域网自动发现（分支 `feat/server-room-codes`，尚未合入 dev）：broker（TCP 8100）分配随机三位房间号，按需启动 UDP 8001–8099 动态房间，空置 300 秒后房间自行退出；8000 常驻房间保留。局域网直连房间经 UDP 47777 广播，大厅自动列出，IP:端口直连与 Relay 保留。EditMode 41/41、PlayMode 42/43（1 个既有 Relay Ignored）、macOS 与 Linux Server 构建通过；本机 broker 生命周期、两客户端房间号加入、局域网列表点击加入通过。已部署到课程服务器：版本目录 `/opt/naturecalls/releases/9dd8172-20261125T165824Z-f3ed9a`，8000 与 broker active；从公网用两个 macOS 客户端经 UI 创建并以房间号 328 加入同一房间通过，离开后房间 300 秒自行退出（退出码 0）、房间号查询返回 404。记录 `Artifacts/20261125T172149Z-deploy-server/summary.json`、`Artifacts/20261125T172222Z-2730b3-room-e2e/`。未执行：真人跨公网联机、Windows 客户端、两台真实设备的局域网发现。
+2026-11-25：PR #35「服务器房间号和局域网自动发现」已在 `origin/dev` 合入。broker 负责随机三位房间号、动态房间生命周期；大厅保留 Relay、IP:端口，并增加服务器房间号输入和局域网发现列表。此次合并接入当前双隔间水面大厅，尚未在本分支完成本轮回归。
 
-2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器同日先更新到 dev `a58cf77`（#32），之后又部署了 `feat/server-room-codes` 的 `9dd8172`（见上一条）。
+2026-11-26：PR #37 `feat/art-model-import` 已整合到 `integrate/art-model-import`，基线为 `origin/docs/floor1-approval`（`0f88a44`）。美术资源、换装间和双隔间大厅按已批准定义接入；代码结构以 dev 为准，Map2 已用队友场景作底并经 Unity API 重跑。EditMode 43/43、PlayMode 59 Passed + 1 Relay Ignored、build-server 及恢复 Player 通过；未执行真实双端 LAN/Relay。
+
+2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器已于同日更新到 dev `a58cf77`（#32），见下方课程服务器记录。
 
 2026-11-25 课程服务器部署：`scripts/deploy_server.py` 将 dev `a58cf77`（PR #32）部署到 `ubuntu@49.233.132.244`，版本目录 `/opt/naturecalls/releases/a58cf77-20261125T092630Z-ff2725`（`current` 已指向它），房间 8000。Linux 服务器构建与构建后恢复 macOS Player 均通过；脚本检查 `ROOM_OK 8000`，未触发回滚。之后 SSH 只读复核：`naturecalls@8000` active，NRestarts=0，端口 8000/UDP 处于监听，日志含 `Server listening on UDP 8000.`。记录 `Artifacts/20261125T095101Z-deploy-server/summary.json`。尚未做跨公网的真人联机验收。
-
 2026-11-25 团队分工：用户负责一层（Map2）装置与如厕体验，GLOSSARY 记录了角色参数（CharacterProfile）、小便镜头与反弹、卷纸纸量耐久、全部用水装置倒灌、Map3 后室，以及急迫值与一局推进方式的重做方向；均未实现，对象拆分见 [ROADMAP](ROADMAP.md)。
+
+2026-11-25：E/F 交互方案已实现并通过 42 项 PlayMode；冲水与堵塞、倒灌、洗手台、统一如厕过程与滑倒仍未实现，实施顺序见 [ROADMAP](ROADMAP.md)。课程服务器仍运行 #30 之前的版本，需重新部署才能与当前客户端（三款体型外观字段）联机。
 
 2026-11-25 E/F 交互与通用状态：E 按准星目标选择设施，F 处理擦拭和拖把清洁；设施状态和移动效果均通过可注册接口复用。Unity 6000.3.26f1 EditMode 36/36，PlayMode 42/43（1 Relay 跳过），build-server 通过。同日整理：`Map2Interactions` 拆为 Facility `PaperVendingMachine` 与 Map `WetZone`、`Map2Repair`；门、马桶、小便池改用通用 `SharedFacilityState`，Map2 场景与 Facilities prefab 经 Unity API 重建；整理后 EditMode 36/36，PlayMode 42/43（1 Relay 跳过），build-server 通过。
 

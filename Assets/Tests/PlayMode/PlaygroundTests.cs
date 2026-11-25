@@ -443,6 +443,7 @@ namespace NatureCalls.Tests
             Assert.That(capsule.height, Is.EqualTo(player.StandingHeight));
         }
 
+
         [UnityTest]
         public IEnumerator CameraBlendsAndInteriorIsVisible()
         {

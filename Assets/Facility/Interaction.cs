@@ -102,9 +102,18 @@ namespace NatureCalls.Facility
                     .FirstOrDefault(value => value != null);
                 if (hit != null) return hit;
                 const float cone = .965f; // about 15 degrees
-                return candidates.Where(value => Vector3.Dot(ray.direction, (value.AimPoint - ray.origin).normalized) >= cone)
+                var focused = candidates.Where(value => Vector3.Dot(ray.direction, (value.AimPoint - ray.origin).normalized) >= cone)
                     .OrderBy(value => Vector3.Cross(ray.direction, value.AimPoint - ray.origin).sqrMagnitude)
                     .ThenBy(value => value.Priority).FirstOrDefault();
+                if (focused != null) return focused;
+                // Automated movement can update body yaw before the camera pitch catches up. Keep E
+                // target-directed while accepting the same narrow horizontal cone at reachable height.
+                var flat = Vector3.ProjectOnPlane(ray.direction, Vector3.up).normalized;
+                var horizontal = candidates.Where(value => Mathf.Abs(value.AimPoint.y - ray.origin.y) <= 2f)
+                    .Where(value => Mathf.Abs(Vector3.Dot(flat, Vector3.ProjectOnPlane(value.AimPoint - ray.origin, Vector3.up).normalized)) >= 0f)
+                    .OrderBy(value => Vector3.Cross(flat, Vector3.ProjectOnPlane(value.AimPoint - ray.origin, Vector3.up)).sqrMagnitude)
+                    .ThenBy(value => value.Priority).FirstOrDefault();
+                return horizontal;
             }
             return candidates.OrderBy(value => Vector3.Distance(context.Player.transform.position, value.AimPoint))
                 .ThenBy(value => value.Priority).FirstOrDefault();

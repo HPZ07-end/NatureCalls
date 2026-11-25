@@ -48,6 +48,11 @@ namespace NatureCalls.Editor
             Validate();
         }
 
+        public static void DressingRoom() { DressingRoomSceneBuilder.Build(); Validate(); }
+        public static void DressingRoomUI() { FloatingOutfitSetup.Configure(); Validate(); }
+        public static void ToiletLobby() { ToiletLobbySetup.Build(); Validate(); }
+        public static void ServerLobbyControls() { ServerLobbyControlsSetup.Configure(); Validate(); }
+
         public static void Toileting() => ToiletingSetup.Configure();
         public static void MapIntegration() => MapLayoutIntegration.Configure();
         public static void Map2Integration() { NatureCalls.Editor.Map2Integration.Apply(); Validate(); }

@@ -284,6 +284,8 @@ namespace NatureCalls.Editor
                 view.OfflineButton = MakeButton(entry, "Offline", "单人离线测试");
                 view.CreateButton = MakeButton(entry, "CreateRoom", "创建房间");
                 view.CreateServerButton = MakeButton(entry, "CreateServerRoom", "创建服务器房间");
+                var createServerImage = view.CreateServerButton.GetComponent<Image>();
+                var createServerColor = createServerImage.color; createServerColor.a = 0f; createServerImage.color = createServerColor;
                 view.CodeInput = MakeInput(entry, "CodeInput", "房间号 / IP:端口");
                 view.JoinButton = MakeButton(entry, "JoinRoom", "加入房间");
                 view.LanRooms = Column(entry, "LanRooms", new Vector2(0, -500), new Vector2(560, 180));
