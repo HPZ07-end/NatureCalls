@@ -140,7 +140,7 @@ namespace NatureCalls.Network
         }
 
         /// <summary>Server: writes every shared entry that differs from the list (seeds the list on first call).</summary>
-        internal void PublishShared()
+        public void PublishShared()
         {
             if (!IsServer) return;
             for (int i = 0; i < sharedSources.Length; i++)

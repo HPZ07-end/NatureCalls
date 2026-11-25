@@ -265,6 +265,10 @@ namespace NatureCalls.Tests
                 var input = walker.GetComponent<NatureCalls.Input.PlayerInput>();
                 var vending = map.GetComponent<PaperVendingMachine>();
                 var repair = map.GetComponent<Map2Repair>();
+                var pipe = Object.FindFirstObjectByType<Pipe>();
+                Assert.That(pipe, Is.Not.Null);
+                pipe.AddPaper(20);
+                Assert.That(pipe.IsBlocked, Is.True);
                 yield return StandAtMap2Station(walker, vending, vending.Coins[0], "拾取金币");
                 Assert.That(input.TryInteract(), Is.True);
                 Assert.That(vending.Wallet(0), Is.EqualTo(1));
@@ -316,6 +320,8 @@ namespace NatureCalls.Tests
                             Assert.That(input.TryInteract(), Is.True, prompts[i]);
                             Assert.That((int)repair.RepairProgress, Is.EqualTo(i + 1));
                         }
+                        Assert.That(pipe.Accumulation, Is.Zero);
+                        Assert.That(pipe.IsBlocked, Is.False);
                     }
                 }
             }
