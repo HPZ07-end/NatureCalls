@@ -59,6 +59,7 @@ namespace NatureCalls.Network
                 return;
             }
             Instance = this;
+            ApplyBrokerArgument(Environment.GetCommandLineArgs());
             Manager.ConnectionApprovalCallback = Approve;
             Manager.OnServerStarted += ServerStarted;
             Manager.OnClientConnectedCallback += Connected;
@@ -122,6 +123,7 @@ namespace NatureCalls.Network
                     throw new InvalidOperationException(string.IsNullOrEmpty(response?.error) ? "服务器网络不通。" : response.error);
                 ServerRoomCode = response.code;
                 LobbyMode = true;
+                Busy = false;
                 if (!StartDirect(false, $"{BrokerHost}:{response.port}")) throw new InvalidOperationException(Status);
                 Status = $"服务器房间 {ServerRoomCode} 已创建。";
                 return true;
@@ -146,6 +148,7 @@ namespace NatureCalls.Network
                     throw new InvalidOperationException(request.responseCode == 404 ? "房间不存在或已关闭。" : response?.error ?? "服务器网络不通。");
                 ServerRoomCode = code;
                 LobbyMode = true;
+                Busy = false;
                 return StartDirect(false, $"{BrokerHost}:{response.port}");
             }
             catch (Exception error) { Status = "加入服务器房间失败：" + error.Message; return false; }
@@ -404,6 +407,13 @@ namespace NatureCalls.Network
             if (Busy || Active) return false;
             try
             {
+                if (Port == 7777)
+                {
+                    var argument = Array.IndexOf(Environment.GetCommandLineArgs(), "-port");
+                    if (argument >= 0 && argument + 1 < Environment.GetCommandLineArgs().Length &&
+                        ushort.TryParse(Environment.GetCommandLineArgs()[argument + 1], out var probePort) && probePort > 0)
+                        Port = probePort;
+                }
                 if (!LobbyMode) World.StopPractice();
                 slots.Clear();
                 Transport.UseWebSockets = false; // LAN rooms use plain UDP.

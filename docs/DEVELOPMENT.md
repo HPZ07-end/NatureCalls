@@ -105,3 +105,5 @@ Linux 首次构建时 Unity 自动添加官方 1.1.1 工具链依赖（linux-x86
 ## 服务器房间开发约定
 
 本地可运行 `python3 scripts/room_broker.py --bind 127.0.0.1 --port 8100 --state /tmp/naturecalls-rooms.json` 验证 broker；接口为 `POST /rooms`、`GET /rooms/<code>` 和 `GET /health`。生产服务是 `scripts/naturecalls-broker.service`，动态模板是 `scripts/naturecalls-room@.service`。动态服务器带 `-idle-exit 300`，常驻 UDP 8000 不带该参数。部署更新 broker 和模板并检查 `/health`，只重启 8000，动态房间自然退出后才使用新版本。
+
+由于 broker 协议是 HTTP + JSON，PlayerSettings 的 `insecureHttpOption` 明确允许 HTTP 请求；这是联机接口配置，不是 Unity 运行产生的临时改动。

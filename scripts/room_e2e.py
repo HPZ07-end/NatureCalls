@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
-"""Local broker/dynamic-server lifecycle probe; never contacts the course server.
+"""Repeatable local/public broker room and LAN client probes.
 
-This validates the broker's real HTTP path and a real dedicated Player process.
-Interactive client join and LAN broadcast remain separate manual checks because a
-headless Player has no UI action that creates a broker room.
+With --local this starts a localhost broker and fake-systemctl launcher. Without it,
+--broker is treated as an already deployed broker. This checkout uses only --local.
 """
 import argparse
+from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
+import os
 import signal
+import socket
 import subprocess
 import sys
-import tempfile
 import time
-import urllib.request
 import urllib.error
+import urllib.request
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,20 +28,34 @@ def request(url, method="GET", data=None):
         return response.status, json.loads(response.read())
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("server", type=Path, help="built NatureCalls executable or .app")
-    parser.add_argument("--port", type=int, default=18100)
-    args = parser.parse_args(argv)
-    server = args.server.resolve()
-    if server.suffix == ".app": server = server / "Contents/MacOS/NatureCalls"
-    if not server.is_file(): parser.error(f"server executable not found: {server}")
-    with tempfile.TemporaryDirectory(prefix="naturecalls-room-e2e-") as temp:
-        root = Path(temp)
-        log_dir, state = root / "logs", root / "rooms.json"
-        log_dir.mkdir()
-        launcher = root / "launcher.py"
-        launcher.write_text(f'''#!/usr/bin/env python3
+def endpoint(value):
+    host, sep, port = value.rpartition(":")
+    if not sep or not host or not port.isdigit() or not 1 <= int(port) <= 65535:
+        raise argparse.ArgumentTypeError("broker must be host:port")
+    return host, int(port)
+
+
+def executable(path):
+    path = Path(path)
+    path = path.resolve()
+    if path.suffix == ".app": path /= "Contents/MacOS/NatureCalls"
+    if not path.is_file(): raise argparse.ArgumentTypeError(f"Player executable not found: {path}")
+    return path
+
+
+def wait_report(path, process, timeout=120):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and not path.exists() and process.poll() is None:
+        time.sleep(.2)
+    if not path.exists(): raise RuntimeError(f"missing probe report: {path} (exit={process.poll()})")
+    report = json.loads(path.read_text())
+    if process.wait(timeout=10) != 0 or report.get("status") != "passed":
+        raise RuntimeError(f"probe failed: {report}")
+    return report
+
+
+def launcher_text():
+    return '''#!/usr/bin/env python3
 import os, pathlib, signal, subprocess, sys
 root=pathlib.Path(os.environ["ROOM_E2E_ROOT"]); server=pathlib.Path(os.environ["ROOM_E2E_SERVER"])
 cmd=sys.argv[1]; unit=sys.argv[2] if len(sys.argv)>2 else ""
@@ -59,42 +74,105 @@ elif cmd == "list-units":
  for p in root.glob("*.pid"):
   try: os.kill(int(p.read_text()),0); print("naturecalls-room@"+p.stem+".service loaded active running")
   except (ProcessLookupError,ValueError): pass
-''')
-        launcher.chmod(0o755)
-        env = dict(os.environ, ROOM_E2E_ROOT=str(root), ROOM_E2E_SERVER=str(server))
-        broker = subprocess.Popen([sys.executable, str(ROOT / "scripts/room_broker.py"), "--bind", "127.0.0.1",
-                                   "--port", str(args.port), "--state", str(state), "--launcher", str(launcher),
-                                   "--log-dir", str(log_dir)], env=env)
-        try:
-            deadline = time.monotonic() + 10
-            while True:
-                try:
-                    _, health = request(f"http://127.0.0.1:{args.port}/health")
-                    if health["ok"]: break
-                except OSError:
-                    if time.monotonic() > deadline: raise
-                    time.sleep(.1)
-            _, room = request(f"http://127.0.0.1:{args.port}/rooms", "POST", {})
-            code, game_port = room["code"], room["port"]
-            _, found = request(f"http://127.0.0.1:{args.port}/rooms/{code}")
-            assert found["port"] == game_port
-            process_deadline = time.monotonic() + 35
-            while time.monotonic() < process_deadline:
-                if not (root / f"{game_port}.pid").exists(): break
-                try: os.kill(int((root / f"{game_port}.pid").read_text()), 0)
-                except (ProcessLookupError, ValueError): break
-                time.sleep(.5)
-            else: raise RuntimeError("dynamic room did not exit within 35 seconds")
-            # The live broker's ten-second reaper observes the fake systemctl state.
-            time.sleep(11)
-            try: request(f"http://127.0.0.1:{args.port}/rooms/{code}")
+'''
+
+
+def start_client(player, directory, role, broker, extra, remote=True):
+    log = (directory / f"{role}-process.log").open("w")
+    args = [str(player), "-batchmode", "-screen-width", "1100", "-screen-height", "760",
+            "-server-probe", "-probe-role", role,
+            "-probe-directory", str(directory), "-broker", f"{broker[0]}:{broker[1]}",
+            "-logFile", str(directory / f"{role}-player.log")] + (["-probe-remote"] if remote else []) + extra
+    return subprocess.Popen(args, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT), log
+
+
+def run_remote(player, broker, directory):
+    leader, leader_log = start_client(player, directory, "leader", broker, ["-probe-create-server-room"])
+    code_path = directory / "room-code.txt"
+    deadline = time.monotonic() + 60
+    while not code_path.exists() and leader.poll() is None and time.monotonic() < deadline:
+        time.sleep(.2)
+    if not code_path.exists(): raise RuntimeError("leader did not publish room-code.txt")
+    code = code_path.read_text().strip()
+    follower, follower_log = start_client(player, directory, "follower", broker, ["-probe-join", code])
+    try:
+        leader_report = wait_report(directory / "leader.json", leader)
+        follower_report = wait_report(directory / "follower.json", follower)
+        _, health = request(f"http://{broker[0]}:{broker[1]}/health")
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            try: request(f"http://{broker[0]}:{broker[1]}/rooms/{code}")
             except urllib.error.HTTPError as error:
-                assert error.code == 404
-            else: raise RuntimeError("closed room still returned from broker")
-            print(json.dumps({"status":"passed", "code":code, "port":game_port, "broker":"local", "clients":"not exercised"}))
-            return 0
-        finally:
-            broker.terminate(); broker.wait(timeout=5)
+                if error.code == 404: break
+                raise
+            time.sleep(1)
+        else: raise RuntimeError("room code was not removed within 60 seconds")
+        summary = {"status": "passed", "mode": "remote-room", "code": int(code),
+                   "leader": leader_report, "follower": follower_report, "health": health}
+        (directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+        print(json.dumps(summary, indent=2))
+    finally:
+        for process in (leader, follower):
+            if process.poll() is None: process.terminate()
+        for log in (leader_log, follower_log): log.close()
+
+
+def run_lan(player, directory):
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as reservation:
+        reservation.bind(("127.0.0.1", 0)); port = reservation.getsockname()[1]
+    host, host_log = start_client(player, directory, "lan-host", ("127.0.0.1", 0),
+                                  ["-probe-lan-host", "-port", str(port)], remote=False)
+    time.sleep(3)
+    client, client_log = start_client(player, directory, "lan-follower", ("127.0.0.1", 0),
+                                      ["-probe-lan", "-port", str(port)], remote=False)
+    try:
+        host_report = wait_report(directory / "lan-host.json", host, 90)
+        client_report = wait_report(directory / "lan-follower.json", client, 90)
+        summary = {"status": "passed", "mode": "lan", "port": port,
+                   "host": host_report, "client": client_report}
+        (directory / "lan-summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+        print(json.dumps(summary, indent=2))
+    finally:
+        for process in (host, client):
+            if process.poll() is None: process.terminate()
+        for log in (host_log, client_log): log.close()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("player", type=executable, help="macOS .app or Player executable")
+    parser.add_argument("--broker", type=endpoint, required=True, help="broker host:port")
+    parser.add_argument("--local", action="store_true", help="start local broker and fake systemctl server launcher")
+    parser.add_argument("--lan", action="store_true", help="run the direct Host + LAN-list click probe")
+    args = parser.parse_args(argv)
+    directory = ROOT / "Artifacts" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6] + "-room-e2e")
+    directory.mkdir(parents=True); (directory / "logs").mkdir()
+    broker_process = None
+    try:
+        if args.local:
+            root = directory / "launcher"; root.mkdir()
+            launcher = root / "launcher.py"; launcher.write_text(launcher_text()); launcher.chmod(0o755)
+            env = dict(os.environ, ROOM_E2E_ROOT=str(root), ROOM_E2E_SERVER=str(args.player))
+            broker_process = subprocess.Popen([sys.executable, str(ROOT / "scripts/room_broker.py"), "--bind", "127.0.0.1",
+                                                "--port", str(args.broker[1]), "--state", str(root / "rooms.json"),
+                                                "--launcher", str(launcher), "--log-dir", str(root / "logs")], env=env)
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                try:
+                    request(f"http://127.0.0.1:{args.broker[1]}/health"); break
+                except OSError: time.sleep(.1)
+            else: raise RuntimeError("local broker did not start")
+        if args.lan: run_lan(args.player, directory)
+        else: run_remote(args.player, args.broker, directory)
+        print(f"Artifacts: {directory}")
+        return 0
+    except Exception as error:
+        (directory / "summary.json").write_text(json.dumps({"status":"failed", "error":str(error)}, indent=2) + "\n")
+        print(f"ERROR: {error}; Artifacts: {directory}", file=sys.stderr)
+        return 1
+    finally:
+        if broker_process is not None:
+            broker_process.terminate(); broker_process.wait(timeout=5)
 
 
 if __name__ == "__main__": sys.exit(main())
