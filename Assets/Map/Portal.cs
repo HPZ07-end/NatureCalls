@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using NatureCalls.Facility;
 using NatureCalls.Player;
 using Unity.Cinemachine;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 namespace NatureCalls.Map
@@ -56,7 +57,9 @@ namespace NatureCalls.Map
         {
             var target = root.position + Offset;
             // The owner-side NetworkTransform publishes this one-frame transform delta as a teleport.
-            root.SetPositionAndRotation(target, root.rotation);
+            var networkTransform = root.GetComponent<NetworkTransform>();
+            if (networkTransform != null) networkTransform.Teleport(target, root.rotation, root.localScale);
+            else root.SetPositionAndRotation(target, root.rotation);
 
             foreach (var item in FindObjectsByType<Item>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 if (item.PickedUpBy == root.GetComponent<Movement>()) item.transform.position += Offset;
