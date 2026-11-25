@@ -32,9 +32,11 @@ namespace NatureCalls.Tests
         }
         [Test] public void PaperAndNeedsValues()
         {
-            int uses = NeedsRules.PaperUses;
-            for (int i = 0; i < 3; i++) uses = NeedsRules.UsePaper(uses);
-            Assert.That(uses, Is.Zero); Assert.That(NeedsRules.UsePaper(uses), Is.Zero);
+            int uses = NeedsRules.PaperRollUnits;
+            Assert.That(uses, Is.EqualTo(6));
+            Assert.That(NeedsRules.PaperRequired(MessKind.None), Is.EqualTo(1));
+            Assert.That(NeedsRules.PaperRequired(MessKind.DirtyToilet), Is.EqualTo(2));
+            Assert.That(NeedsRules.PaperRequired(MessKind.Dropping), Is.EqualTo(3));
             Assert.That(NeedsRules.UrgencyAfterUrination(70), Is.EqualTo(35));
             Assert.That(NeedsRules.PuddleDisgust(1, 3), Is.EqualTo(6));
             Assert.That(NeedsRules.PuddleDisgust(1.01f, 3), Is.Zero);

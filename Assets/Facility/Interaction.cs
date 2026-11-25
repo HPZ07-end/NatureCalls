@@ -54,9 +54,9 @@ namespace NatureCalls.Facility
     /// <summary>One shared value of a facility: a small state code and an owner (0 = nobody; the meaning is the facility's own).</summary>
     public readonly struct SharedFacilityValue
     {
-        public readonly byte State;
+        public readonly ushort State;
         public readonly ulong Owner;
-        public SharedFacilityValue(byte state, ulong owner = 0) { State = state; Owner = owner; }
+        public SharedFacilityValue(ushort state, ulong owner = 0) { State = state; Owner = owner; }
     }
 
     /// <summary>
@@ -72,6 +72,7 @@ namespace NatureCalls.Facility
         /// <summary>Server: drop whatever a disconnected client held. The change is published afterwards.</summary>
         void ReleaseOwner(ulong clientId);
     }
+    public interface ISharedFacilityAuthority { void SetAuthority(bool value); }
 
     /// <summary>Network adapters expose an owner id without making Facility depend on Network.</summary>
     public interface IClientOwner { ulong ClientId { get; } }

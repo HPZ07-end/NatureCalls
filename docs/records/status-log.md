@@ -259,3 +259,6 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 - SSH 只读复核：`current` → `releases/9dd8172-20261125T165824Z-f3ed9a`，`naturecalls@8000` 与 `naturecalls-broker` active，broker NRestarts=0。公网 `GET http://49.233.132.244:8100/health` 正常。
 - 公网端到端 `room_e2e.py --broker 49.233.132.244:8100`：两个客户端经 UI 创建并以房间号 328 加入（端口 8036），成员 2、外观同步、双方可见，均通过。脚本原先只等 60 秒，所以报“房间号未移除”；后改为远程默认等待 360 秒（`--close-timeout`）。另外等待确认：最后成员离开约 300 秒后 `naturecalls-room@8036` 记录 `No clients connected for the configured idle period; exiting.`，Result=success、退出码 0，房间号查询返回 404，broker rooms=0。Artifacts `20261125T172222Z-2730b3-room-e2e/`。
 - 未执行：真人跨公网联机、Windows 客户端、两台真实设备上的局域网发现。注意：回滚到不含 broker 的旧版本时 broker 无法重启，8000 房间不受影响。
+
+2026-11-25 一层装置第一批：加入 Pipe、Sink、Toilet 冲水入口、纸量规则与 CharacterProfile 骨架；堵塞/倒灌数值均标注暂定，待用户确认。
+2026-11-26 回归修复：冲水目标改为独立把手目标并避让坐下玩家；Facility 通过 IMessSink 注册点产生污物；Pipe 权威和纸量同步边界修正；Playground/Map2 完成 Unity API 场景接线。

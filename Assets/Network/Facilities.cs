@@ -19,7 +19,7 @@ namespace NatureCalls.Network
     public struct FacilityStateEntry : INetworkSerializeByMemcpy, IEquatable<FacilityStateEntry>
     {
         public ushort Id;
-        public byte State;
+        public ushort State;
         public ulong Owner;
         public bool Equals(FacilityStateEntry other) => Id == other.Id && State == other.State && Owner == other.Owner;
     }
@@ -73,6 +73,7 @@ namespace NatureCalls.Network
                 var owners = world.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<MonoBehaviour>(true))
                     .OrderBy(item => FacilityPath(item.transform), StringComparer.Ordinal).ToArray();
                 sharedSources = owners.OfType<ISharedFacilityState>().ToArray();
+                foreach (var source in owners.OfType<ISharedFacilityAuthority>()) source.SetAuthority(IsServer);
                 sharedFirstId = new int[sharedSources.Length];
                 for (int i = 0, next = 0; i < sharedSources.Length; next += sharedSources[i].SharedEntryCount, i++) sharedFirstId[i] = next;
                 SharedInteractables.Clear();
@@ -139,7 +140,7 @@ namespace NatureCalls.Network
         }
 
         /// <summary>Server: writes every shared entry that differs from the list (seeds the list on first call).</summary>
-        internal void PublishShared()
+        public void PublishShared()
         {
             if (!IsServer) return;
             for (int i = 0; i < sharedSources.Length; i++)
@@ -185,7 +186,7 @@ namespace NatureCalls.Network
             for (int i = 0; i < SharedFacilityState.Count; i++) if (SharedFacilityState[i].Id == id) { found = true; return SharedFacilityState[i]; }
             found = false; return new FacilityStateEntry { Id = id };
         }
-        private void SetFacilityState(ushort id, byte state, ulong owner)
+        private void SetFacilityState(ushort id, ushort state, ulong owner)
         {
             for (int i = 0; i < SharedFacilityState.Count; i++) if (SharedFacilityState[i].Id == id) { SharedFacilityState[i] = new FacilityStateEntry { Id = id, State = state, Owner = owner }; return; }
             SharedFacilityState.Add(new FacilityStateEntry { Id = id, State = state, Owner = owner });

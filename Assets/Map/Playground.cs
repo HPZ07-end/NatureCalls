@@ -10,7 +10,7 @@ using NatureCalls.Facility;
 
 namespace NatureCalls.Map
 {
-    public sealed class Playground : MonoBehaviour
+    public sealed class Playground : MonoBehaviour, IMessSink
     {
         public GameObject PlayerPrefab;
         public Transform[] Spawns;
@@ -23,12 +23,22 @@ namespace NatureCalls.Map
 
         private void Awake()
         {
+            MessSinkRegistry.Register(this);
+            stableToilets = FindObjectsByType<Toilet>(FindObjectsSortMode.None).OrderBy(t => StablePath(t.transform), System.StringComparer.Ordinal).ToArray();
             droppingPool = CreateDroppingPool();
             if (RuntimeMode.Dedicated)
             {
                 foreach (var camera in FindObjectsByType<UnityEngine.Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None)) camera.enabled = false;
                 if (Camera != null) Camera.gameObject.SetActive(false);
             }
+        }
+        private void OnDestroy() => MessSinkRegistry.Unregister(this);
+        public int ToiletIndex(Toilet toilet) => System.Array.IndexOf(stableToilets, toilet);
+        private static string StablePath(Transform node)
+        {
+            var path = string.Empty;
+            for (; node != null; node = node.parent) path = "/" + node.name + "[" + node.GetSiblingIndex() + "]" + path;
+            return path;
         }
 
         private void Start()
@@ -52,6 +62,7 @@ namespace NatureCalls.Map
 
         public int DroppingCount => messes.Count(mess => mess != null && mess.Kind == MessKind.Dropping);
         private readonly List<Mess> messes = new();
+        private Toilet[] stableToilets = System.Array.Empty<Toilet>();
         public IReadOnlyList<Mess> Messes => messes;
         /// <summary>Online: the server-owned mess list (set by Network/Facilities while spawned). Offline: null, messes are local.</summary>
         public static System.Func<MessKind, Vector3, int, int> MessAuthority;
@@ -64,10 +75,12 @@ namespace NatureCalls.Map
             int index = messes.Count;
             var mess = droppingPool.Get().GetComponent<Mess>();
             mess.Configure(index, kind, position, toiletIndex);
+            if (kind == MessKind.Backflow && toiletIndex >= 0 && toiletIndex < stableToilets.Length) stableToilets[toiletIndex].SetBackflowShared(true);
             messes.Add(mess);
             return index;
         }
         public bool IsDirty(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.DirtyToilet && m.ToiletIndex == toiletIndex);
+        public bool IsBackflow(int toiletIndex) => messes.Any(m => m != null && m.Kind == MessKind.Backflow && m.ToiletIndex == toiletIndex);
         /// <summary>Shows the shared mess at <paramref name="index"/> (MessKind.None removes it). Called by Network/Facilities for every list entry.</summary>
         public void ShowMess(int index, MessKind kind, Vector3 position, int toiletIndex)
         {
@@ -75,11 +88,16 @@ namespace NatureCalls.Map
             if (kind == MessKind.None) { RemoveMess(index); return; }
             if (messes[index] == null) messes[index] = droppingPool.Get().GetComponent<Mess>();
             messes[index].Configure(index, kind, position, toiletIndex);
+            if (kind == MessKind.Backflow && toiletIndex >= 0 && toiletIndex < stableToilets.Length) stableToilets[toiletIndex].SetBackflowShared(true);
         }
         public void RemoveDropping(int index) => RemoveMess(index);
         public void RemoveMess(int index)
         {
             if (index < 0 || index >= messes.Count || messes[index] == null) return;
+            if (messes[index].Kind == MessKind.Backflow && messes[index].ToiletIndex >= 0)
+            {
+                if (messes[index].ToiletIndex < stableToilets.Length) stableToilets[messes[index].ToiletIndex].SetBackflowShared(false);
+            }
             droppingPool.Release(messes[index].gameObject);
             messes[index] = null;
         }

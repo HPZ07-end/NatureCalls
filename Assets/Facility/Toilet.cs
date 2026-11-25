@@ -8,12 +8,32 @@ namespace NatureCalls.Facility
     /// A toilet a player can sit on. One player at a time: the seat is occupied until that player stands up.
     /// Which toilet a player uses is decided by the stall they stand in (<see cref="StallDoor.Containing"/>).
     /// </summary>
-    public sealed class Toilet : MonoBehaviour, ISharedFacilityState
+    public sealed class Toilet : InteractableComponent, ISharedFacilityState, IWaterFixture
     {
         public Transform Anchor;
         public Transform Interior;
         public Movement Occupant { get; private set; }
         public bool IsOccupied => Occupant != null;
+        [SerializeField] private Pipe pipe;
+        [SerializeField] private Transform flushTarget;
+        public Pipe ConnectedPipe => pipe;
+        public void SetPipe(Pipe value) => pipe = value;
+        public void SetFlushTarget(Transform value) => flushTarget = value;
+        public bool IsBackflow { get; private set; }
+        public override int Priority => 100;
+        public override float Distance => Interaction.ReachDistance;
+        public override Transform Target => flushTarget != null ? flushTarget : transform;
+        public override Vector3 AimPoint => flushTarget != null ? flushTarget.position : transform.position + transform.up * .55f - transform.forward * .12f; // fallback: above and behind the bowl
+        public override bool CanInteract(InteractionContext context) => Interaction.InReach(context, Target) && (!IsOccupied || Occupant == context.Player) && context.Player != Occupant && context.Player.Seat != Anchor;
+        public override string Prompt(InteractionContext context) => "E  冲水";
+        public override bool Perform(InteractionContext context)
+        {
+            if (context.Online) return context.Requests != null && context.Requests.RequestInteract(this);
+            if (pipe != null && pipe.IsBlocked) pipe.TriggerBackflow(this); return true;
+        }
+        public void Backflow() { IsBackflow = true; var sink = MessSinkRegistry.Current; sink?.AddMess(Core.MessKind.Backflow, TargetCenter, sink.ToiletIndex(this)); }
+        public void ClearBackflow() => IsBackflow = false;
+        public void SetBackflowShared(bool value) => IsBackflow = value;
         public int SharedEntryCount => 1;
         public SharedFacilityValue ReadShared(int index)
         {
