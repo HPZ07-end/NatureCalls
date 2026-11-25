@@ -315,6 +315,6 @@ NGO Scene Management 当前关闭，Scene 由本地加载加 RPC 协调。当前
 
 新设施或地图只在自己的组件里实现接口，Input、Player、Network、UI 不需要改：
 
-- **可交互**：继承 `InteractableComponent`（自动在 OnEnable/OnDisable 注册）并实现 `CanInteract`、`Prompt`、`Perform`；`Target` 是准星要命中的物体，`AimPoint` 默认为其碰撞体包围盒中心。一个组件有多个入口时实现 `IInteractableProvider` 并自行注册各入口（参照 `PaperVendingMachine` 或 `Map2Repair` 的 Station）。联机时 `Perform` 调用 `context.Sync.RequestInteract(this)`：服务器按 `Facilities.SharedInteractables` 中的序号找到同一对象，用服务器端上下文重新检查 `CanInteract` 后执行。
+- **可交互**：继承 `InteractableComponent`（自动在 OnEnable/OnDisable 注册）并实现 `CanInteract`、`Prompt`、`Perform`；`Target` 是准星要命中的物体，`AimPoint` 默认为其碰撞体包围盒中心。一个组件有多个入口时实现 `IInteractableProvider` 并自行注册各入口（参照 `PaperVendingMachine` 或 `Map2Repair` 的 Station）。联机时 `Perform` 调用 `context.Requests.RequestInteract(this)`：服务器按 `Facilities.SharedInteractables` 中的序号找到同一对象，用服务器端上下文重新检查 `CanInteract` 后执行。
 - **移动效果**：实现 `IMovementEffectSource`（`AppliesTo` + 返回 Core `MovementModifier`），在 OnEnable/OnDisable 调用 `MovementEffectRegistry.Register/Unregister`。多个来源由 `MovementRules.Combine` 合并：速度相乘、取最小的非零加速度、强制爬行与禁跳取或。
 - **共享状态**：实现 `ISharedFacilityState`：声明条目数，`ReadShared`/`ApplyShared` 读写每个条目的 `SharedFacilityValue`（State + Owner，含义由设施自己定义），`ReleaseOwner` 释放断线玩家占有的条目。`Facilities` 按地图层级顺序给条目分配连续编号，服务器在开局和每次通用交互、穿越、断线后发布变化，所有客户端（含中途加入）按列表应用。

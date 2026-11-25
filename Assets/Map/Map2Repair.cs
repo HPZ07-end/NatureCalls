@@ -40,7 +40,7 @@ namespace NatureCalls.Map
             interactables.Clear(); interactables.Add(new Station(this, UpstreamWindow, Upstream)); interactables.Add(new Station(this, Valve, ValveAction));
             interactables.Add(new Station(this, InspectionPort, Inspection)); interactables.Add(new Station(this, DownstreamWindow, Downstream));
         }
-        private void Start() { foreach (var value in interactables) InteractionRegistry.Register(value); }
+        private void OnEnable() { foreach (var value in interactables) InteractionRegistry.Register(value); }
         private void OnDisable() { foreach (var value in interactables) InteractionRegistry.Unregister(value); }
         public string Prompt(int action) => action switch
         {

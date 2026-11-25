@@ -161,6 +161,7 @@ namespace NatureCalls.Editor
 
         private static void ConfigureActivities(Scene scene, Map.Playground world, Transform supplies, PaperRoll paper)
         {
+            GameObjectUtility.RemoveMonoBehavioursWithMissingScript(world.gameObject);
             var vending = GetOrAdd<PaperVendingMachine>(world.gameObject);
             paper.PromptLabel = "拾取应急卷纸";
             var room = FindRoot(scene, "Street Restroom");

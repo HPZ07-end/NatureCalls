@@ -273,10 +273,11 @@ namespace NatureCalls.Tests
                 Assert.That(vending.Wallet(0), Is.Zero);
                 Assert.That(input.HeldItem, Is.TypeOf<PaperRoll>());
 
-                var wet = Object.FindObjectsByType<WetZone>(FindObjectsSortMode.None).Single().GetComponent<BoxCollider>().bounds.center;
+                var wetZone = Object.FindObjectsByType<WetZone>(FindObjectsSortMode.None).OrderBy(zone => zone.name, System.StringComparer.Ordinal).First();
+                var wet = wetZone.GetComponent<BoxCollider>().bounds.center;
                 wet.y = .03f;
                 yield return Teleport(walker, wet);
-                Assert.That(Object.FindObjectsByType<WetZone>(FindObjectsSortMode.None).Single().IsWet(walker.transform.position), Is.True);
+                Assert.That(wetZone.IsWet(walker.transform.position), Is.True);
                 walker.Move(Vector2.right, .08f);
                 var beforeRelease = walker.transform.position;
                 walker.Move(Vector2.zero, .02f);

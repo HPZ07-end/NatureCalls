@@ -69,7 +69,9 @@ namespace NatureCalls.Network
             {
                 TraversalSources = world.GetComponentsInChildren<MonoBehaviour>().OfType<ITraversalFacility>()
                     .OrderBy(access => ((MonoBehaviour)access).name).ToArray();
-                var owners = world.GetComponentsInChildren<MonoBehaviour>(true).OrderBy(item => FacilityPath(item.transform), StringComparer.Ordinal).ToArray();
+                // Every facility in the map scene, not only under the Playground root (stalls and urinals are scene roots).
+                var owners = world.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<MonoBehaviour>(true))
+                    .OrderBy(item => FacilityPath(item.transform), StringComparer.Ordinal).ToArray();
                 sharedSources = owners.OfType<ISharedFacilityState>().ToArray();
                 sharedFirstId = new int[sharedSources.Length];
                 for (int i = 0, next = 0; i < sharedSources.Length; next += sharedSources[i].SharedEntryCount, i++) sharedFirstId[i] = next;
@@ -166,6 +168,16 @@ namespace NatureCalls.Network
             if (!IsServer) return;
             foreach (var source in sharedSources) source.ReleaseOwner(clientId);
             PublishShared();
+        }
+
+        /// <summary>The published entry for one source's local entry, if the server has published it.</summary>
+        public bool TryGetShared(ISharedFacilityState source, int index, out FacilityStateEntry entry)
+        {
+            entry = default;
+            int i = Array.IndexOf(sharedSources, source);
+            if (i < 0 || index < 0 || index >= source.SharedEntryCount) return false;
+            entry = GetFacilityState((ushort)(sharedFirstId[i] + index), out var found);
+            return found;
         }
 
         private FacilityStateEntry GetFacilityState(ushort id, out bool found)

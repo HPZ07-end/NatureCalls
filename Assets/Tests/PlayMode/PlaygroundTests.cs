@@ -104,7 +104,7 @@ namespace NatureCalls.Tests
             var rolls = Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None);
             Assert.That(doors.Length, Is.EqualTo(3));
             Assert.That(rolls.Length, Is.EqualTo(3));
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedFacilityState.Count, Is.GreaterThanOrEqualTo(doors.Length));
+            foreach (var door in doors) Assert.That(NatureCalls.Network.Facilities.Current.TryGetShared(door, 0, out _), Is.True, "Every door has a published entry.");
             Assert.That(NatureCalls.Network.Facilities.Current.SharedItems.Count, Is.EqualTo(rolls.Length + 1));
 
             controller.enabled = false;
@@ -114,7 +114,7 @@ namespace NatureCalls.Tests
             deadline = Time.time + 2;
             while (doors[0].State == StallDoorState.Closed && Time.time < deadline) yield return null;
             Assert.That(doors[0].State, Is.Not.EqualTo(StallDoorState.Closed));
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedFacilityState.Any(entry => entry.State == (byte)doors[0].State), Is.True);
+            Assert.That(NatureCalls.Network.Facilities.Current.TryGetShared(doors[0], 0, out var doorEntry) ? doorEntry.State : -1, Is.EqualTo((int)(byte)doors[0].State));
 
             controller.enabled = false;
             player.transform.position = rolls[0].transform.position + Vector3.back * .4f;
@@ -385,12 +385,14 @@ namespace NatureCalls.Tests
             deadline = Time.time + 2;
             while (player.Seat == null && Time.time < deadline) yield return null;
             Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "The host grants the free seat.");
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedFacilityState.Any(entry => entry.Owner == avatar.OwnerClientId + 1), Is.True, "The occupant is shared.");
+            Assert.That(SeatOwner(toilet), Is.EqualTo(avatar.OwnerClientId + 1), "The occupant is shared.");
             deadline = Time.time + NatureCalls.Core.NeedsRules.ToiletingSeconds + 2;
-            while (NatureCalls.Network.Facilities.Current.SharedFacilityState.Any(entry => entry.Owner == avatar.OwnerClientId + 1) && Time.time < deadline) yield return null;
-            Assert.That(NatureCalls.Network.Facilities.Current.SharedFacilityState.Any(entry => entry.Owner == avatar.OwnerClientId + 1), Is.False, "Standing up frees the shared seat.");
+            while (SeatOwner(toilet) != 0 && Time.time < deadline) yield return null;
+            Assert.That(SeatOwner(toilet), Is.Zero, "Standing up frees the shared seat.");
             Assert.That(toilet.IsOccupied, Is.False);
         }
+        private static ulong SeatOwner(Toilet toilet) =>
+            NatureCalls.Network.Facilities.Current.TryGetShared(toilet, 0, out var entry) ? entry.Owner : ulong.MaxValue;
         [UnityTest]
         public IEnumerator RiggedPlayerFollowsMovementAndPosture()
         {

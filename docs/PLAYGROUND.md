@@ -58,6 +58,8 @@ E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取
 
 `py -3 scripts/unity.py map-integration`（菜单 `NatureCalls/Connect Layout Map To Lobby`）通过 Unity API 为现有布局补齐镜头、出生点、门/马桶/卷纸/工具箱接线、HUD、地图目录和构建列表；不重新生成布局、覆盖原 Playground 或改变模块 Prefab。普通使用不需要重跑。漏水、阀门、应急设施及损坏/污渍装饰保持视觉展示，本次不赋予新的规则。
 
+`python3 scripts/unity.py map2-integration`（菜单 `NatureCalls/Connect Map2 To Lobby`）通过 Unity API 为 Map2 接线：出生点、隔间、工具箱、井口、`PaperVendingMachine`（售纸机与金币）、`WetZone`（每块湿地一个）和 `Map2Repair`（A 支路维修原型），并删除失效的脚本引用。修改这些组件的字段后重跑。
+
 1. 打开 `DressingRoom` 并 Play。走到镜子前按 E 打开换装面板，点选外观预览，「确认」保存（写入本机 PlayerPrefs），「取消」恢复。
 2. 走到镜子左侧的门按 E：背景虚化，出现联机大厅。
    - **单人离线测试**：直接进入地图选择，选地图或「随机地图」后加载该地图，本地玩家穿着所选外观。

@@ -39,12 +39,12 @@ namespace NatureCalls.Facility
         {
             Coins ??= Array.Empty<Transform>(); VendingStock ??= Array.Empty<PaperRoll>();
             coinOwners = new ulong[Coins.Length];
+            foreach (var roll in VendingStock) if (roll != null && VendingMachine != null) roll.Store(VendingMachine.position);
             interactables.Clear();
             interactables.Add(new Station(this, VendingMachine, Vending));
             for (int i = 0; i < Coins.Length; i++) interactables.Add(new Station(this, Coins[i], FirstCoin + i));
         }
-        private void Start() { foreach (var value in interactables) InteractionRegistry.Register(value); }
-        private void OnEnable() { }
+        private void OnEnable() { foreach (var value in interactables) InteractionRegistry.Register(value); }
         private void OnDisable() { foreach (var value in interactables) InteractionRegistry.Unregister(value); }
 
         public int Wallet(ulong player) => coinOwners.Count(owner => owner == player + 1);
