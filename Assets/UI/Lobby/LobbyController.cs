@@ -62,9 +62,9 @@ namespace NatureCalls.UI
             view.OutfitTall.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Tall));
             view.OutfitSwift.onClick.AddListener(() => PreviewBodyType(PlayerBodyType.Swift));
             view.OfflineButton.onClick.AddListener(StartOffline);
-            view.CreateButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.CreateNow(); else CreateRoom(); });
+            view.CreateButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.SelectCreate(); else CreateRoom(); });
             if (view.CreateServerButton != null) view.CreateServerButton.onClick.AddListener(CreateServerRoom);
-            view.JoinButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.JoinNow(); else JoinRoom(); });
+            view.JoinButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.SelectJoin(); else JoinRoom(); });
             view.CloseButton.onClick.AddListener(CloseLobby);
             view.PrimaryButton.onClick.AddListener(PressPrimary);
             view.LeaveButton.onClick.AddListener(LeaveRoom);
@@ -315,7 +315,7 @@ namespace NatureCalls.UI
             {
                 int selected = offlineMapSelection ? pendingOfflineMap : room.SelectedMap.Value;
                 view.MapHint.text = (selected >= 0 && selected < maps.Count ? MapLabel(maps[selected].DisplayName) : "地图已选择") +
-                    (CanConfirmMap ? "\n\n<size=32>点下方「冲水出发」</size>" : "\n\n<size=32>等待领队冲水出发</size>");
+                    (CanConfirmMap ? "\n\n<size=32>对准按钮按 E 冲水出发</size>" : "\n\n<size=32>等待领队冲水出发</size>");
             }
             view.MapPanel.transform.Find("Title").GetComponent<Text>().text = AwaitingMapConfirmation ? "即将前往" : "选择地图";
             view.MapHint.supportRichText = true;
