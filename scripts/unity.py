@@ -151,6 +151,40 @@ def use_nographics(platform=None, environment=None):
     return platform != "win32"
 
 
+AUTO_DEPLOY_BRANCHES = ("dev", "main")
+
+
+def auto_deploy_plan(branch, dirty, setting):
+    """Whether a successful client build should also deploy the course server, and why (user 2026-11-26).
+
+    Only clean builds of dev or main deploy, so the shared server always matches a merged commit; feature
+    branches, Codex worktrees and dirty trees just build. NATURECALLS_AUTO_DEPLOY=0 turns it off."""
+    if setting is not None and setting.strip().lower() in {"0", "false", "no", "off"}:
+        return False, "automatic deploy is disabled (NATURECALLS_AUTO_DEPLOY=0)"
+    if dirty:
+        return False, "tracked files have uncommitted changes, so the server could not match a commit"
+    if branch not in AUTO_DEPLOY_BRANCHES:
+        return False, f"branch '{branch or 'detached'}' is not dev or main"
+    return True, f"clean {branch} build"
+
+
+def auto_deploy():
+    """After a passed client build: deploy the same commit to the course server (skipped if it already runs it)."""
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    branch = git("rev-parse", "--abbrev-ref", "HEAD")
+    dirty = bool(git("status", "--porcelain", "--untracked-files=no"))
+    deploy, reason = auto_deploy_plan(branch if branch != "HEAD" else "", dirty, os.environ.get("NATURECALLS_AUTO_DEPLOY"))
+    if not deploy:
+        print(f"Course server not deployed: {reason}.", flush=True)
+        return 0
+    print(f"Deploying the course server to match this {reason} (pass --no-deploy to skip)...", flush=True)
+    result = subprocess.run([sys.executable, str(ROOT / "scripts/deploy_server.py"), "--skip-if-current"], cwd=ROOT)
+    if result.returncode:
+        print("ERROR: the client build passed, but deploying the course server failed; see the output above.", file=sys.stderr)
+    return result.returncode
+
+
 def run(action, timeout, test_filter=None):
     editor = editor_path()
     with project_lock():
@@ -232,6 +266,8 @@ def main():
     parser.add_argument("action", choices=["detect", "setup", "validate", "playground", "camera", "lobby-flow", "dressing-room", "toilet-lobby", "server-lobby-controls", "toilet-anchors", "spawn-points", "match-flow", "facilities", "toileting", "map-integration", "map2-integration", "plumbing", "mess-art", "map3-integration", "test-editmode", "test-playmode", "build-macos", "build-windows", "build-server"])
     parser.add_argument("--timeout", type=int, default=1800, help="Editor timeout in seconds (default 1800)")
     parser.add_argument("--test-filter", help="Explicit Unity test name/regex filter; recorded in summary.json")
+    parser.add_argument("--no-deploy", action="store_true",
+                        help="build-macos/build-windows: do not deploy the course server afterwards")
     arguments = parser.parse_args()
     try:
         if arguments.action == "detect":
@@ -239,6 +275,8 @@ def main():
             print(json.dumps({"editor": str(editor), "version": verify_editor(editor)}, indent=2))
         else:
             run(arguments.action, arguments.timeout, arguments.test_filter)
+            if arguments.action in ("build-macos", "build-windows") and not arguments.no_deploy:
+                return 1 if auto_deploy() else 0
     except (RuntimeError, OSError, ValueError, ET.ParseError, subprocess.TimeoutExpired) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
