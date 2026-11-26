@@ -487,8 +487,9 @@ namespace NatureCalls.Tests
             Assert.That(world.Camera.FirstPerson.Priority.Value, Is.GreaterThan(world.Camera.ThirdPerson.Priority.Value));
             Assert.That(world.Camera.Output.enabled, Is.True, "First-person toileting output remains active.");
             // First-person toileting: the local body layer is rendered so the player can see their own legs.
-            Assert.That((camera.cullingMask & (1 << NatureCalls.Camera.CameraController.LocalBodyLayer)) != 0, Is.True,
-                "Squatting in first person shows the local body (legs).");
+            // Head up the knees are visible; bowed to aim, the torso is hidden so the bowl shows.
+            Assert.That((camera.cullingMask & (1 << NatureCalls.Camera.CameraController.LocalBodyLayer)) != 0, Is.EqualTo(world.Camera.Gaze <= .3f),
+                "Squatting shows the local body only while the head is up.");
             foreach (var renderer in player.Body.GetComponentsInChildren<Renderer>())
                 Assert.That(renderer.forceRenderingOff, Is.False, "Local body renderers stay on.");
             Capture(camera, "squatting.png");

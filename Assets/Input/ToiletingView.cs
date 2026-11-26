@@ -28,10 +28,12 @@ namespace NatureCalls.Input
     public sealed class ToiletGaze : MonoBehaviour
     {
         public const float Budget = 3f, LookThreshold = .6f, LookPitch = 70f, DriftWhileLooking = .6f;
+        /// <summary>Head pitch (degrees down) at which a squat becomes the aim; looking back up leaves it.</summary>
+        public const float AimPitch = 50f;
         /// <summary>0 = head up, 1 = fully bowed.</summary>
         public float Amount { get; private set; }
         public float Remaining { get; private set; } = Budget;
-        public bool Looking => Amount >= LookThreshold && Remaining > 0;
+        public bool Looking => Amount >= LookThreshold;
         public bool Exhausted => Remaining <= 0;
         /// <summary>Multiplier PlayerInput applies to the landing drift.</summary>
         public float DriftScale => Looking ? DriftWhileLooking : 1f;
@@ -62,13 +64,13 @@ namespace NatureCalls.Input
                 return;
             }
             wasActive = true;
-            if (input.enabled && Mouse.current != null && Cursor.lockState == CursorLockMode.Locked) push += -Mouse.current.delta.ReadValue().y * .01f;
-            if (Exhausted) Amount = Mathf.MoveTowards(Amount, 0, Time.deltaTime * 2.5f); // pulled back up
-            else Amount = Mathf.Clamp01(Amount + push - (push == 0 ? Time.deltaTime * .15f : 0));
-            push = 0;
+            // The mouse owns the view (PlayerInput); the gaze only reads how far the head is bowed. Push() still lets
+            // tests and other devices bow the head. No time budget: the player may look down as long as they like.
+            if (push != 0) { SetPitch(movement.Pitch + push * LookPitch); push = 0; }
+            Amount = Mathf.Clamp01(movement.Pitch / LookPitch);
+            input.RefreshAimPhase();
             if (Looking) Remaining = Mathf.Max(0, Remaining - Time.deltaTime);
-            SetPitch(Amount * LookPitch);
-            Camera(Amount);
+            Camera(Mathf.InverseLerp(LookThreshold * .6f, 1f, Amount)); // bowed head turns the view toward the bowl
             ShowMarker(false); // blind aim: no reticle or landing marker
         }
 
@@ -80,7 +82,7 @@ namespace NatureCalls.Input
             var rig = world != null ? world.Camera : null;
             if (rig == null || rig.Target != movement) return;
             rig.Gaze = amount;
-            rig.GazePoint = input.CurrentLanding;
+            rig.GazePoint = input.TargetCenter; // the bowl itself; the landing point stays hidden (blind aim)
         }
 
         private void ShowMarker(bool visible)
@@ -221,7 +223,7 @@ namespace NatureCalls.Input
         private void FaceUrinal()
         {
             var target = input.TargetCenter;
-            movement.LookAt(new Vector3(target.x, movement.transform.position.y + .9f, target.z));
+            movement.LookAt(target); // the view is the aim: start looking straight at the target
         }
 
         /// <summary>Crotch height and lead, in front of the standing body (never shown: the view faces the urinal).</summary>

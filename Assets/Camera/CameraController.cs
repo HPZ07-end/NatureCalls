@@ -90,8 +90,9 @@ namespace NatureCalls.Camera
             SetPosture(posture.State);
             UpdateTargets();
             // Hide only from the local first-person output. Mirror cameras still render this layer.
-            bool toileting = posture.IsSquatting || Target.Aiming;
-            bool hidden = !toileting;
+            // Show the local body only while squatting with the head up (knees in view). Looking down to aim, or
+            // standing to urinate, hides it so the bowl / urinal below is visible instead of the torso.
+            bool hidden = !posture.IsSquatting || Gaze > .3f;
             Output.cullingMask = hidden ? outputCullingMask & ~(1 << LocalBodyLayer) : outputCullingMask;
             foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
         }
@@ -99,7 +100,14 @@ namespace NatureCalls.Camera
         {
             if (Target == null) return;
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
-            if (posture.IsSquatting || Target.Aiming)
+            if (posture.IsSquatting && Target.Seat != null && Gaze > 0)
+            {
+                // Seated look-down: from just in front of the head, turn toward the bowl under the body.
+                var head = Target.transform.position + Vector3.up * 1.05f + Target.transform.forward * .12f;
+                var down = Quaternion.LookRotation(GazePoint - head, Target.transform.forward);
+                Eye.SetPositionAndRotation(head, Quaternion.Slerp(Target.ViewRotation, down, Mathf.SmoothStep(0, 1, Gaze)));
+            }
+            else if (posture.IsSquatting)
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * 1.05f, Target.ViewRotation);
             else
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * (Target.IsCrawling ? .63f : EyeHeight), Target.ViewRotation);

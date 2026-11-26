@@ -21,6 +21,12 @@ namespace NatureCalls.Input
         private PlayerNeeds needs;
         public enum Stage { None, Squatting, Aiming, Urinating, Cleaning }
         public Stage Phase { get; private set; }
+        /// <summary>Squat ↔ aim follows the head: bowed past <see cref="ToiletGaze.AimPitch"/> aims, looking back up leaves it.</summary>
+        public void RefreshAimPhase()
+        {
+            if (Phase == Stage.Squatting && movement.Pitch >= ToiletGaze.AimPitch) { Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; }
+            else if (Phase == Stage.Aiming && movement.Pitch < ToiletGaze.AimPitch - 15f) { Phase = Stage.Squatting; if (needs != null) needs.Aiming = false; }
+        }
         /// <summary>WASD moves the player except while aiming (squat look-down or urination); squatting still shuffles.</summary>
         public bool AcceptsWalking => Phase != Stage.Aiming && Phase != Stage.Urinating;
         /// <summary>V aims first; the stream starts only after C confirms.</summary>
@@ -107,7 +113,7 @@ namespace NatureCalls.Input
         private void Update()
         {
             if (requested >= 0 && Time.time > requested + 2) requested = -1;
-            if (Phase == Stage.Squatting && movement.Pitch >= ToiletGaze.LookPitch) Phase = Stage.Aiming;
+            RefreshAimPhase();
             if (!movement.Controlled)
             {
                 // Connection-toilet water view: the player is parked and the cursor is free, so E presses the
@@ -124,7 +130,10 @@ namespace NatureCalls.Input
             {
                 RefreshFocus();
                 if (!IsToileting) movement.Look(look.ReadValue<Vector2>());
-                else if (Phase == Stage.Squatting || Phase == Stage.Aiming) {
+                else
+                {
+                    // Toileting: the mouse always moves the first-person view (squatting or seated bodies ignore
+                    // Movement.Look). Looking down far enough is the squat aim; the urine stream goes where you look.
                     var delta = look.ReadValue<Vector2>(); movement.transform.Rotate(Vector3.up, delta.x * movement.Sensitivity, Space.World);
                     movement.SetPitch(movement.Pitch - delta.y * movement.Sensitivity);
                 }
@@ -147,7 +156,8 @@ namespace NatureCalls.Input
             {
                 var keys = move.ReadValue<Vector2>();
                 var worldMove = movement.transform.TransformDirection(new Vector3(keys.x, 0, keys.y));
-                var adjustment = Phase == Stage.Urinating || Phase == Stage.Aiming ? look.ReadValue<Vector2>() * NeedsRules.MouseAimScale :
+                // Squat aim: WASD shuffles the landing point. Urination aims with the view itself (see TickAim).
+                var adjustment = Phase == Stage.Urinating ? Vector2.zero :
                     new Vector2(worldMove.x, worldMove.z) * NeedsRules.CorrectionSpeed * Time.deltaTime;
                 TickAim(Time.deltaTime, accept ? adjustment : Vector2.zero);
             }
@@ -195,7 +205,7 @@ namespace NatureCalls.Input
         public bool TryToilet()
         {
             if (needs != null && needs.Vomiting) return false;
-            if (Phase == Stage.Squatting) { if (movement.Pitch < ToiletGaze.LookThreshold * ToiletGaze.LookPitch) return false; Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; return true; }
+            if (Phase == Stage.Squatting) { if (movement.Pitch < ToiletGaze.AimPitch - 15f) return false; Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; return true; }
             if (Phase == Stage.Aiming) { FinishToileting(); return true; }
             if (Phase == Stage.Urinating) { if (UrineFlowing) return false; UrineFlowing = true; return true; }
             movement.RefreshVentPosture();
@@ -256,11 +266,13 @@ namespace NatureCalls.Input
             var profile = CharacterProfile.For(appearance != null ? appearance.BodyType : LocalProfile.BodyType);
             var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0) * (1f + (needs != null ? needs.AimJitterIntensity : 0)) * (GetComponent<ToiletGaze>()?.DriftScale ?? 1f) / Mathf.Max(.01f, profile.AimSteadiness);
             var offset = correction + drift;
-            if (urinal != null)
+            if (Phase == Stage.Urinating)
             {
-                var facing = Vector3.ProjectOnPlane(urinal.TargetCenter - urinal.FrontPosition, Vector3.up).normalized;
-                var right = Vector3.Cross(Vector3.up, facing);
-                CurrentLanding = initialLanding + right * offset.x + Vector3.up * offset.y;
+                // Where you look is where it goes: the first solid surface on the view ray (not your own body).
+                var ray = movement.ViewRay;
+                var mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer) & ~(1 << NatureCalls.Camera.CameraController.LocalBodyLayer);
+                var aimed = Physics.Raycast(ray, out var hit, 3f, mask, QueryTriggerInteraction.Ignore) ? hit.point : ray.GetPoint(1.5f);
+                CurrentLanding = aimed + new Vector3(drift.x, 0, drift.y) * .5f;
             }
             else CurrentLanding = initialLanding + new Vector3(offset.x, 0, offset.y);
             if (Phase == Stage.Urinating && !UrineFlowing) return; // still aiming: nothing comes out yet

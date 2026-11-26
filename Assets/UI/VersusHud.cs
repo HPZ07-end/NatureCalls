@@ -274,7 +274,12 @@ namespace NatureCalls.UI
         private void HideLegacyHud(bool versus)
         {
             // The old numeric urgency/disgust bars and the countdown clock are replaced in versus rounds.
-            foreach (var view in FindObjectsByType<NeedsView>(FindObjectsSortMode.None)) Fade(view.gameObject, versus);
+            // Only the old bars: the same HUD object also carries the toileting prompts and the E focus prompt.
+            foreach (var view in FindObjectsByType<NeedsView>(FindObjectsSortMode.None))
+            {
+                if (view.TryGetComponent<CanvasGroup>(out var group)) group.alpha = 1f;
+                view.SetBarsHidden(versus);
+            }
             foreach (var clock in FindObjectsByType<MatchClock>(FindObjectsSortMode.None)) Fade(clock.gameObject, versus);
         }
 

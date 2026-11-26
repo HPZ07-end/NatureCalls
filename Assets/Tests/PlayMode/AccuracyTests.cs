@@ -295,7 +295,7 @@ namespace NatureCalls.Tests
             sync.ReportResult(0, player.transform.position + Vector3.right * 50); yield return null;
             Assert.That(needs.Urgency, Is.EqualTo(initial).Within(10f), "Remote result position is rejected.");
             Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
-            input.TickAim(3, new Vector2(5, 5)); yield return null;
+            player.LookAt(player.transform.position + player.transform.right * 2f); input.TickAim(3, Vector2.zero); // looking away misses yield return null;
             Assert.That(urinal.IsOccupied, Is.False);
             Assert.That(needs.Urgency, Is.LessThan(initial), "Urination relieves the current urgency after aim-time growth.");
             Assert.That(Facilities.Current.SharedMesses.Count, Is.EqualTo(1));

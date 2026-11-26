@@ -176,7 +176,8 @@ namespace NatureCalls.Tests
                 Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
                 Assert.That(urinal.Occupant, Is.SameAs(player));
                 Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
-                input.TickAim(NeedsRules.UrinatingSeconds, new Vector2(2, 2));
+                player.LookAt(player.transform.position + player.transform.right * 2f); // aim off the urinal: the stream follows the view
+                input.TickAim(NeedsRules.UrinatingSeconds, Vector2.zero);
                 Assert.That(urinal.IsOccupied, Is.False);
             }
             Assert.That(world.Messes.Count(mess => mess != null && mess.Kind == MessKind.Puddle), Is.EqualTo(2));
