@@ -102,7 +102,9 @@ namespace NatureCalls.Tests
             Assert.That(Object.FindObjectsByType<Urinal>(FindObjectsSortMode.None).Length, Is.EqualTo(3));
             var urinal = Object.FindFirstObjectByType<Urinal>();
             Place(urinal.FrontPosition, Vector3.forward); needs.BeginRound(1);
+            Assert.That(input.AcceptsWalking, Is.True, "WASD walks outside toileting (regression: only squatting could move).");
             Assert.That(input.TryUrinate(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            Assert.That(input.AcceptsWalking, Is.False, "No walking while aiming the stream.");
             Assert.That(input.UrineFlowing, Is.False, "V only aims."); Assert.That(input.TryToilet(), Is.True); Assert.That(input.UrineFlowing, Is.True, "C starts the stream.");
             var other = new GameObject("other").AddComponent<Movement>();
             try { other.transform.position = urinal.FrontPosition; Assert.That(urinal.Occupy(other), Is.False); }
