@@ -24,6 +24,8 @@ SERVICE = ROOT / "scripts/naturecalls@.service"
 ROOM_SERVICE = ROOT / "scripts/naturecalls-room@.service"
 BROKER_SERVICE = ROOT / "scripts/naturecalls-broker.service"
 BROKER_SCRIPT = ROOT / "scripts/room_broker.py"
+# Server-side staging copy of the last uploaded build: rsync only sends the blocks that changed since then.
+REMOTE_STAGE = "/tmp/naturecalls-stage"
 
 
 def run(command, **kwargs):
@@ -60,6 +62,12 @@ def remote_current(host):
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def seed_command():
+    """Remote shell: create the staging directory and, if empty, fill it from the current release."""
+    return (f'mkdir -p {REMOTE_STAGE} && if [ -z "$(ls -A {REMOTE_STAGE})" ] && [ -d {REMOTE_ROOT}/current/ ]; '
+            f'then cp -a {REMOTE_ROOT}/current/. {REMOTE_STAGE}/; fi')
+
+
 def release_name(commit, build):
     return f"{commit}-{build.parent.name}"
 
@@ -73,7 +81,7 @@ NEW=$ROOT/releases/{release}
 PREV=$(readlink "$ROOT/current" || true)
 mkdir -p "$NEW"
 mkdir -p "$NEW/scripts"
-tar -xzf {archive} -C "$NEW"
+{f'tar -xzf {archive} -C "$NEW"' if archive.endswith(".tar.gz") else f'cp -a {archive}/. "$NEW"/'}
 chmod +x "$NEW/NatureCalls"
 chown -R root:root "$NEW"
 {"install -m 644 /tmp/naturecalls@.service /etc/systemd/system/naturecalls@.service" if service_changed else ":"}
@@ -111,12 +119,12 @@ if [ "$ok" != 1 ]; then
     systemctl restart naturecalls-broker.service || true
     echo "ROLLED_BACK $PREV"
   fi
-  rm -f {archive}
+  {f"rm -f {archive}" if archive.endswith(".tar.gz") else ":"}
   exit 1
 fi
 cd "$ROOT/releases"
 ls -1t | grep -vx "{release}" | tail -n +{keep + 1} | xargs -r rm -rf
-rm -f {archive}
+{f"rm -f {archive}" if archive.endswith(".tar.gz") else ": # staging copy kept for the next delta upload"}
 echo "DEPLOYED {release}"
 """
 
@@ -144,6 +152,8 @@ def main():
     parser.add_argument("--keep", type=int, default=3, help="older releases to keep for rollback (default 3)")
     parser.add_argument("--allow-dirty", action="store_true", help="deploy even if tracked files have uncommitted changes")
     parser.add_argument("--dry-run", action="store_true", help="print the plan and the server script without changing anything")
+    parser.add_argument("--tar", action="store_true",
+                        help="upload the whole build as one archive instead of an rsync delta (slow on the course network)")
     parser.add_argument("--skip-if-current", action="store_true",
                         help="do nothing when the server already runs this commit (used by automatic deploys after builds)")
     args = parser.parse_args()
@@ -178,7 +188,7 @@ def main():
     # A dry run is intentionally offline: it must not probe or mutate the course server.
     ports = args.ports or (DEFAULT_PORTS if args.dry_run else remote_ports(args.host))
     release = release_name(commit, build) if build else f"{commit}-build-id"
-    archive = f"/tmp/naturecalls-{release}.tar.gz"
+    archive = f"/tmp/naturecalls-{release}.tar.gz" if args.tar else REMOTE_STAGE
     service_changed = True if args.dry_run else remote_service_differs(args.host)
     broker_changed = True
     script = remote_script(release, archive, ports, args.keep, service_changed, broker_changed)
@@ -188,11 +198,17 @@ def main():
         return 0
 
     with tempfile.TemporaryDirectory() as directory:
-        package = Path(directory) / "server.tar.gz"
-        with tarfile.open(package, "w:gz") as tar:
-            for item in build.parent.iterdir():
-                tar.add(item, arcname=item.name)
-        run(["scp", "-q", "-o", "BatchMode=yes", str(package), f"{args.host}:{archive}"])
+        if args.tar:
+            package = Path(directory) / "server.tar.gz"
+            with tarfile.open(package, "w:gz") as tar:
+                for item in build.parent.iterdir():
+                    tar.add(item, arcname=item.name)
+            run(["scp", "-q", "-o", "BatchMode=yes", str(package), f"{args.host}:{archive}"])
+        else:
+            # Seed the staging copy from the running release once, then send only what changed.
+            run(["ssh", "-o", "BatchMode=yes", args.host, seed_command()])
+            run(["rsync", "-az", "--delete", "--partial", "--stats", "-e", "ssh -o BatchMode=yes",
+                 f"{build.parent}/", f"{args.host}:{REMOTE_STAGE}/"])
         if service_changed:
             run(["scp", "-q", "-o", "BatchMode=yes", str(SERVICE), f"{args.host}:/tmp/naturecalls@.service"])
         run(["scp", "-q", "-o", "BatchMode=yes", str(ROOM_SERVICE), f"{args.host}:/tmp/naturecalls-room@.service"])

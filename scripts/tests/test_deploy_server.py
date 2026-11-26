@@ -22,6 +22,13 @@ class DeployTests(unittest.TestCase):
         self.assertFalse(deploy.already_current("releases/6537a3c-dirty-x", "6537a3c-dirty"))
         self.assertFalse(deploy.already_current("", "6537a3c"))
 
+    def test_staged_upload_copies_the_delta_copy_and_keeps_it(self):
+        script = deploy.remote_script("c26b26b-x", deploy.REMOTE_STAGE, [8000], keep=3, service_changed=False)
+        self.assertIn(f'cp -a {deploy.REMOTE_STAGE}/. "$NEW"/', script)
+        self.assertNotIn("tar -xzf", script)
+        self.assertNotIn(f"rm -f {deploy.REMOTE_STAGE}", script)
+        self.assertIn(f"mkdir -p {deploy.REMOTE_STAGE}", deploy.seed_command())
+
     def test_release_name_joins_commit_and_build_id(self):
         build = Path("/x/Builds/LinuxServer/20261111T010000Z-abc/NatureCalls")
         self.assertEqual(deploy.release_name("c26b26b", build), "c26b26b-20261111T010000Z-abc")
