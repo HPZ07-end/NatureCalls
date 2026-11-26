@@ -282,14 +282,25 @@ namespace NatureCalls.Input
                 // Where you look is where it goes: the first solid surface on the view ray (not your own body).
                 var ray = movement.ViewRay;
                 var mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer) & ~(1 << NatureCalls.Camera.CameraController.LocalBodyLayer);
-                var aimed = Physics.Raycast(ray, out var hit, 3f, mask, QueryTriggerInteraction.Ignore) ? hit.point : ray.GetPoint(1.5f);
+                bool struck = Physics.Raycast(ray, out var hit, 3f, mask, QueryTriggerInteraction.Ignore);
+                var aimed = struck ? hit.point : ray.GetPoint(1.5f);
                 CurrentLanding = aimed + new Vector3(drift.x, 0, drift.y) * .5f;
+                // In the target when the stream strikes the toilet / urinal itself near its opening (the bowl surface,
+                // seat or porcelain), not a strict distance from the water centre.
+                var owner = toilet != null ? toilet.transform : urinal != null ? urinal.transform : null;
+                urineInside = struck && owner != null && (hit.transform.IsChildOf(owner) || (owner.parent != null && hit.transform.IsChildOf(owner.parent) && hit.transform.GetComponentInParent<StallDoor>() == null)) &&
+                              Vector3.Distance(Vector3.ProjectOnPlane(CurrentLanding, Vector3.up), Vector3.ProjectOnPlane(TargetCenter, Vector3.up)) <= .45f;
             }
             else CurrentLanding = ButtLanding() + new Vector3(offset.x, 0, offset.y); // follows the shuffled body
             if (Phase == Stage.Urinating && !UrineFlowing) return; // still aiming: nothing comes out yet
-            accuracy.Sample(seconds, Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
+            accuracy.Sample(seconds, Phase == Stage.Urinating ? urineInside : Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
             if (accuracy.Complete) FinishToileting();
         }
+        private bool urineInside;
+        /// <summary>The latest squat release: where the stool left and whether it went into the bowl (for the falling-stool view).</summary>
+        public Vector3 LastDropPoint { get; private set; }
+        public bool LastDropInBowl { get; private set; }
+        public int DropSerial { get; private set; }
         public const float ShuffleSpeed = .6f, SquatShuffleRadius = .25f, UrineShuffleRadius = .35f;
         private Vector3 shuffleOrigin;
         /// <summary>WASD while toileting: a small posture shift around where the player started.</summary>
@@ -325,6 +336,7 @@ namespace NatureCalls.Input
             // Messes land where the aim went (the floor under it), not at the player's feet.
             var position = FloorUnder(CurrentLanding);
             if (!urineMode && accuracy != null && accuracy.Duration > 1000f) accuracy = Accuracy.Fixed(ReleaseAccuracy());
+            if (!urineMode) { LastDropPoint = CurrentLanding; LastDropInBowl = toilet != null && accuracy.Value >= NeedsRules.PerfectAccuracy; DropSerial++; }
             if (seatedUrine)
             {
                 if (Online) facilities.ReportSeatedUrination(accuracy.Value, position);

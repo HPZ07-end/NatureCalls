@@ -139,6 +139,7 @@ namespace NatureCalls.Input
         private Vector3 dropVelocity;
         private float dropWater, dropFloor, dropAge;
         private bool dropInBowl;
+        private int seenDrop;
         private Vector3 dropTarget, bowlCenter;
 
         private void Awake() { input = GetComponent<PlayerInput>(); movement = GetComponent<Movement>(); }
@@ -150,12 +151,13 @@ namespace NatureCalls.Input
             if (phase != lastPhase)
             {
                 // C confirmed the squat aim: the stool leaves now, so show it falling into (or past) the bowl.
-                if (lastPhase == PlayerInput.Stage.Aiming && phase == PlayerInput.Stage.None && !dropped) BeginDrop();
+                // (The squat release is detected through PlayerInput.DropSerial below.)
                 if (phase == PlayerInput.Stage.Squatting || phase == PlayerInput.Stage.Aiming) { dropped = false; }
                 if (phase == PlayerInput.Stage.Urinating) { selfSplashed = false; offTargetBack = 0; FaceUrinal(); }
                 lastPhase = phase;
             }
             if ((phase == PlayerInput.Stage.Squatting || phase == PlayerInput.Stage.Aiming) && !dropped && input.Duration > 0 && input.Elapsed >= input.Duration - 1.2f) BeginDrop();
+            if (input.DropSerial != seenDrop) { seenDrop = input.DropSerial; BeginDrop(); }
             if (phase == PlayerInput.Stage.Urinating && input.UrineFlowing) TickStream(Time.deltaTime); else HideStream();
             TickDrop(Time.deltaTime);
         }
@@ -171,9 +173,10 @@ namespace NatureCalls.Input
             go.GetComponent<MeshFilter>().sharedMesh = art.SoftSwirl;
             go.GetComponent<MeshRenderer>().sharedMaterial = art.Stool;
             drop = go.transform;
-            bowlCenter = input.TargetCenter;
-            dropTarget = input.CurrentLanding;
-            dropInBowl = movement.Seat != null && Vector3.Distance(dropTarget, bowlCenter) <= input.TargetRadius;
+            dropTarget = input.DropSerial > 0 ? input.LastDropPoint : input.CurrentLanding;
+            dropInBowl = input.DropSerial > 0 ? input.LastDropInBowl : movement.Seat != null && Vector3.Distance(dropTarget, input.TargetCenter) <= input.TargetRadius;
+            bowlCenter = dropInBowl ? input.LastDropPoint : input.TargetCenter;
+            if (dropInBowl) dropTarget = new Vector3(dropTarget.x, bowlCenter.y, dropTarget.z);
             dropWater = bowlCenter.y - WaterDepth;
             dropFloor = movement.transform.position.y;
             drop.position = dropTarget + Vector3.up * .1f;

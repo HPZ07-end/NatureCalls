@@ -73,7 +73,9 @@ namespace NatureCalls.Player
         public void SetVersusState(float bladder, float bowel) { Bladder = Mathf.Clamp(bladder, 0, 100); Bowel = Mathf.Clamp(bowel, 0, 100); Urgency = NeedsRules.Highest(Bladder, Bowel); }
         /// <summary>Authority hook used by match/facility rules when control is lost.</summary>
         public void ForceAccident(bool bowel) => TriggerAccident(bowel ? MessKind.Accident : MessKind.Puddle);
-        public void CompleteUrination() { if (Ticking) { if (MatchContext.Versus) { Bladder = 0; Urgency = NeedsRules.Highest(Bladder, Bowel); } else { Urgency = NeedsRules.UrgencyAfterUrination(Urgency); Bladder = Urgency; } /* versus: the bladder empties even when the bowel is fuller */ ComfortBoostRemaining = 15; Comfort = Mathf.Clamp01(Comfort + .1f); OnRelieved?.Invoke(); } }
+        /// <summary>After relief the red endurance state ends at once unless the other need is still at its limit.</summary>
+        private void EndReliefAlarm() { if (Bladder < 100 && Bowel < 100) { InEndurance = false; IsOutOfControl = false; } }
+        public void CompleteUrination() { if (Ticking) { if (MatchContext.Versus) { Bladder = 0; Urgency = NeedsRules.Highest(Bladder, Bowel); } else { Urgency = NeedsRules.UrgencyAfterUrination(Urgency); Bladder = Urgency; } /* versus: the bladder empties even when the bowel is fuller */ EndReliefAlarm(); ComfortBoostRemaining = 15; Comfort = Mathf.Clamp01(Comfort + .1f); OnRelieved?.Invoke(); } }
 
 
         private void Awake() => posture = GetComponent<Posture>();
@@ -146,6 +148,7 @@ namespace NatureCalls.Player
             if (!Ticking) return;
             if (MatchContext.Versus) { if (Bowel > 0) Bowel = 0; else Bladder = 0; Urgency = NeedsRules.Highest(Bladder, Bowel); }
             else { Urgency = 0; Bladder = 0; Bowel = 0; }
+            EndReliefAlarm();
             ComfortBoostRemaining = 15; Comfort = Mathf.Clamp01(Comfort + .1f);
             Disgust = NeedsRules.DisgustAfterToileting(Disgust, insideStall);
             if (insideStall) AddComfort(.1f);

@@ -122,12 +122,6 @@ namespace NatureCalls.Camera
             }
             else if (posture.IsSquatting)
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * 1.05f, Target.ViewRotation);
-            else if (Target.Aiming)
-            {
-                // Standing pee aim: eye a little ahead of the face, past the body and anything held in the hands.
-                var flat = Vector3.ProjectOnPlane(Target.transform.forward, Vector3.up).normalized;
-                Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * EyeHeight + flat * .2f, Target.ViewRotation);
-            }
             else
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * (Target.IsCrawling ? .63f : EyeHeight), Target.ViewRotation);
             bool seated = Target.Aiming || (posture.IsSquatting && Target.Seat != null);

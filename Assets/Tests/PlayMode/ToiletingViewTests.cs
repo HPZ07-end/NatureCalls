@@ -118,9 +118,11 @@ namespace NatureCalls.Tests
             yield return null;
             player.LookAt(urinal.TargetCenter); input.TickAim(.02f, Vector2.zero);
             Assert.That(Vector3.Distance(input.CurrentLanding, urinal.TargetCenter), Is.LessThan(.35f), "The stream aims where the player looks.");
+            Assert.That(input.TryUrinate(), Is.True); input.TickAim(NatureCalls.Core.NeedsRules.UrinatingSeconds * .5f, Vector2.zero);
+            Assert.That(input.CurrentAccuracy, Is.GreaterThan(.9f), "Hitting the urinal itself counts as in the target.");
             yield return null; yield return null;
             Capture("toileting-urinal-aim.png");
-            Assert.That(input.TryUrinate(), Is.True, "A second V starts the stream.");
+            Assert.That(input.UrineFlowing, Is.True, "The second V started the stream.");
             yield return null;
             var toUrinal = Vector3.ProjectOnPlane(urinal.TargetCenter - player.transform.position, Vector3.up).normalized;
             Assert.That(Vector3.Dot(player.transform.forward, toUrinal), Is.GreaterThan(.95f), "The view turns to face the urinal.");
@@ -141,7 +143,9 @@ namespace NatureCalls.Tests
 
         [UnityTest] public IEnumerator SecondPressStartsEscOnlyLeavesAnUnstartedAimAndSeatedPeeKeepsTheSquat()
         {
-            MatchContext.Phase = MatchPhase.Playing; needs.BeginRound(1); needs.SetVersusState(60, 60);
+            MatchContext.Phase = MatchPhase.Playing; needs.BeginRound(1); needs.SetVersusState(60, 100);
+            for (int i = 0; i < 3 && !needs.InEndurance; i++) yield return null;
+            Assert.That(needs.InEndurance, Is.True, "A full bowel turns on the red endurance state.");
             Sit(); player.SetPitch(0); input.RefreshAimPhase();
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting));
             Assert.That(input.CancelAim(), Is.True, "Esc stands up from an unstarted squat.");
@@ -155,8 +159,11 @@ namespace NatureCalls.Tests
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting).Or.EqualTo(PlayerInput.Stage.Aiming), "After peeing the squat continues.");
             Assert.That(needs.Bladder, Is.LessThan(60), "The pee was settled.");
             player.SetPitch(0);
+            int drops = input.DropSerial;
             Assert.That(input.TryToilet(), Is.True, "A second C poops even without looking down.");
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.None));
+            Assert.That(input.DropSerial, Is.EqualTo(drops + 1), "The falling stool plays even without looking down.");
+            Assert.That(needs.InEndurance, Is.False, "Relief ends the red endurance state.");
         }
 
         [UnityTest] public IEnumerator ComfortBoostSparkles()
