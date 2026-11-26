@@ -79,9 +79,10 @@ namespace NatureCalls.Camera
         private void OnDestroy() { if (posture != null) posture.Changed -= SetPosture; }
         private void SetPosture(PostureState state)
         {
-            bool squat = state == PostureState.Squatting || (Target != null && Target.Aiming);
-            FirstPerson.Priority = squat ? 10 : 20;
-            ThirdPerson.Priority = squat ? 20 : 10;
+            // First person throughout, including squatting and toileting aim (the player aims by feel, looking
+            // down past their own legs). The third-person rig stays as a lower-priority fallback.
+            FirstPerson.Priority = 20;
+            ThirdPerson.Priority = 10;
         }
         private void LateUpdate()
         {
@@ -89,7 +90,8 @@ namespace NatureCalls.Camera
             SetPosture(posture.State);
             UpdateTargets();
             // Hide only from the local first-person output. Mirror cameras still render this layer.
-            bool hidden = (!posture.IsSquatting && !Target.Aiming) || Gaze > .3f || Vector3.Distance(Output.transform.position, Eye.position) < .65f;
+            bool toileting = posture.IsSquatting || Target.Aiming;
+            bool hidden = !toileting;
             Output.cullingMask = hidden ? outputCullingMask & ~(1 << LocalBodyLayer) : outputCullingMask;
             foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
         }
@@ -97,7 +99,9 @@ namespace NatureCalls.Camera
         {
             if (Target == null) return;
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
-            if (!posture.IsSquatting)
+            if (posture.IsSquatting || Target.Aiming)
+                Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * 1.05f, Target.ViewRotation);
+            else
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * (Target.IsCrawling ? .63f : EyeHeight), Target.ViewRotation);
             bool seated = Target.Aiming || (posture.IsSquatting && Target.Seat != null);
             if (posture.IsSquatting || Target.Aiming)

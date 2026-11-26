@@ -17,6 +17,7 @@ namespace NatureCalls.Facility
         {
             if (Forced.HasValue) return Forced.Value;
             var needs = player != null ? player.GetComponent<PlayerNeeds>() : null;
+            if (needs != null && !lossOfControl) return needs.NextStoolKind;
             // Versus: bowel urge (0–100); otherwise the single M1 urgency.
             float urgency01 = needs == null ? 0 : (MatchContext.Versus ? needs.Bowel : needs.Urgency) / NeedsRules.UrgencyMax;
             bool lost = lossOfControl || (needs != null && (needs.IsOutOfControl || needs.InEndurance));

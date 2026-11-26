@@ -1,4 +1,5 @@
 using System.Collections;
+using System.IO;
 using System.Linq;
 using NatureCalls.Facility;
 using NatureCalls.Input;
@@ -42,8 +43,9 @@ namespace NatureCalls.Tests
         {
             var toilet = Object.FindFirstObjectByType<Toilet>();
             Place(toilet.Anchor.position - toilet.Anchor.forward * .15f, toilet.Anchor.forward);
-            Assert.That(input.TryToilet(), Is.True); Assert.That(input.TryToilet(), Is.True);
-            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Holding));
+            Assert.That(input.TryToilet(), Is.True);
+            player.SetPitch(50); Assert.That(input.TryToilet(), Is.True);
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Aiming));
             return toilet;
         }
 
@@ -65,14 +67,15 @@ namespace NatureCalls.Tests
             for (float t = 0; t < .6f; t += Time.deltaTime) { gaze.Push(1); yield return null; }
             Assert.That(gaze.Looking, Is.True);
             Assert.That(player.Pitch, Is.GreaterThan(45), "Head bowed (positive pitch looks down).");
-            Assert.That(gaze.Marker != null && gaze.Marker.activeSelf, Is.True, "The landing point shows under the buttocks.");
+            Capture("toileting-defecation-aim.png");
+            Assert.That(gaze.Marker == null || !gaze.Marker.activeSelf, Is.True, "Blind aim has no landing marker.");
             Assert.That(gaze.DriftScale, Is.EqualTo(ToiletGaze.DriftWhileLooking));
             Assert.That(world.Camera.Gaze, Is.GreaterThan(.6f));
             for (float t = 0; t < ToiletGaze.Budget + 1.5f; t += Time.deltaTime) { gaze.Push(1); yield return null; }
             Assert.That(gaze.Exhausted, Is.True);
             Assert.That(gaze.Looking, Is.False, "After about 3 s the view is pulled back up.");
             Assert.That(gaze.Amount, Is.LessThan(.1f));
-            Assert.That(gaze.Marker.activeSelf, Is.False);
+            Assert.That(gaze.Marker == null || !gaze.Marker.activeSelf, Is.True);
             Assert.That(needs.Comfort, Is.GreaterThan(comfort), "PlayerNeeds rewards the bowed head.");
         }
 
@@ -108,7 +111,9 @@ namespace NatureCalls.Tests
         {
             var urinal = Object.FindFirstObjectByType<Urinal>();
             Place(urinal.FrontPosition, Vector3.right); needs.BeginRound(1);
-            Assert.That(input.TryToilet(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            Assert.That(input.TryUrinate(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            Capture("toileting-urinal-aim.png");
+            Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
             yield return null;
             var toUrinal = Vector3.ProjectOnPlane(urinal.TargetCenter - player.transform.position, Vector3.up).normalized;
             Assert.That(Vector3.Dot(player.transform.forward, toUrinal), Is.GreaterThan(.95f), "The view turns to face the urinal.");
@@ -136,7 +141,28 @@ namespace NatureCalls.Tests
             Assert.That(sparkle.Bursts, Is.EqualTo(1));
         }
 
+        [UnityTest] public IEnumerator LossOfControlAutoToiletConfirmsImmediately()
+        {
+            var toilet = Object.FindFirstObjectByType<Toilet>();
+            player.GetComponent<CharacterController>().enabled = false;
+            player.transform.position = toilet.TargetCenter - toilet.transform.forward * .4f;
+            player.GetComponent<CharacterController>().enabled = true;
+            var begin = typeof(PlayerNeeds).GetMethod("BeginLossOfControl", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.That(begin, Is.Not.Null);
+            begin.Invoke(needs, null);
+            needs.SendMessage("TickLossOfControl", 1f, SendMessageOptions.DontRequireReceiver);
+            yield return null;
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.None));
+            Assert.That(toilet.IsOccupied, Is.False);
+        }
+
         private static System.Collections.Generic.IEqualityComparer<Vector3> Vector3EqualityComparerWithin(float tolerance) => new Vector3Within(tolerance);
+        private void Capture(string name)
+        {
+            var dir = System.Environment.GetEnvironmentVariable("NATURECALLS_RUN_PATH");
+            if (string.IsNullOrEmpty(dir)) dir = "Artifacts/acceptance-screens";
+            Directory.CreateDirectory(dir); ScreenCapture.CaptureScreenshot(Path.Combine(dir, name));
+        }
         private sealed class Vector3Within : System.Collections.Generic.IEqualityComparer<Vector3>
         {
             private readonly float tolerance; public Vector3Within(float value) => tolerance = value;

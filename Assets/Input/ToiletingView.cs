@@ -49,7 +49,7 @@ namespace NatureCalls.Input
         /// <summary>Mouse-down amount for this frame (tests, or other input devices).</summary>
         public void Push(float amount) => push += amount;
 
-        private bool Active => input != null && input.Phase == PlayerInput.Stage.Holding && movement.Seat != null && movement.Controlled;
+        private bool Active => input != null && (input.Phase == PlayerInput.Stage.Squatting || input.Phase == PlayerInput.Stage.Aiming) && movement.Controlled;
 
         private void Update()
         {
@@ -69,7 +69,7 @@ namespace NatureCalls.Input
             if (Looking) Remaining = Mathf.Max(0, Remaining - Time.deltaTime);
             SetPitch(Amount * LookPitch);
             Camera(Amount);
-            ShowMarker(Looking);
+            ShowMarker(false); // blind aim: no reticle or landing marker
         }
 
         private void SetPitch(float pitch) => movement.SetPitch(pitch);
@@ -147,12 +147,14 @@ namespace NatureCalls.Input
             var phase = input.Phase;
             if (phase != lastPhase)
             {
-                if (phase == PlayerInput.Stage.Holding) { dropped = false; }
+                // C confirmed the squat aim: the stool leaves now, so show it falling into (or past) the bowl.
+                if (lastPhase == PlayerInput.Stage.Aiming && phase == PlayerInput.Stage.None && !dropped) BeginDrop();
+                if (phase == PlayerInput.Stage.Squatting || phase == PlayerInput.Stage.Aiming) { dropped = false; }
                 if (phase == PlayerInput.Stage.Urinating) { selfSplashed = false; offTargetBack = 0; FaceUrinal(); }
                 lastPhase = phase;
             }
-            if (phase == PlayerInput.Stage.Holding && !dropped && input.Duration > 0 && input.Elapsed >= input.Duration - 1.2f) BeginDrop();
-            if (phase == PlayerInput.Stage.Urinating) TickStream(Time.deltaTime); else HideStream();
+            if ((phase == PlayerInput.Stage.Squatting || phase == PlayerInput.Stage.Aiming) && !dropped && input.Duration > 0 && input.Elapsed >= input.Duration - 1.2f) BeginDrop();
+            if (phase == PlayerInput.Stage.Urinating && input.UrineFlowing) TickStream(Time.deltaTime); else HideStream();
             TickDrop(Time.deltaTime);
         }
 

@@ -97,7 +97,14 @@ namespace NatureCalls.Editor
             toilet.Interior = toiletVisual;
             toilet.Anchor = Child(toiletVisual, "Posture anchor", Vector3.back * .65f + Vector3.up * .15f);
             toilet.SetPipe(pipe);
-            toilet.SetFlushTarget(Child(toiletVisual, "Flush handle target", Vector3.up * .8f + Vector3.forward * .2f));
+            var flush = Child(toiletVisual, "Flush handle target", Vector3.up * .8f + Vector3.forward * .2f);
+            toilet.SetFlushTarget(flush);
+            var button = flush.GetComponent<ToiletFlushButton>(); if (button == null) button = flush.gameObject.AddComponent<ToiletFlushButton>();
+            button.SetToilet(toilet);
+            flush.gameObject.SetActive(true);
+            flush.gameObject.layer = 0; // Resolve raycasts use DefaultRaycastLayers.
+            var flushCollider = flush.GetComponent<BoxCollider>(); if (flushCollider == null) flushCollider = flush.gameObject.AddComponent<BoxCollider>();
+            flushCollider.size = new Vector3(.07f, .07f, .07f);
             foreach (var socket in stall.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("Socket_PaperRoll", StringComparison.Ordinal)))
             {
                 var rollPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/Models/Supplies/Supplies-PaperRoll.fbx");

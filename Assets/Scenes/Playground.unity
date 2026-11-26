@@ -1649,6 +1649,8 @@ GameObject:
   m_Component:
   - component: {fileID: 108443183}
   - component: {fileID: 108443184}
+  - component: {fileID: 108443186}
+  - component: {fileID: 108443185}
   m_Layer: 0
   m_Name: Flush handle target
   m_TagString: Untagged
@@ -1684,6 +1686,40 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Breakable
   target: {fileID: 576879266}
+--- !u!65 &108443185
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 108443182}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.07, y: 0.07, z: 0.07}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &108443186
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 108443182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1b9aa68af93401eb6975f34f31475b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.ToiletFlushButton
+  toilet: {fileID: 576879266}
 --- !u!1001 &111474947
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3693,6 +3729,8 @@ GameObject:
   m_Component:
   - component: {fileID: 274510956}
   - component: {fileID: 274510957}
+  - component: {fileID: 274510959}
+  - component: {fileID: 274510958}
   m_Layer: 0
   m_Name: Flush handle target
   m_TagString: Untagged
@@ -3728,6 +3766,40 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Breakable
   target: {fileID: 8473315897963478561}
+--- !u!65 &274510958
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 274510955}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.07, y: 0.07, z: 0.07}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &274510959
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 274510955}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1b9aa68af93401eb6975f34f31475b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.ToiletFlushButton
+  toilet: {fileID: 8473315897963478561}
 --- !u!1001 &280505487
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8635,14 +8707,17 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5603032808175233583, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
       insertIndex: -1
       addedObject: {fileID: 108443183}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5082919160348192917, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 576879269}
   m_SourcePrefab: {fileID: 100100000, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
 --- !u!114 &576879266 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7959431264563373028, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
   m_PrefabInstance: {fileID: 576879265}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 576879268}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
@@ -8653,6 +8728,24 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5603032808175233583, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
   m_PrefabInstance: {fileID: 576879265}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &576879268 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5082919160348192917, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
+  m_PrefabInstance: {fileID: 576879265}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &576879269
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 576879268}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1037c34f48434b8092ec35a31747bba9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Breakable
+  target: {fileID: 576879266}
 --- !u!1001 &584817392
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -9713,6 +9806,87 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 2, y: 0.099999994, z: 2}
   m_Center: {x: 1, y: -0.049999997, z: -1}
+--- !u!1 &653429787
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 653429791}
+  - component: {fileID: 653429790}
+  - component: {fileID: 653429788}
+  - component: {fileID: 653429789}
+  m_Layer: 0
+  m_Name: Handwashing sink
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &653429788
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 653429787}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e14531048ff4f1692721364e37cdefa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Sink
+  pipe: {fileID: 916751589}
+--- !u!114 &653429789
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 653429787}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1037c34f48434b8092ec35a31747bba9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Breakable
+  target: {fileID: 653429788}
+--- !u!65 &653429790
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 653429787}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.2, y: 1, z: 0.6}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!4 &653429791
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 653429787}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 4, y: 0.5, z: 3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 773993560}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &669522644
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -11820,6 +11994,8 @@ Transform:
   - {fileID: 1802582783}
   - {fileID: 1824146706}
   - {fileID: 542069795}
+  - {fileID: 653429791}
+  - {fileID: 1066464551}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &775548007
@@ -13018,6 +13194,8 @@ MonoBehaviour:
   - {fileID: 311160689}
   - {fileID: 176756439}
   - {fileID: 1802582780}
+  - {fileID: 653429788}
+  - {fileID: 1066464548}
   - {fileID: 8473315897963478561}
   - {fileID: 576879266}
   - {fileID: 1384884348}
@@ -15790,6 +15968,87 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6203177883676608753, guid: 433c985b204febe45a0307e8dade9f77, type: 3}
   m_PrefabInstance: {fileID: 1066453992}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1066464547
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1066464551}
+  - component: {fileID: 1066464550}
+  - component: {fileID: 1066464548}
+  - component: {fileID: 1066464549}
+  m_Layer: 0
+  m_Name: Handwashing sink
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1066464548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1066464547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e14531048ff4f1692721364e37cdefa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Sink
+  pipe: {fileID: 916751589}
+--- !u!114 &1066464549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1066464547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1037c34f48434b8092ec35a31747bba9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Breakable
+  target: {fileID: 1066464548}
+--- !u!65 &1066464550
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1066464547}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.2, y: 1, z: 0.6}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!4 &1066464551
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1066464547}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 4, y: 0.5, z: 3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 773993560}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1067134451
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20642,14 +20901,17 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5603032808175233583, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1873953449}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5082919160348192917, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1384884351}
   m_SourcePrefab: {fileID: 100100000, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
 --- !u!114 &1384884348 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7959431264563373028, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
   m_PrefabInstance: {fileID: 1384884347}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1384884350}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
@@ -20660,6 +20922,24 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5603032808175233583, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
   m_PrefabInstance: {fileID: 1384884347}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1384884350 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5082919160348192917, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
+  m_PrefabInstance: {fileID: 1384884347}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1384884351
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1384884350}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1037c34f48434b8092ec35a31747bba9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Breakable
+  target: {fileID: 1384884348}
 --- !u!1001 &1388605680
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -26672,6 +26952,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1873953449}
   - component: {fileID: 1873953450}
+  - component: {fileID: 1873953452}
+  - component: {fileID: 1873953451}
   m_Layer: 0
   m_Name: Flush handle target
   m_TagString: Untagged
@@ -26707,6 +26989,40 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Breakable
   target: {fileID: 1384884348}
+--- !u!65 &1873953451
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1873953448}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.07, y: 0.07, z: 0.07}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1873953452
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1873953448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1b9aa68af93401eb6975f34f31475b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.ToiletFlushButton
+  toilet: {fileID: 1384884348}
 --- !u!1001 &1883770472
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -31186,7 +31502,10 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5603032808175233583, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
       insertIndex: -1
       addedObject: {fileID: 274510956}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5082919160348192917, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8473315897963478564}
   m_SourcePrefab: {fileID: 100100000, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
 --- !u!4 &8473315897963478560 stripped
 Transform:
@@ -31198,7 +31517,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7959431264563373028, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
   m_PrefabInstance: {fileID: 8473315897963478559}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 8473315897963478563}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40b93dcab153945b8b5bb6d6dc3d73a5, type: 3}
@@ -31209,6 +31528,24 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5603032808175233583, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
   m_PrefabInstance: {fileID: 8473315897963478559}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &8473315897963478563 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5082919160348192917, guid: e03e93a0e0875494994e53a948b832fa, type: 3}
+  m_PrefabInstance: {fileID: 8473315897963478559}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8473315897963478564
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8473315897963478563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1037c34f48434b8092ec35a31747bba9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NatureCalls.Runtime::NatureCalls.Facility.Breakable
+  target: {fileID: 8473315897963478561}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
