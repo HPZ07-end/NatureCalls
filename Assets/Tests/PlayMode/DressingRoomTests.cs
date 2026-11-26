@@ -59,6 +59,8 @@ namespace NatureCalls.Tests
             Assert.That(door, Is.Not.Null);
             Assert.That(lobby, Is.Not.Null);
             view = lobby.GetComponent<LobbyView>();
+            // Keep the remote stall's room list off the course server; tests that need rooms supply their own.
+            lobby.ServerRoomSource = () => System.Threading.Tasks.Task.FromResult<(int[], string)>((new int[0], null));
             world.OfflinePlayer.GetComponent<NatureCalls.Input.PlayerInput>().enabled = false;
         }
 
@@ -420,7 +422,7 @@ namespace NatureCalls.Tests
                 view.CodeInput.DeactivateInputField(); EventSystem.current.SetSelectedGameObject(null);
                 Assert.That(room.TryFlush(FlushRay(room)), Is.True); yield return null;
                 Assert.That(LobbyRoom.Current, Is.Null, "Empty input must not submit a connection.");
-                Assert.That(view.Status.text, Does.Contain(mode == 0 ? "IP" : "Relay"));
+                Assert.That(view.Status.text, Does.Contain(mode == 0 ? "IP" : "房间号"));
                 CaptureRoom(world.Camera.Output, mode == 0 ? "toilet-lobby-lan.png" : "toilet-lobby-relay.png");
                 lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
                 Assert.That(player.Controlled, Is.True); Assert.That(room.Focused, Is.False);
@@ -449,6 +451,83 @@ namespace NatureCalls.Tests
             lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
             Assert.That(room.Focused, Is.False); Assert.That(world.OfflinePlayer.Controlled, Is.True);
             Assert.That(Session.Instance.Active, Is.True, "Closing the view retains the room; LeaveRoom disconnects explicitly.");
+        }
+
+        // A Session whose broker is a closed local port: requests fail fast and never reach the course server.
+        private Session LocalBrokerSession()
+        {
+            var method = typeof(LobbyController).GetMethod("EnsureSession", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var session = (Session)method.Invoke(lobby, null);
+            session.BrokerHost = "127.0.0.1"; session.BrokerPort = 9;
+            return session;
+        }
+
+        private IEnumerator FocusRemoteJoin(ToiletLobby room)
+        {
+            room.Enter(); room.Focus(1);
+            yield return new WaitForSecondsRealtime(1);
+            room.SelectJoin(); view.CodeInput.DeactivateInputField(); EventSystem.current.SetSelectedGameObject(null);
+            for (int frame = 0; frame < 4; frame++) yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator ToiletLobbyRemoteJoinListsServerRoomsOnWater()
+        {
+            lobby.ServerRoomSource = () => System.Threading.Tasks.Task.FromResult<(int[], string)>((new[] { 328, 571 }, null));
+            var session = LocalBrokerSession();
+            var room = Object.FindFirstObjectByType<ToiletLobby>();
+            yield return FocusRemoteJoin(room);
+            var list = lobby.ServerRooms;
+            Assert.That(list, Is.Not.Null);
+            Assert.That(list.gameObject.activeInHierarchy, Is.True, "Choosing join in the remote stall shows the server rooms.");
+            var rooms = list.GetComponentsInChildren<Button>().Where(button => button.interactable).ToArray();
+            Assert.That(rooms.Select(button => button.GetComponentInChildren<Text>().text), Is.EquivalentTo(new[] { "328", "571" }));
+            foreach (var button in rooms) Assert.That(button.GetComponent<Image>().color.a, Is.Zero, "Water text has no button backdrop.");
+            Assert.That(view.CreateServerButton == null || !view.CreateServerButton.gameObject.activeInHierarchy, Is.True);
+            CaptureRoom(world.Camera.Output, "toilet-lobby-server-rooms.png");
+            ClickFloating(rooms.Single(button => button.GetComponentInChildren<Text>().text == "328"), world.Camera.Output);
+            Assert.That(view.CodeInput.text, Is.EqualTo("328"));
+            float deadline = Time.unscaledTime + 12;
+            while (session.Busy && Time.unscaledTime < deadline) yield return null;
+            yield return null;
+            Assert.That(session.Active, Is.False);
+            Assert.That(view.Status.text, Does.Contain("加入服务器房间失败"), "The click goes through the room-code lookup.");
+            room.SelectCreate(); yield return null;
+            Assert.That(list.gameObject.activeInHierarchy, Is.False, "Creating hides the list.");
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
+        }
+
+        [UnityTest]
+        public IEnumerator ToiletLobbyRemoteListExplainsUnreachableServer()
+        {
+            lobby.ServerRoomSource = () => System.Threading.Tasks.Task.FromResult<(int[], string)>((null, "无法连接课程服务器。"));
+            var room = Object.FindFirstObjectByType<ToiletLobby>();
+            yield return FocusRemoteJoin(room);
+            var entries = lobby.ServerRooms.GetComponentsInChildren<Button>();
+            Assert.That(entries, Has.Length.EqualTo(1));
+            Assert.That(entries[0].interactable, Is.False);
+            Assert.That(entries[0].GetComponentInChildren<Text>().text, Does.Contain("无法连接"));
+            Assert.That(Session.Instance, Is.Null, "Listing rooms never opens a Session.");
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
+        }
+
+        [UnityTest]
+        public IEnumerator ToiletLobbyRemoteCreateRequestsCourseServerRoom()
+        {
+            var session = LocalBrokerSession();
+            var room = Object.FindFirstObjectByType<ToiletLobby>();
+            room.Enter(); room.Focus(1);
+            yield return new WaitForSecondsRealtime(1);
+            room.SelectCreate();
+            Assert.That(room.TryFlush(FlushRay(room)), Is.True);
+            yield return null;
+            Assert.That(lobby.PreferLan, Is.False);
+            float deadline = Time.unscaledTime + 12;
+            while (session.Busy && Time.unscaledTime < deadline) yield return null;
+            yield return null;
+            Assert.That(view.Status.text, Does.Contain("创建服务器房间失败"), "The remote stall creates on the course server.");
+            Assert.That(session.Active, Is.False, "No LAN host or Relay room is opened instead.");
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
         }
 
         [UnityTest]

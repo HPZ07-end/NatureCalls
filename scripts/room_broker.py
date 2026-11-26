@@ -148,6 +148,11 @@ class RoomBroker:
                 raise BrokerError(404, "房间不存在或已关闭。")
             return {"protocol": PROTOCOL, "code": code, "port": self.rooms[code]}
 
+    def list_rooms(self):
+        with self.lock:
+            rooms = [{"code": code, "port": port} for code, port in sorted(self.rooms.items())]
+            return {"protocol": PROTOCOL, "rooms": rooms}
+
     def cleanup(self):
         with self.lock:
             dead = []
@@ -206,6 +211,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.path == "/health":
                 return self.respond(200, self.broker.health())
+            if self.path == "/rooms":
+                return self.respond(200, self.broker.list_rooms())
             match = re.fullmatch(r"/rooms/(\d{3})", self.path)
             if match:
                 return self.respond(200, self.broker.lookup(int(match.group(1))))

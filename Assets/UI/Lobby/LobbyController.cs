@@ -35,6 +35,17 @@ namespace NatureCalls.UI
         private bool wasInRoom;
         private LanBeaconListener lanListener;
         private readonly Dictionary<string, Button> lanButtons = new();
+        // Course-server rooms listed on the remote stall's water surface while choosing to join.
+        private RectTransform serverRooms;
+        private readonly Dictionary<int, Button> serverButtons = new();
+        private Button serverRoomsNotice;
+        private int[] serverCodes = System.Array.Empty<int>();
+        private string serverRoomsError;
+        private bool serverPolling;
+        private float nextServerPoll;
+        private const float ServerPollSeconds = 3f;
+        /// <summary>Where the remote stall's room list comes from; tests replace it to stay off the course server.</summary>
+        public System.Func<System.Threading.Tasks.Task<(int[] codes, string error)>> ServerRoomSource;
         private string message = "";
         // How the last round ended; shown above the room status until the next round starts.
         private string roundResult = "";
@@ -47,6 +58,10 @@ namespace NatureCalls.UI
         public bool IsMapPanelOpen => view.MapPanel.activeSelf;
         public IReadOnlyList<Button> MapButtons => mapButtons;
         public IReadOnlyList<Button> OutfitButtons => outfitButtons;
+        /// <summary>Runtime container for the course-server room list (toilet lobby only); placed by <see cref="ToiletLobby"/>.</summary>
+        public RectTransform ServerRooms => serverRooms;
+        public IReadOnlyList<int> ServerRoomCodes => serverCodes;
+        private bool ShowingServerRooms => toiletLobby != null && toiletLobby.Focused && toiletLobby.Mode == 1 && !toiletLobby.Creating;
 
         private void Awake()
         {
@@ -70,6 +85,7 @@ namespace NatureCalls.UI
             view.LeaveButton.onClick.AddListener(LeaveRoom);
             view.MapBack.onClick.AddListener(BackFromMap);
             if (view.LanRoomTemplate != null) view.LanRoomTemplate.gameObject.SetActive(false);
+            BuildServerRoomList();
             try { lanListener = new LanBeaconListener(); } catch (System.Net.Sockets.SocketException) { message = "局域网发现不可用。"; }
             BuildMapButtons();
             HideAll();
@@ -195,12 +211,15 @@ namespace NatureCalls.UI
             if (!creating)
             {
                 var code = view.CodeInput.text.Trim();
-                if (code.Length == 0) { message = lan ? "请输入房主 IP 或 IP:端口。" : "请输入 Relay 房间号。"; return; }
+                if (code.Length == 0) { message = lan ? "请输入房主 IP 或 IP:端口。" : "请输入三位房间号，或点选下方的服务器房间。"; return; }
                 if (code.Length == 3 && int.TryParse(code, out _)) { JoinRoom(); return; }
                 if (!lan && !Session.CloudLinked) { message = "Relay 需要关联 Unity Cloud，当前不能连接。"; return; }
-                if (Session.TryAddress(code, 7777, out _, out _) != lan) { message = lan ? "局域网入口需要有效 IP 地址。" : "此入口需要 Relay 房间号，请到 LAN 隔间输入 IP。"; return; }
+                if (Session.TryAddress(code, 7777, out _, out _) != lan) { message = lan ? "局域网入口需要有效 IP 地址。" : "此入口需要房间号或 Relay Join Code，请到 LAN 隔间输入 IP。"; return; }
             }
-            if (creating) CreateRoom(); else JoinRoom();
+            // The remote stall creates rooms on the course server; the LAN stall hosts on this machine.
+            if (creating && !lan) CreateServerRoom();
+            else if (creating) CreateRoom();
+            else JoinRoom();
         }
 
         public void CreateRoom()
@@ -339,6 +358,96 @@ namespace NatureCalls.UI
             var status = busy && session != null ? session.Status : message;
             view.Status.text = string.IsNullOrEmpty(roundResult) || status == roundResult ? status : roundResult + "\n" + status;
             RefreshLanRooms();
+            RefreshServerRooms(inRoom);
+        }
+
+        private void BuildServerRoomList()
+        {
+            if (toiletLobby == null || view.LanRoomTemplate == null) return;
+            var objectValue = new GameObject("ServerRooms", typeof(RectTransform), typeof(GridLayoutGroup));
+            objectValue.transform.SetParent(view.EntryGroup.transform, false);
+            serverRooms = (RectTransform)objectValue.transform;
+            var grid = objectValue.GetComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(128, 50); grid.spacing = new Vector2(12, 10);
+            grid.childAlignment = TextAnchor.UpperCenter; grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 4;
+            serverRoomsNotice = Instantiate(view.LanRoomTemplate, serverRooms);
+            serverRoomsNotice.name = "ServerRoomsNotice"; serverRoomsNotice.interactable = false; StyleWaterEntry(serverRoomsNotice, 28);
+            objectValue.SetActive(false);
+        }
+
+        // Water-surface entries are text only, like the other floating lobby controls.
+        private static void StyleWaterEntry(Button button, int fontSize)
+        {
+            if (button.TryGetComponent<Image>(out var image)) image.color = Color.clear;
+            var label = button.GetComponentInChildren<Text>(true);
+            if (label == null) return;
+            button.targetGraphic = label; button.transition = Selectable.Transition.ColorTint;
+            label.fontSize = fontSize; label.alignment = TextAnchor.MiddleCenter; label.color = new Color(.98f, .96f, .87f);
+        }
+
+        private void RefreshServerRooms(bool inRoom)
+        {
+            if (serverRooms == null) return;
+            bool show = ShowingServerRooms && !inRoom && !offlineMapSelection && view.EntryGroup.activeSelf;
+            serverRooms.gameObject.SetActive(show);
+            if (!show) { if (!serverPolling) nextServerPoll = 0; return; }
+            if (!serverPolling && Time.unscaledTime >= nextServerPoll) _ = PollServerRooms();
+            var live = new HashSet<int>(serverCodes);
+            foreach (var code in serverCodes)
+            {
+                if (!serverButtons.TryGetValue(code, out var button))
+                {
+                    button = Instantiate(view.LanRoomTemplate, serverRooms); button.name = "ServerRoom" + code;
+                    button.gameObject.SetActive(true); serverButtons[code] = button; StyleWaterEntry(button, 36);
+                    var label = button.GetComponentInChildren<Text>(true); if (label != null) label.text = code.ToString();
+                    int chosen = code; button.onClick.AddListener(() => JoinListedServerRoom(chosen));
+                }
+                button.interactable = !Busy;
+            }
+            foreach (var pair in new Dictionary<int, Button>(serverButtons))
+                if (!live.Contains(pair.Key)) { Destroy(pair.Value.gameObject); serverButtons.Remove(pair.Key); }
+            bool notice = serverCodes.Length == 0;
+            serverRoomsNotice.gameObject.SetActive(notice);
+            if (notice)
+            {
+                var label = serverRoomsNotice.GetComponentInChildren<Text>(true);
+                if (label != null) label.text = serverRoomsError ?? (serverPolling && nextServerPoll == 0 ? "正在获取房间列表…" : "服务器上暂时没有房间");
+                ((RectTransform)serverRoomsNotice.transform).SetAsFirstSibling();
+            }
+            var grid = serverRooms.GetComponent<GridLayoutGroup>();
+            grid.cellSize = notice ? new Vector2(540, 50) : new Vector2(128, 50);
+            grid.constraintCount = notice ? 1 : 4;
+        }
+
+        private async System.Threading.Tasks.Task PollServerRooms()
+        {
+            serverPolling = true;
+            try
+            {
+                var (codes, error) = await (ServerRoomSource ?? QueryBroker)();
+                if (this == null) return;
+                serverRoomsError = error;
+                serverCodes = codes ?? System.Array.Empty<int>();
+            }
+            finally { serverPolling = false; nextServerPoll = Time.unscaledTime + ServerPollSeconds; }
+        }
+
+        // Reads the broker endpoint without creating a Session, so merely looking at the list never opens a connection.
+        private System.Threading.Tasks.Task<(int[] codes, string error)> QueryBroker()
+        {
+            var source = Session.Instance != null ? Session.Instance : networkPrefab != null ? networkPrefab.GetComponent<Session>() : null;
+            if (source == null) return System.Threading.Tasks.Task.FromResult<(int[], string)>((null, "无法连接课程服务器。"));
+            var (host, port) = (source.BrokerHost, source.BrokerPort);
+            if (Session.Instance == null) (host, port) = Session.ResolveBroker(host, port, System.Environment.GetCommandLineArgs());
+            return Session.ListServerRoomsAsync(host, port);
+        }
+
+        /// <summary>Join a room picked from the server list; same path as typing its code.</summary>
+        public void JoinListedServerRoom(int code)
+        {
+            if (InRoom || Busy) return;
+            view.CodeInput.text = code.ToString();
+            JoinRoom();
         }
 
         private void RefreshLanRooms()

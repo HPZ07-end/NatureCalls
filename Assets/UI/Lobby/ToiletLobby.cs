@@ -169,10 +169,26 @@ namespace NatureCalls.UI
         {
             if (!Focused || Departing) return;
             Place(View.LobbyPanel); Place(View.MapPanel);
-            View.LobbyPanel.transform.Find("Title").GetComponent<Text>().text = Mode == 0 ? "局域网联机" : "Relay 房间号联机";
-            View.CodeInput.placeholder.GetComponent<Text>().text = Mode == 0 ? "房主 IP 或 IP:端口" : "Relay 房间号";
+            View.LobbyPanel.transform.Find("Title").GetComponent<Text>().text = Mode == 0 ? "局域网联机" : "远程房间号联机";
+            View.CodeInput.placeholder.GetComponent<Text>().text = Mode == 0 ? "房主 IP 或 IP:端口" : "三位房间号 / Relay Join Code";
             View.CodeInput.gameObject.SetActive(!Creating && View.EntryGroup.activeSelf);
+            ArrangeRoomLists();
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) Lobby.CloseLobby();
+        }
+        // The water surface has no free slot for the legacy "创建服务器房间" button: the remote stall's
+        // 创建房间 already creates a course-server room. Room lists sit between the input and 返回.
+        private void ArrangeRoomLists()
+        {
+            if (View.CreateServerButton != null) View.CreateServerButton.gameObject.SetActive(false);
+            Anchor(View.LanRooms, -250, 560, 110);
+            Anchor(Lobby.ServerRooms, -250, 560, 110);
+            Anchor((RectTransform)View.CloseButton.transform, -368, 380, 60);
+        }
+        private static void Anchor(RectTransform rect, float y, float width, float height)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1); rect.pivot = new Vector2(.5f, 1);
+            rect.anchoredPosition = new Vector2(0, y); rect.sizeDelta = new Vector2(width, height);
         }
         private void Place(GameObject panel)
         {
