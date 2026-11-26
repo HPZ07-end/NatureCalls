@@ -19,6 +19,10 @@ namespace NatureCalls.UI
         private static readonly Vector2 DepthOffset = new(3f, -4f);
         private static readonly Vector2[] Blur = { new(-1.8f, 0), new(1.8f, 0), new(0, -1.8f), new(0, 1.8f) };
         private static float kickTime = -10;
+        /// <summary>The water opening (world centre and radius). Glyphs fade out towards its rim so nothing shows on the porcelain.</summary>
+        public static Vector3 ClipCenter;
+        public static float ClipRadius;
+        private const float RimFade = .16f;
 
         private readonly List<UIVertex> stream = new();
 
@@ -68,6 +72,16 @@ namespace NatureCalls.UI
                 stream.Add(vertex);
             }
             stream.RemoveRange(0, count);
+            if (ClipRadius > 0)
+                for (int index = 0; index < stream.Count; index++)
+                {
+                    var vertex = stream[index];
+                    var world = transform.TransformPoint(vertex.position);
+                    float distance = new Vector2(world.x - ClipCenter.x, world.z - ClipCenter.z).magnitude;
+                    float keep = 1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(ClipRadius * (1 - RimFade), ClipRadius, distance));
+                    var color = vertex.color; color.a = (byte)(color.a * keep); vertex.color = color;
+                    stream[index] = vertex;
+                }
             helper.Clear();
             helper.AddUIVertexTriangleStream(stream);
         }

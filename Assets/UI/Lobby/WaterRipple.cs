@@ -10,19 +10,20 @@ namespace NatureCalls.UI
     public sealed class WaterRipple : MonoBehaviour
     {
         public const float Duration = 1.1f;
-        private const float StartSize = 24, EndSize = 300;
+        private const float StartSize = 24;
         private static Sprite ring;
 
         private Image image;
-        private float age, delay, strength;
+        private float age, delay, strength, endSize;
 
-        /// <summary>Sends three staggered rings out from <paramref name="local"/> (panel units) on <paramref name="panel"/>.</summary>
-        public static void Spawn(RectTransform panel, Vector2 local)
+        /// <summary>Sends three staggered rings out from <paramref name="local"/> (panel units) on <paramref name="panel"/>,
+        /// growing to at most <paramref name="maxSize"/> so they stay on the water.</summary>
+        public static void Spawn(RectTransform panel, Vector2 local, float maxSize = 300)
         {
-            for (int index = 0; index < 3; index++) Create(panel, local, index * .14f, .65f - index * .17f);
+            for (int index = 0; index < 3; index++) Create(panel, local, index * .14f, .65f - index * .17f, maxSize);
         }
 
-        private static void Create(RectTransform panel, Vector2 local, float delay, float strength)
+        private static void Create(RectTransform panel, Vector2 local, float delay, float strength, float maxSize)
         {
             var objectValue = new GameObject("Ripple", typeof(RectTransform), typeof(Image), typeof(WaterRipple));
             var rect = (RectTransform)objectValue.transform;
@@ -32,7 +33,7 @@ namespace NatureCalls.UI
             rect.anchoredPosition = local;
             rect.sizeDelta = Vector2.one * StartSize;
             var ripple = objectValue.GetComponent<WaterRipple>();
-            ripple.delay = delay; ripple.strength = strength;
+            ripple.delay = delay; ripple.strength = strength; ripple.endSize = Mathf.Max(StartSize, maxSize);
             ripple.image = objectValue.GetComponent<Image>();
             ripple.image.sprite = Ring;
             ripple.image.raycastTarget = false;
@@ -50,7 +51,7 @@ namespace NatureCalls.UI
         private void Apply(float t)
         {
             float eased = 1 - (1 - t) * (1 - t);
-            ((RectTransform)transform).sizeDelta = Vector2.one * Mathf.Lerp(StartSize, EndSize, eased);
+            ((RectTransform)transform).sizeDelta = Vector2.one * Mathf.Lerp(StartSize, endSize, eased);
             float alpha = age < delay ? 0 : strength * Mathf.Pow(1 - t, 1.6f);
             image.color = new Color(.82f, .95f, 1f, alpha);
         }

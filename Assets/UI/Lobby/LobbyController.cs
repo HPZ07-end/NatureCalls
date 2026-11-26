@@ -338,9 +338,13 @@ namespace NatureCalls.UI
             }
             view.MapPanel.transform.Find("Title").GetComponent<Text>().text = AwaitingMapConfirmation ? "即将前往" : "选择地图";
             view.MapHint.supportRichText = true;
-            view.MapHint.fontSize = AwaitingMapConfirmation ? 46 : 32;
-            view.MapHint.rectTransform.anchoredPosition = new Vector2(0, AwaitingMapConfirmation ? -220 : -80);
-            view.MapHint.rectTransform.sizeDelta = new Vector2(590, AwaitingMapConfirmation ? 180 : 70);
+            if (toiletLobby == null)
+            {
+                // The water lobby lays the hint out inside the bowl itself (ToiletLobby.ArrangePage).
+                view.MapHint.fontSize = AwaitingMapConfirmation ? 46 : 32;
+                view.MapHint.rectTransform.anchoredPosition = new Vector2(0, AwaitingMapConfirmation ? -220 : -80);
+                view.MapHint.rectTransform.sizeDelta = new Vector2(590, AwaitingMapConfirmation ? 180 : 70);
+            }
             view.MapBack.GetComponentInChildren<Text>().text = AwaitingMapConfirmation ? "重新选图" : "返回";
 
             bool busy = Busy;
@@ -368,7 +372,7 @@ namespace NatureCalls.UI
             objectValue.transform.SetParent(view.EntryGroup.transform, false);
             serverRooms = (RectTransform)objectValue.transform;
             var grid = objectValue.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(128, 50); grid.spacing = new Vector2(12, 10);
+            grid.cellSize = new Vector2(100, 50); grid.spacing = new Vector2(10, 10);
             grid.childAlignment = TextAnchor.UpperCenter; grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 4;
             serverRoomsNotice = Instantiate(view.LanRoomTemplate, serverRooms);
             serverRoomsNotice.name = "ServerRoomsNotice"; serverRoomsNotice.interactable = false; StyleWaterEntry(serverRoomsNotice, 28);
@@ -415,7 +419,7 @@ namespace NatureCalls.UI
                 ((RectTransform)serverRoomsNotice.transform).SetAsFirstSibling();
             }
             var grid = serverRooms.GetComponent<GridLayoutGroup>();
-            grid.cellSize = notice ? new Vector2(540, 50) : new Vector2(128, 50);
+            grid.cellSize = notice ? new Vector2(400, 50) : new Vector2(100, 50);
             grid.constraintCount = notice ? 1 : 4;
         }
 

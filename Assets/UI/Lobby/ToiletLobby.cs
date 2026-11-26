@@ -180,6 +180,7 @@ namespace NatureCalls.UI
         {
             if (!Focused || Departing) return;
             Place(View.LobbyPanel); Place(View.MapPanel);
+            UnderwaterText.ClipCenter = Water[Mode].position; UnderwaterText.ClipRadius = WaterRadius;
             if (Time.unscaledTime >= nextSubmerge) { Submerge(View.LobbyPanel); Submerge(View.MapPanel); nextSubmerge = Time.unscaledTime + .25f; }
             bool joining = JoinPage && View.EntryGroup.activeSelf;
             View.LobbyPanel.transform.Find("Title").GetComponent<Text>().text = joining ? "隔间大厅" : Mode == 0 ? "局域网联机" : "远程房间号联机";
@@ -193,29 +194,68 @@ namespace NatureCalls.UI
                 View.CodeInput.text.Trim().Length > 0) Submit();
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) { if (joining) ShowHome(); else Lobby.CloseLobby(); }
         }
-        // Two entry pages share EntryGroup. Home: 单人离线测试 / 创建房间 / 加入房间 / 返回准备房.
-        // 隔间大厅: the room list on top, the code field below, 返回 back to Home. The legacy "创建服务器房间"
-        // button has no slot: the remote stall's 创建房间 already creates a course-server room.
+        // Everything on the water is laid out from the water's centre so it stays inside the bowl opening
+        // (radius ~WaterRadius panel units). Two entry pages share EntryGroup. Home: 单人离线测试 / 创建房间 /
+        // 加入房间 / 返回准备房. 隔间大厅: the room list on top, the code field below, 返回 back to Home. The legacy
+        // "创建服务器房间" button has no slot: the remote stall's 创建房间 already creates a course-server room.
         private void ArrangePage(bool joining)
         {
             if (View.CreateServerButton != null) View.CreateServerButton.gameObject.SetActive(false);
+            Centre(View.EntryGroup, 560, 560); Centre(View.RoomGroup, 560, 560);
+            Label(View.LobbyPanel.transform.Find("Title").GetComponent<Text>(), 0, 178, 360, 56, 38);
+            Label(View.Status, 0, -186, 300, 52, 20);
+
             View.OfflineButton.gameObject.SetActive(!joining);
             View.CreateButton.gameObject.SetActive(!joining);
             View.JoinButton.gameObject.SetActive(!joining);
-            Anchor((RectTransform)View.OfflineButton.transform, 0, -5, 520, 60);
-            Anchor((RectTransform)View.CreateButton.transform, -145, -85, 280, 60);
-            Anchor((RectTransform)View.JoinButton.transform, 145, -85, 280, 60);
-            Anchor(View.LanRooms, 0, -5, 560, 230);
-            Anchor(Lobby.ServerRooms, 0, -5, 560, 230);
-            Anchor((RectTransform)View.CodeInput.transform, 0, -250, 550, 75);
-            Anchor((RectTransform)View.CloseButton.transform, 0, joining ? -345 : -185, 380, 60);
+            Item(View.OfflineButton, 0, 100, 300, 50, 26);
+            Item(View.CreateButton, -108, 25, 200, 60, 34);
+            Item(View.JoinButton, 108, 25, 200, 60, 34);
+            At(View.LanRooms, 0, 50, 430, 190);
+            At(Lobby.ServerRooms, 0, 50, 430, 190);
+            At((RectTransform)View.CodeInput.transform, 0, -78, 380, 60);
+            View.CodeInput.textComponent.fontSize = 30; View.CodeInput.placeholder.GetComponent<Text>().fontSize = 26;
+            Item(View.CloseButton, 0, joining ? -138 : -58, 260, 50, 26);
             View.CloseButton.GetComponentInChildren<Text>().text = joining ? "返回" : "返回准备房";
+
+            Label(View.RoomCode, 0, 142, 400, 40, 22);
+            for (int slot = 0; slot < View.Slots.Length; slot++)
+            {
+                At((RectTransform)View.Slots[slot].transform.parent, slot % 2 == 0 ? -105 : 105, slot < 2 ? 70 : -8, 190, 70);
+                View.Slots[slot].fontSize = 23;
+            }
+            Item(View.PrimaryButton, 0, -82, 260, 54, 32);
+            Item(View.LeaveButton, 0, -136, 220, 44, 23);
+
+            var map = View.MapPanel.transform;
+            Label(map.Find("Title").GetComponent<Text>(), 0, 182, 320, 52, 34);
+            bool confirming = Lobby.AwaitingMapConfirmation;
+            Label(View.MapHint, 0, confirming ? 10 : 136, confirming ? 400 : 360, confirming ? 200 : 40, confirming ? 34 : 24);
+            At(View.MapOptions, 0, -8, 320, 250);
+            if (View.MapOptions.TryGetComponent<VerticalLayoutGroup>(out var layout)) layout.spacing = 6;
+            foreach (Transform option in View.MapOptions)
+            {
+                if (option.TryGetComponent<LayoutElement>(out var element)) element.preferredHeight = 44;
+                var text = option.GetComponentInChildren<Text>(true); if (text != null) text.fontSize = 28;
+            }
+            Item(View.MapBack, 0, -176, 220, 46, 24);
         }
-        private static void Anchor(RectTransform rect, float x, float y, float width, float height)
+        private static void Centre(GameObject group, float width, float height) => At((RectTransform)group.transform, 0, 0, width, height);
+        private static void At(RectTransform rect, float x, float y, float width, float height)
         {
             if (rect == null) return;
-            rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1); rect.pivot = new Vector2(.5f, 1);
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f, .5f);
             rect.anchoredPosition = new Vector2(x, y); rect.sizeDelta = new Vector2(width, height);
+        }
+        private static void Label(Text text, float x, float y, float width, float height, int size)
+        {
+            At(text.rectTransform, x, y, width, height); text.fontSize = size; text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
+        }
+        private static void Item(Button button, float x, float y, float width, float height, int size)
+        {
+            At((RectTransform)button.transform, x, y, width, height);
+            var text = button.GetComponentInChildren<Text>(true); if (text != null) text.fontSize = size;
         }
 
         // Every text on the water reads as under the water; rows cloned at runtime are picked up on the next pass.
@@ -225,6 +265,11 @@ namespace NatureCalls.UI
             foreach (var text in panel.GetComponentsInChildren<Text>(true))
                 if (!text.TryGetComponent<UnderwaterText>(out _)) text.gameObject.AddComponent<UnderwaterText>();
         }
+
+        /// <summary>World radius of the visible water in the bowl opening; text fades out before it.</summary>
+        public float WaterRadius => Water[Mode].TryGetComponent<Renderer>(out var surface) ? surface.bounds.extents.x * WaterOpening : .15f;
+        // The water disc runs a little under the bowl rim; this is the share of it that is actually visible.
+        private const float WaterOpening = 1f;
 
         // ---- Water ripples: every click on the water surface sends rings out from the click point. ----
         private float rippleKick = -10;
@@ -238,8 +283,10 @@ namespace NatureCalls.UI
             var plane = new Plane(rect.forward, rect.position);
             if (!plane.Raycast(ray, out var distance)) return false;
             Vector2 local = rect.InverseTransformPoint(ray.GetPoint(distance));
-            if (!rect.rect.Contains(local)) return false;
-            WaterRipple.Spawn(rect, local - rect.rect.center);
+            var fromCentre = local - rect.rect.center;
+            float radius = WaterRadius / rect.lossyScale.x, room = radius - fromCentre.magnitude;
+            if (room < 20) return false;
+            WaterRipple.Spawn(rect, fromCentre, Mathf.Min(300, room * 2));
             UnderwaterText.Kick();
             rippleKick = Time.unscaledTime;
             return true;

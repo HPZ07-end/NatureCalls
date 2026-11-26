@@ -570,6 +570,59 @@ namespace NatureCalls.Tests
             lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
         }
 
+        // Every visible glyph's text rect must lie inside the water opening, for each page on the remote stall.
+        private void AssertTextInsideWater(ToiletLobby room, string page)
+        {
+            Canvas.ForceUpdateCanvases();
+            var centre = room.Water[room.Mode].position;
+            var corners = new Vector3[4];
+            foreach (var panel in new[] { view.LobbyPanel, view.MapPanel })
+            foreach (var text in panel.GetComponentsInChildren<Text>())
+            {
+                if (string.IsNullOrEmpty(text.text) || text.color.a <= 0) continue;
+                text.rectTransform.GetWorldCorners(corners);
+                float width = Mathf.Min(text.preferredWidth, text.rectTransform.rect.width) * text.rectTransform.lossyScale.x;
+                float height = Mathf.Min(text.preferredHeight, text.rectTransform.rect.height) * text.rectTransform.lossyScale.y;
+                var middle = (corners[0] + corners[2]) / 2;
+                foreach (var dx in new[] { -.5f, .5f })
+                foreach (var dz in new[] { -.5f, .5f })
+                {
+                    var point = new Vector2(middle.x + dx * width - centre.x, middle.z + dz * height - centre.z);
+                    Assert.That(point.magnitude, Is.LessThan(room.WaterRadius),
+                        $"{page}: '{text.text}' ({text.name}) reaches past the bowl rim.");
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ToiletLobbyTextStaysInsideTheWater()
+        {
+            lobby.ServerRoomSource = () => System.Threading.Tasks.Task.FromResult<(int[], string)>((new[] { 205, 328, 571, 904, 777, 612, 433, 120, 998 }, null));
+            var room = Object.FindFirstObjectByType<ToiletLobby>();
+            room.Enter(); room.Focus(1);
+            yield return new WaitForSecondsRealtime(1);
+            var panelRect = (RectTransform)view.LobbyPanel.transform;
+            Debug.Log($"WATER_OPENING|radius={room.WaterRadius:F4}|panelUnits={room.WaterRadius / panelRect.lossyScale.x:F1}");
+            AssertTextInsideWater(room, "home");
+            room.SelectJoin(); yield return null;
+            view.CodeInput.DeactivateInputField(); EventSystem.current.SetSelectedGameObject(null);
+            for (int frame = 0; frame < 4; frame++) yield return null;
+            AssertTextInsideWater(room, "hall");
+            CaptureRoom(world.Camera.Output, "toilet-lobby-hall-full.png");
+            room.ShowHome(); lobby.StartOffline();
+            for (int frame = 0; frame < 3; frame++) yield return null;
+            AssertTextInsideWater(room, "map");
+            CaptureRoom(world.Camera.Output, "toilet-lobby-map.png");
+            lobby.BackFromMap(); yield return null;
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
+            room.Focus(0); yield return new WaitForSecondsRealtime(1);
+            room.SelectCreate(); for (int frame = 0; frame < 4; frame++) yield return null;
+            Assert.That(view.RoomGroup.activeInHierarchy, Is.True);
+            AssertTextInsideWater(room, "room");
+            CaptureRoom(world.Camera.Output, "toilet-lobby-room-inside.png");
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
+        }
+
         [UnityTest]
         public IEnumerator ToiletLobbyClickRipplesTheWater()
         {
