@@ -21,6 +21,8 @@ namespace NatureCalls.Input
         private PlayerNeeds needs;
         public enum Stage { None, Squatting, Aiming, Urinating, Cleaning }
         public Stage Phase { get; private set; }
+        /// <summary>WASD moves the player except while aiming (squat look-down or urination); squatting still shuffles.</summary>
+        public bool AcceptsWalking => Phase != Stage.Aiming && Phase != Stage.Urinating;
         /// <summary>V aims first; the stream starts only after C confirms.</summary>
         public bool UrineFlowing { get; private set; }
         public bool IsToileting => Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating;
@@ -150,7 +152,7 @@ namespace NatureCalls.Input
                 TickAim(Time.deltaTime, accept ? adjustment : Vector2.zero);
             }
             if (Phase == Stage.Cleaning) ContinueCleaning(accept && action.IsPressed(), Time.deltaTime);
-            movement.Move(accept && Phase == Stage.Squatting ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
+            movement.Move(accept && AcceptsWalking ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
         }
 
         private NatureCalls.UI.ToiletLobby toiletLobby;
