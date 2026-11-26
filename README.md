@@ -12,7 +12,7 @@
 2. 克隆仓库，切换团队的 `dev` 分支；在根目录运行 `git lfs install --local`、`git lfs pull`。
 3. Hub → Add project from disk，选择包含 `Assets`、`Packages`、`ProjectSettings` 的根目录。
 4. 打开 `Assets/Scenes/DressingRoom.unity`，点击 Play。镜子前 E 换装；左侧门 E 打开联机大厅，选「单人离线测试」再选地图即可进入。地图中 WASD / 鼠标操作，Space 跳跃、C 如厕（一次性，5 秒后自动站起；隔间外会留下黑色小球并加恶心值）、E 拾取卷纸或操作隔间门（坐在马桶上也能关门上锁）、R 丢掷卷纸、Esc 释放鼠标后点左上角「退出」返回准备房；顶部显示本局剩余时间，左上角显示自己的急迫值和恶心值，任何人任一项满了全队失败。
-5. 双客户端：一端在大厅「创建房间」，另一端输入房主局域网地址（同机 `127.0.0.1`）「加入房间」；准备后房主开始并选择地图。两台电脑、校园网注意事项与 Relay 配置见 [Playground 指南](docs/PLAYGROUND.md)。
+5. 双客户端：一端在大厅「创建房间」，另一端点「加入房间」，在「隔间大厅」点选该房间或输入房主局域网地址（同机 `127.0.0.1`）；准备后房主开始并选择地图。两台电脑、校园网注意事项与 Relay 配置见 [Playground 指南](docs/PLAYGROUND.md)。
 
 平台安装、VS Code 和命令行入口见 [development](docs/DEVELOPMENT.md)。
 

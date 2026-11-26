@@ -433,21 +433,26 @@ namespace NatureCalls.Tests
         }
 
         [UnityTest]
-        public IEnumerator ToiletLobbyFlushCreatesLanRoomUsingExistingController()
+        public IEnumerator ToiletLobbyCreateOpensRoomPageWithCodeAndPlayers()
         {
             var room = Object.FindFirstObjectByType<ToiletLobby>();
             room.Enter(); room.Focus(0);
             yield return new WaitForSecondsRealtime(1);
-            room.SelectCreate();
-            Assert.That(Session.Instance, Is.Null, "Selecting create does not connect before flushing.");
-            Assert.That(room.TryFlush(FlushRay(room)), Is.True);
-            yield return null; yield return null;
-            Assert.That(LobbyRoom.Current, Is.Not.Null);
+            Assert.That(room.JoinPage, Is.False);
+            Assert.That(view.CreateButton.GetComponentInChildren<Text>().text, Is.EqualTo("创建房间"), "No check mark toggling.");
+            ClickFloating(view.CreateButton, world.Camera.Output);
+            yield return null; yield return null; yield return null;
+            Assert.That(LobbyRoom.Current, Is.Not.Null, "Clicking 创建房间 creates the room right away.");
+            Assert.That(view.RoomGroup.activeInHierarchy, Is.True, "The room page replaces the entry page.");
+            Assert.That(view.EntryGroup.activeInHierarchy, Is.False);
+            Assert.That(view.RoomCode.text, Does.StartWith("房间号："));
+            Assert.That(view.Slots[0].text, Does.Contain("（你）"), "The room page lists the players.");
+            Assert.That(room.TryFlush(FlushRay(room)), Is.False, "The flush button does not submit anything on the room page.");
             Assert.That(Session.Instance.Active, Is.True);
             Assert.That(lobby.PreferLan, Is.True);
             Assert.That(LobbyRoom.Current.Members.Count, Is.EqualTo(1));
             Assert.That(LobbyRoom.Current.CanStart, Is.False);
-            CaptureRoom(world.Camera.Output, "toilet-lobby-lan-host.png");
+            CaptureRoom(world.Camera.Output, "toilet-lobby-room-page.png");
             lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
             Assert.That(room.Focused, Is.False); Assert.That(world.OfflinePlayer.Controlled, Is.True);
             Assert.That(Session.Instance.Active, Is.True, "Closing the view retains the room; LeaveRoom disconnects explicitly.");
@@ -518,8 +523,7 @@ namespace NatureCalls.Tests
             var room = Object.FindFirstObjectByType<ToiletLobby>();
             room.Enter(); room.Focus(1);
             yield return new WaitForSecondsRealtime(1);
-            room.SelectCreate();
-            Assert.That(room.TryFlush(FlushRay(room)), Is.True);
+            ClickFloating(view.CreateButton, world.Camera.Output);
             yield return null;
             Assert.That(lobby.PreferLan, Is.False);
             float deadline = Time.unscaledTime + 12;
@@ -527,6 +531,60 @@ namespace NatureCalls.Tests
             yield return null;
             Assert.That(view.Status.text, Does.Contain("创建服务器房间失败"), "The remote stall creates on the course server.");
             Assert.That(session.Active, Is.False, "No LAN host or Relay room is opened instead.");
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
+        }
+
+        [UnityTest]
+        public IEnumerator ToiletLobbyJoinPageIsTheStallHallAndReturnsHome()
+        {
+            lobby.ServerRoomSource = () => System.Threading.Tasks.Task.FromResult<(int[], string)>((new[] { 205, 328, 571, 904, 777 }, null));
+            var room = Object.FindFirstObjectByType<ToiletLobby>();
+            room.Enter(); room.Focus(1);
+            yield return new WaitForSecondsRealtime(1);
+            CaptureRoom(world.Camera.Output, "toilet-lobby-home.png");
+            Assert.That(view.CodeInput.gameObject.activeInHierarchy, Is.False, "Home has no input field.");
+            ClickFloating(view.JoinButton, world.Camera.Output);
+            view.CodeInput.DeactivateInputField(); EventSystem.current.SetSelectedGameObject(null);
+            for (int frame = 0; frame < 4; frame++) yield return null;
+            Assert.That(room.JoinPage, Is.True);
+            Assert.That(view.LobbyPanel.transform.Find("Title").GetComponent<Text>().text, Is.EqualTo("隔间大厅"));
+            Assert.That(view.OfflineButton.gameObject.activeInHierarchy || view.CreateButton.gameObject.activeInHierarchy ||
+                view.JoinButton.gameObject.activeInHierarchy, Is.False, "The hall is its own page.");
+            Assert.That(view.CodeInput.gameObject.activeInHierarchy, Is.True, "The code field sits below the list.");
+            var codes = lobby.ServerRooms.GetComponentsInChildren<Button>().Where(button => button.interactable)
+                .Select(button => button.GetComponentInChildren<Text>().text).ToArray();
+            Assert.That(codes, Is.EquivalentTo(new[] { "205", "328", "571", "904", "777" }));
+            var input = (RectTransform)view.CodeInput.transform;
+            Assert.That(input.position.z, Is.LessThan(lobby.ServerRooms.position.z), "Input is below the list on the water.");
+            CaptureRoom(world.Camera.Output, "toilet-lobby-hall.png");
+            Assert.That(view.CloseButton.GetComponentInChildren<Text>().text, Is.EqualTo("返回"));
+            ClickFloating(view.CloseButton, world.Camera.Output);
+            yield return null;
+            Assert.That(room.JoinPage, Is.False, "返回 goes back to the home page.");
+            Assert.That(lobby.IsLobbyOpen, Is.True, "The lobby stays open.");
+            Assert.That(view.CreateButton.gameObject.activeInHierarchy, Is.True);
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
+        }
+
+        [UnityTest]
+        public IEnumerator ToiletLobbyClickRipplesTheWater()
+        {
+            var room = Object.FindFirstObjectByType<ToiletLobby>();
+            room.Enter(); room.Focus(1);
+            yield return new WaitForSecondsRealtime(1);
+            var panel = (RectTransform)view.LobbyPanel.transform;
+            var camera = world.Camera.Output;
+            Assert.That(room.RippleAt(camera.ScreenPointToRay(new Vector3(2, 2, 0))), Is.False, "Clicks off the water do nothing.");
+            var point = camera.WorldToScreenPoint(panel.TransformPoint(new Vector3(60, -40, 0)));
+            Assert.That(room.RippleAt(camera.ScreenPointToRay(point)), Is.True);
+            var ripples = panel.GetComponentsInChildren<WaterRipple>();
+            Assert.That(ripples, Has.Length.EqualTo(3), "Three staggered rings.");
+            Assert.That(ripples.All(ripple => !ripple.GetComponent<Image>().raycastTarget), Is.True, "Ripples never block clicks.");
+            Assert.That(((RectTransform)ripples[0].transform).anchoredPosition, Is.EqualTo(new Vector2(60, -40) - panel.rect.center).Using(new UnityEngine.TestTools.Utils.Vector2EqualityComparer(.05f)));
+            yield return new WaitForSecondsRealtime(.35f);
+            CaptureRoom(camera, "toilet-lobby-ripple.png");
+            yield return new WaitForSecondsRealtime(WaterRipple.Duration + .5f);
+            Assert.That(panel.GetComponentsInChildren<WaterRipple>(), Is.Empty, "Rings fade out and are removed.");
             lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
         }
 
@@ -539,7 +597,9 @@ namespace NatureCalls.Tests
             var room = Object.FindFirstObjectByType<ToiletLobby>();
             room.Enter(); room.Focus(0);
             yield return new WaitForSecondsRealtime(1);
-            room.SelectCreate();
+            room.SelectJoin(); yield return null; view.CodeInput.text = "127.0.0.1:7777";
+            view.CodeInput.DeactivateInputField(); EventSystem.current.SetSelectedGameObject(null);
+            yield return null;
             var player = world.OfflinePlayer;
             Assert.That(player.Controlled, Is.False, "The water view parks the player.");
             var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
@@ -559,8 +619,7 @@ namespace NatureCalls.Tests
                 yield return null;
                 Assert.That(input.TryFlushLobbyFromPointer(), Is.True, "E with the pointer on the flush button flushes.");
                 yield return null; yield return null;
-                Assert.That(LobbyRoom.Current, Is.Not.Null, "The flush creates the room.");
-                Assert.That(Session.Instance.Active, Is.True);
+                Assert.That(Session.Instance, Is.Not.Null, "The flush submits the typed address.");
             }
             finally
             {

@@ -61,7 +61,7 @@ namespace NatureCalls.UI
         /// <summary>Runtime container for the course-server room list (toilet lobby only); placed by <see cref="ToiletLobby"/>.</summary>
         public RectTransform ServerRooms => serverRooms;
         public IReadOnlyList<int> ServerRoomCodes => serverCodes;
-        private bool ShowingServerRooms => toiletLobby != null && toiletLobby.Focused && toiletLobby.Mode == 1 && !toiletLobby.Creating;
+        private bool ShowingServerRooms => toiletLobby != null && toiletLobby.Focused && toiletLobby.Mode == 1 && toiletLobby.JoinPage;
 
         private void Awake()
         {
@@ -80,7 +80,7 @@ namespace NatureCalls.UI
             view.CreateButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.SelectCreate(); else CreateRoom(); });
             if (view.CreateServerButton != null) view.CreateServerButton.onClick.AddListener(CreateServerRoom);
             view.JoinButton.onClick.AddListener(() => { if (toiletLobby != null) toiletLobby.SelectJoin(); else JoinRoom(); });
-            view.CloseButton.onClick.AddListener(CloseLobby);
+            view.CloseButton.onClick.AddListener(() => { if (toiletLobby != null && toiletLobby.JoinPage) toiletLobby.ShowHome(); else CloseLobby(); });
             view.PrimaryButton.onClick.AddListener(PressPrimary);
             view.LeaveButton.onClick.AddListener(LeaveRoom);
             view.MapBack.onClick.AddListener(BackFromMap);
@@ -211,7 +211,7 @@ namespace NatureCalls.UI
             if (!creating)
             {
                 var code = view.CodeInput.text.Trim();
-                if (code.Length == 0) { message = lan ? "请输入房主 IP 或 IP:端口。" : "请输入三位房间号，或点选下方的服务器房间。"; return; }
+                if (code.Length == 0) { message = lan ? "请输入房主 IP 或 IP:端口。" : "点选上方的房间，或输入房间号。"; return; }
                 if (code.Length == 3 && int.TryParse(code, out _)) { JoinRoom(); return; }
                 if (!lan && !Session.CloudLinked) { message = "Relay 需要关联 Unity Cloud，当前不能连接。"; return; }
                 if (Session.TryAddress(code, 7777, out _, out _) != lan) { message = lan ? "局域网入口需要有效 IP 地址。" : "此入口需要房间号或 Relay Join Code，请到 LAN 隔间输入 IP。"; return; }
@@ -322,7 +322,7 @@ namespace NatureCalls.UI
             view.EntryGroup.SetActive(!inRoom && !offlineMapSelection);
             view.RoomGroup.SetActive(inRoom && !selectingMap);
             view.MapPanel.SetActive(selectingMap);
-            if (view.LanRooms != null) view.LanRooms.gameObject.SetActive(!inRoom && !offlineMapSelection && (toiletLobby == null || toiletLobby.Mode == 0));
+            if (view.LanRooms != null) view.LanRooms.gameObject.SetActive(!inRoom && !offlineMapSelection && (toiletLobby == null || (toiletLobby.Mode == 0 && toiletLobby.JoinPage)));
             view.LobbyPanel.transform.Find("Title").gameObject.SetActive(!selectingMap);
             view.Status.gameObject.SetActive(!selectingMap);
             bool canChoose = offlineMapSelection || (inRoom && room.IsLeader);
