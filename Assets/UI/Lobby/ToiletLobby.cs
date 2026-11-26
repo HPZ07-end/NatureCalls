@@ -132,8 +132,53 @@ namespace NatureCalls.UI
         public void SelectJoin() { Creating = false; RefreshIntent(); View.CodeInput.ActivateInputField(); }
         private void RefreshIntent()
         {
-            View.CreateButton.GetComponentInChildren<Text>().text = Creating ? "✓ 创建房间" : "创建房间";
-            View.JoinButton.GetComponentInChildren<Text>().text = !Creating ? "✓ 加入房间" : "加入房间";
+            View.CreateButton.GetComponentInChildren<Text>().text = "创建房间";
+            View.JoinButton.GetComponentInChildren<Text>().text = "加入房间";
+        }
+        /// <summary>Water-menu「创建房间」: flush and create at once.</summary>
+        public void CreateNow() { SelectCreate(); FlushNow(); }
+        /// <summary>Water-menu「加入房间」(or Enter in the code field): flush and join, or ask for the code first.</summary>
+        public void JoinNow()
+        {
+            Creating = false; RefreshIntent();
+            if (string.IsNullOrWhiteSpace(View.CodeInput.text)) { Submit(); View.CodeInput.ActivateInputField(); return; }
+            FlushNow();
+        }
+        /// <summary>Clicked menu actions: play the physical flush and connect, or confirm the selected map.</summary>
+        public bool FlushNow()
+        {
+            if (!Focused || Transitioning || (Session.Instance != null && Session.Instance.Busy)) return false;
+            if (!View.EntryGroup.activeSelf && !Lobby.CanConfirmMap) return false;
+            var button = FlushButtons[Mode];
+            if (button != null && !button.Pressing) button.Press();
+            if (Lobby.CanConfirmMap) Lobby.ConfirmMapSelection(); else Submit();
+            return true;
+        }
+        private Button flushGo;
+        /// <summary>「冲水出发」on the map panel, shown while the selected map waits for this player's flush.</summary>
+        public Button FlushGoButton
+        {
+            get
+            {
+                if (flushGo != null || View == null || View.MapBack == null) return flushGo;
+                flushGo = Instantiate(View.MapBack, View.MapBack.transform.parent);
+                flushGo.name = "Flush Go";
+                flushGo.onClick = new Button.ButtonClickedEvent();
+                flushGo.onClick.AddListener(() => FlushNow());
+                var rect = (RectTransform)flushGo.transform;
+                rect.anchoredPosition = ((RectTransform)View.MapBack.transform).anchoredPosition + new Vector2(0, 90);
+                var label = flushGo.GetComponentInChildren<Text>(true); label.text = "冲水出发"; label.fontSize = 40; label.fontStyle = FontStyle.Bold;
+                return flushGo;
+            }
+        }
+        private void Start()
+        {
+            if (View != null && View.CodeInput != null)
+                View.CodeInput.onEndEdit.AddListener(_ =>
+                {
+                    var keyboard = Keyboard.current;
+                    if (Focused && keyboard != null && (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)) JoinNow();
+                });
         }
         public void Submit()
         {
@@ -170,8 +215,9 @@ namespace NatureCalls.UI
             if (!Focused || Departing) return;
             Place(View.LobbyPanel); Place(View.MapPanel);
             View.LobbyPanel.transform.Find("Title").GetComponent<Text>().text = Mode == 0 ? "局域网联机" : "Relay 房间号联机";
-            View.CodeInput.placeholder.GetComponent<Text>().text = Mode == 0 ? "房主 IP 或 IP:端口" : "Relay 房间号";
-            View.CodeInput.gameObject.SetActive(!Creating && View.EntryGroup.activeSelf);
+            View.CodeInput.placeholder.GetComponent<Text>().text = Mode == 0 ? "填房主 IP，再点「加入房间」" : "填房间号，再点「加入房间」";
+            View.CodeInput.gameObject.SetActive(View.EntryGroup.activeSelf);
+            if (FlushGoButton != null) FlushGoButton.gameObject.SetActive(Lobby.CanConfirmMap);
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) Lobby.CloseLobby();
         }
         private void Place(GameObject panel)

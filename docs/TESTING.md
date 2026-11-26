@@ -2,7 +2,7 @@
 
 2026-11-26 准备房扩容与转场：新增退出用例检查打开途中取消、恢复移动和防止立即重新俯视，原 LAN 建房用例验证关闭界面保留连接。四地图离线用例检查最终冲水后暂不加载、人物缩小，再等待地图相机绑定、淡入结束及本地操作恢复。当前 PlayMode 52 Passed + 1 Relay Ignored、EditMode 34/34；但截图发现新俯视取景裁切底部状态文字，按用户要求暂停，不能以自动测试通过替代视觉验收。详见 [转场记录](records/lobby-departure-2026-11-26.md)。
 
-2026-11-26 水面视图 E 冲水回归：#40 改用准星交互后，水面视图（角色停住、鼠标放开）按 E 无人处理，真实 Build 无法创建或加入房间；原测试直接调用 `TryFlush(ray)`，未经过按键。修复后 E 对鼠标指针下的冲水按钮生效，新用例 `ToiletLobbyEKeyFlushesButtonUnderPointer` 用虚拟鼠标（临时忽略窗口焦点，批处理模式下 `Application.isFocused` 恒为 false、设备事件会被丢弃）验证指针偏离时不冲水、指向按钮时冲水并建房。按键本身在批处理下无法驱动，需在真实窗口手动确认。
+2026-11-26 水面视图 E 冲水回归：#40 改用准星交互后，水面视图（角色停住、鼠标放开）按 E 无人处理，真实 Build 无法创建或加入房间；原测试直接调用 `TryFlush(ray)`，未经过按键。修复后 E 对鼠标指针下的冲水按钮生效，新用例 `ToiletLobbyEKeyFlushesButtonUnderPointer` 用虚拟鼠标（临时忽略窗口焦点，批处理模式下 `Application.isFocused` 恒为 false、设备事件会被丢弃）验证指针偏离时不冲水、指向按钮时冲水并建房。按键本身在批处理下无法驱动，需在真实窗口手动确认。随后按用户要求改为直接点击：「创建房间」立即冲水建房，「加入房间」/回车带房间号时冲水加入、空输入只提示，选图后出现「冲水出发」按钮；新用例 `ToiletLobbyMenuButtonsConnectDirectly` 经真实 UI 射线点击验证，Playground 离线选图用例改为点击「冲水出发」，其他三张地图仍用实体冲水按钮射线确认。
 
 2026-11-26 四项修复：门与吊牌用例验证房外 lettering 关闭、两个已有 StallDoor 可开、材质关联两张正确文字贴图，并保存闭门正面截图；离线地图用例断言点击选图后目标地图未加载，再经真实物理射线操作冲水按钮加载。Host 单进程用准备完成的第二成员数据通过原准备条件，确认后移除无传输端的测试成员；该测试不能替代真实双客户端。新增准备条件被撤销后拒绝确认的用例。Host 需求值断言按实际经过时间计算增长上界，不改变初值与增长规则。最终结果与截图见 [记录](records/lobby-four-fixes-2026-11-26.md)。
 
@@ -12,7 +12,7 @@
 
 2026-11-25 漂浮换装 UI：`FloatingOutfitTextChecksPreviewChoicesAndReceivesMouseClicks` 验证世界空间文字无面板底图，体型／颜色各有一个勾选，EventSystem 射线命中实际可见行，点击切换预览、取消恢复、重新打开及确认保存，并保存 `floating-outfit-ui.png` 检查布局和倒影。重建 UI 使用 `scripts/unity.py dressing-room-ui`；实际结果见 [UI 记录](records/floating-outfit-ui-2026-11-25.md)。
 
-2026-11-25 换装间覆盖：`scripts/unity.py dressing-room` 通过 Unity API 在原场景路径重建并检查 GUID。EditMode 验证镜面投影、完整 UV、门牌朝向及资产引用；PlayMode 验证天花板、双镜预览与确认取消、E/F 搬放凳子、实际跳跃落在凳子上、两镜三模型两高度反射，以及现有大厅、地图和返回流程。当前工程的凳子、镜子、大厅门和冲水按钮均走统一 `IInteractable`/`InteractionRegistry`；水面视图中角色不受控、鼠标放开，冲水按钮改由 E 对鼠标指针下的按钮触发（`PlayerInput.TryFlushLobbyFromPointer`）；不以独立 worktree 的测试结果代替当前工程结果。实际结果见 [移植记录](records/dressing-room-adoption-2026-11-25.md)。
+2026-11-25 换装间覆盖：`scripts/unity.py dressing-room` 通过 Unity API 在原场景路径重建并检查 GUID。EditMode 验证镜面投影、完整 UV、门牌朝向及资产引用；PlayMode 验证天花板、双镜预览与确认取消、E/F 搬放凳子、实际跳跃落在凳子上、两镜三模型两高度反射，以及现有大厅、地图和返回流程。当前工程的凳子、镜子、大厅门和冲水按钮均走统一 `IInteractable`/`InteractionRegistry`；水面视图中角色不受控、鼠标放开，水面菜单的「创建房间」「加入房间」「冲水出发」直接触发冲水，指针指着冲水按钮按 E 等效（`PlayerInput.TryFlushLobbyFromPointer`）；不以独立 worktree 的测试结果代替当前工程结果。实际结果见 [移植记录](records/dressing-room-adoption-2026-11-25.md)。
 
 地图接入回归（2026-11-16）：`DressingRoomTests` 新增从大厅离线及 Host 选择 MapLayoutPrototype 的用例，检查外观、本地第一人称绑定、设施生成和结束返回原房间；`MapLayoutTests` 检查四个出生点的地板与胶囊空间、三扇门、隔间归属、马桶占用以及卷纸和唯一拖把的拾取/归还。`scripts/server.py <Development Player> --map-index 1` 复用原三进程探针验证新地图；默认 0 继续验证原 Playground。运行结果以开发记录为准。
 

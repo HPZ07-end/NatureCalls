@@ -452,6 +452,27 @@ namespace NatureCalls.Tests
         }
 
         [UnityTest]
+        public IEnumerator ToiletLobbyMenuButtonsConnectDirectly()
+        {
+            var room = Object.FindFirstObjectByType<ToiletLobby>();
+            room.Enter(); room.Focus(0);
+            yield return new WaitForSecondsRealtime(1);
+            Assert.That(room.FlushGoButton.gameObject.activeInHierarchy, Is.False, "「冲水出发」only appears once a map waits for confirmation.");
+            view.CodeInput.text = "";
+            ClickFloating(view.JoinButton, world.Camera.Output);
+            yield return null;
+            Assert.That(LobbyRoom.Current, Is.Null, "Join without a code asks for one instead of connecting.");
+            Assert.That(view.Status.text, Does.Contain("IP"));
+            view.CodeInput.DeactivateInputField(); EventSystem.current.SetSelectedGameObject(null); yield return null;
+            ClickFloating(view.CreateButton, world.Camera.Output);
+            Assert.That(room.FlushButtons[0].Pressing, Is.True, "Clicking create plays the physical flush.");
+            yield return null; yield return null;
+            Assert.That(LobbyRoom.Current, Is.Not.Null, "Clicking「创建房间」creates the room at once.");
+            Assert.That(Session.Instance.Active, Is.True);
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
+        }
+
+        [UnityTest]
         public IEnumerator ToiletLobbyEKeyFlushesButtonUnderPointer()
         {
             // Regression: in the water view the player is parked (not controlled), so E must reach the flush button
@@ -666,7 +687,9 @@ namespace NatureCalls.Tests
             Assert.That(SceneManager.GetSceneByPath(mapPath).isLoaded, Is.False, "Selecting a map must not load it.");
             Assert.That(view.MapHint.text, Does.Not.Contain("MapLayoutPrototype"));
             CaptureRoom(world.Camera.Output, "selected-map-confirmation-" + mapIndex + ".png");
-            Assert.That(entryRoom.TryFlush(FlushRay(entryRoom)), Is.True, "A second physical flush confirms the selected map.");
+            Assert.That(entryRoom.FlushGoButton.gameObject.activeInHierarchy, Is.True, "The selected map shows a clickable「冲水出发」.");
+            if (mapIndex == 0) ClickFloating(entryRoom.FlushGoButton, world.Camera.Output);
+            else Assert.That(entryRoom.TryFlush(FlushRay(entryRoom)), Is.True, "A physical flush still confirms the selected map.");
             Assert.That(entryRoom.Departing, Is.True);
             Assert.That(SceneManager.GetSceneByPath(mapPath).isLoaded, Is.False, "The suction animation runs before map loading.");
             yield return new WaitForSecondsRealtime(.95f);
