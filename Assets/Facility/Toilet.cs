@@ -28,13 +28,13 @@ namespace NatureCalls.Facility
         public System.Collections.Generic.IEnumerable<IInteractable> Interactables { get { yield return this; } }
         public override int Priority => 100;
         public override float Distance => Interaction.ReachDistance;
-        public override Transform Target => flushTarget != null ? flushTarget : transform;
-        public override Vector3 AimPoint => flushTarget != null ? flushTarget.position : transform.position + transform.up * .55f - transform.forward * .12f; // fallback: above and behind the bowl
+        public override Transform Target => transform;
+        public override Vector3 AimPoint => transform.position + transform.up * .55f - transform.forward * .12f;
         public override bool CanInteract(InteractionContext context) => Interaction.InReach(context, Target) &&
             ((Item.FindCarriedBy(context.Player) is Plunger && IsBackflow && ConnectedPipe != null && ConnectedPipe.IsBlocked) ||
              (RoleRegistry.IsSaboteur(context.Player) && Item.FindCarriedBy(context.Player) is PaperRoll && !IsBroken && Cooldown.Ready(context.Player, this)) ||
-             ((!IsBroken && (!IsOccupied || Occupant == context.Player) && context.Player != Occupant && context.Player.Seat != Anchor)));
-        public override string Prompt(InteractionContext context) => RoleRegistry.IsSaboteur(context.Player) && Item.FindCarriedBy(context.Player) is PaperRoll ? "E  塞纸" : "E  冲水";
+             ((!IsBroken && Item.FindCarriedBy(context.Player) is Plunger && ConnectedPipe != null && ConnectedPipe.IsBlocked && (!IsOccupied || Occupant == context.Player))));
+        public override string Prompt(InteractionContext context) => "E  疏通";
         public override bool Perform(InteractionContext context)
         {
             if (RoleRegistry.IsSaboteur(context.Player) && Item.FindCarriedBy(context.Player) is PaperRoll paper)
@@ -45,8 +45,7 @@ namespace NatureCalls.Facility
             }
             if (Item.FindCarriedBy(context.Player) is Plunger && pipe != null && pipe.IsBlocked)
             { if (context.Online) return context.Requests != null && context.Requests.RequestInteract(this); return pipe.ClearAndReport(); }
-            if (context.Online) return context.Requests != null && context.Requests.RequestInteract(this);
-            if (pipe != null && pipe.IsBlocked) pipe.TriggerBackflow(this); return true;
+            return false;
         }
         public void Backflow() { IsBackflow = true; var sink = MessSinkRegistry.Current; sink?.AddMess(Core.MessKind.Backflow, TargetCenter, sink.ToiletIndex(this)); }
         public void ClearBackflow() => IsBackflow = false;

@@ -46,7 +46,7 @@ namespace NatureCalls.Editor
             pipe.SetFixtures(fixtures);
             foreach (var fixture in fixtures)
             {
-                if (fixture is Toilet toilet) { toilet.SetPipe(pipe); var target = toilet.transform.Find("Flush handle target"); if (target == null) { target = new GameObject("Flush handle target").transform; target.SetParent(toilet.transform, false); target.localPosition = new Vector3(0, .8f, .65f); } toilet.SetFlushTarget(target); PrefabUtility.RecordPrefabInstancePropertyModifications(toilet); }
+                if (fixture is Toilet toilet) { toilet.SetPipe(pipe); var target = toilet.transform.Find("Flush handle target"); if (target == null) { target = new GameObject("Flush handle target").transform; target.SetParent(toilet.transform, false); target.localPosition = new Vector3(0, .8f, .65f); } var button = target.GetComponent<ToiletFlushButton>() ?? target.gameObject.AddComponent<ToiletFlushButton>(); button.SetToilet(toilet); var box = target.GetComponent<BoxCollider>() ?? target.gameObject.AddComponent<BoxCollider>(); box.size = new Vector3(.07f, .07f, .07f); PrefabUtility.RecordPrefabInstancePropertyModifications(toilet); PrefabUtility.RecordPrefabInstancePropertyModifications(button); }
                 else if (fixture is Urinal urinal) urinal.SetPipe(pipe);
                 else if (fixture is Sink sink) sink.SetPipe(pipe);
             }

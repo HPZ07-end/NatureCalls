@@ -53,6 +53,9 @@ namespace NatureCalls.Player
         public int PaperRequired { get; private set; }
         public Pipe UnwipedPipe { get; private set; }
         public bool Toileting { get; set; }
+        /// <summary>Owner-only read flag used by needs ticking and HUD.</summary>
+        public bool Aiming { get; set; }
+        public StoolKind NextStoolKind { get; private set; } = StoolKind.Soft;
         // PlayMode hook: lets tests isolate contact and cleaning costs from the vision channel.
         public bool VisionSuppressedForTests { get; set; }
         public void MarkUnwiped(StallDoor stall) { unwipedStall = stall; Unwiped = true; }
@@ -84,6 +87,7 @@ namespace NatureCalls.Player
             HandsDirty = false;
             PaperRequired = 0;
             Ticking = true;
+            RollNextStool();
         }
 
         public void StopRound() => Ticking = false;
@@ -94,16 +98,20 @@ namespace NatureCalls.Player
             var bodyType = appearance != null ? appearance.BodyType : LocalProfile.BodyType;
             if (Ticking)
             {
-                bool paused = posture.IsSquatting || Toileting || Vomiting;
+                float bowelBefore = Bowel;
+                bool paused = (posture.IsSquatting || Toileting || Vomiting) && !Aiming;
+                float aimingRate = Aiming ? NeedsRules.AimingUrgencyRate : 1f;
                 if (!MatchContext.Versus)
                 {
-                    Urgency = NeedsRules.TickUrgency(Urgency, Time.deltaTime, paused, CharacterProfile.For(bodyType).UrgencyRateScale);
+                    Urgency = NeedsRules.TickUrgency(Urgency, Time.deltaTime, false, CharacterProfile.For(bodyType).UrgencyRateScale * aimingRate);
                     Bladder = Urgency;
                 }
                 else
                 {
-                Bladder = NeedsRules.TickBladder(Bladder, Time.deltaTime, CharacterProfile.For(bodyType).UrgencyRateScale, paused);
-                Bowel = NeedsRules.TickBowel(Bowel, Time.deltaTime, MatchContext.BowelMultiplier(GetComponent<Movement>()), CharacterProfile.For(bodyType).UrgencyRateScale, Comfort, RoleRegistry.IsSaboteur(GetComponent<Movement>()), paused, earlyBowelScale);
+                Bladder = NeedsRules.TickBladder(Bladder, Time.deltaTime, CharacterProfile.For(bodyType).UrgencyRateScale * aimingRate, false);
+                Bowel = NeedsRules.TickBowel(Bowel, Time.deltaTime, MatchContext.BowelMultiplier(GetComponent<Movement>()), CharacterProfile.For(bodyType).UrgencyRateScale * aimingRate, Comfort, RoleRegistry.IsSaboteur(GetComponent<Movement>()), false, earlyBowelScale);
+                if (bowelBefore <= 0f && Bowel > 0f) RollNextStool();
+                if (Bowel >= NeedsRules.UrgencyMax && bowelBefore < NeedsRules.UrgencyMax) RollNextStool();
                 if (comfortWindowRemaining > 0) comfortWindowRemaining -= Time.deltaTime; else Comfort = 0;
                 if (earlyScaleRemaining > 0) { earlyScaleRemaining -= Time.deltaTime; if (earlyScaleRemaining <= 0) earlyBowelScale = 1f; }
                 Urgency = NeedsRules.Highest(Bladder, Bowel);
@@ -142,6 +150,13 @@ namespace NatureCalls.Player
             Disgust = NeedsRules.DisgustAfterToileting(Disgust, insideStall);
             if (insideStall) AddComfort(.1f);
             OnRelieved?.Invoke();
+        }
+
+        public void RollNextStool()
+        {
+            float urgency01 = (MatchContext.Versus ? Bowel : Urgency) / NeedsRules.UrgencyMax;
+            NextStoolKind = StoolRules.Roll(RoleRegistry.IsSaboteur(GetComponent<Movement>()), urgency01,
+                IsOutOfControl || InEndurance, Comfort, UnityEngine.Random.value);
         }
 
         /// <summary>Peers show the authority's values.</summary>

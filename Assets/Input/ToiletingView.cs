@@ -49,7 +49,7 @@ namespace NatureCalls.Input
         /// <summary>Mouse-down amount for this frame (tests, or other input devices).</summary>
         public void Push(float amount) => push += amount;
 
-        private bool Active => input != null && input.Phase == PlayerInput.Stage.Holding && movement.Seat != null && movement.Controlled;
+        private bool Active => input != null && (input.Phase == PlayerInput.Stage.Squatting || input.Phase == PlayerInput.Stage.Aiming) && movement.Controlled;
 
         private void Update()
         {
@@ -69,7 +69,7 @@ namespace NatureCalls.Input
             if (Looking) Remaining = Mathf.Max(0, Remaining - Time.deltaTime);
             SetPitch(Amount * LookPitch);
             Camera(Amount);
-            ShowMarker(Looking);
+            ShowMarker(false); // blind aim: no reticle or landing marker
         }
 
         private void SetPitch(float pitch) => movement.SetPitch(pitch);

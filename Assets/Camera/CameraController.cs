@@ -79,9 +79,9 @@ namespace NatureCalls.Camera
         private void OnDestroy() { if (posture != null) posture.Changed -= SetPosture; }
         private void SetPosture(PostureState state)
         {
-            bool squat = state == PostureState.Squatting || (Target != null && Target.Aiming);
-            FirstPerson.Priority = squat ? 10 : 20;
-            ThirdPerson.Priority = squat ? 20 : 10;
+            bool toileting = state == PostureState.Squatting || (Target != null && Target.Aiming);
+            FirstPerson.Priority = toileting ? 20 : 10;
+            ThirdPerson.Priority = toileting ? 10 : 20;
         }
         private void LateUpdate()
         {
@@ -97,7 +97,7 @@ namespace NatureCalls.Camera
         {
             if (Target == null) return;
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
-            if (!posture.IsSquatting)
+            if (!posture.IsSquatting || Target.Aiming)
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * (Target.IsCrawling ? .63f : EyeHeight), Target.ViewRotation);
             bool seated = Target.Aiming || (posture.IsSquatting && Target.Seat != null);
             if (posture.IsSquatting || Target.Aiming)
