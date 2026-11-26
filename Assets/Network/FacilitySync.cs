@@ -356,6 +356,23 @@ namespace NatureCalls.Network
         }
         [Rpc(SendTo.Owner)]
         private void UrinalGrantedRpc(int index) => GetComponent<Input.PlayerInput>().BeginGranted(null, Facilities.Current.urinals[index]);
+        /// <summary>Peeing while squatting (seat or floor): settled as urine; the squat reservation stays.</summary>
+        public void ReportSeatedUrination(float accuracy, Vector3 position)
+        {
+            if (IsSpawned && IsOwner) SeatedUrinationRpc(accuracy, position);
+        }
+        [Rpc(SendTo.Server)]
+        private void SeatedUrinationRpc(float accuracy, Vector3 position, RpcParams rpc = default)
+        {
+            var host = ServerFacilities();
+            if (host == null || rpc.Receive.SenderClientId != OwnerClientId || (activeMode != 1 && activeMode != 3) || !float.IsFinite(accuracy) || accuracy < 0 || accuracy > 1 ||
+                !float.IsFinite(position.x) || !float.IsFinite(position.y) || !float.IsFinite(position.z) ||
+                Vector3.Distance(position, movement.transform.position) > 2 || Time.time - lastSeatedUrine < NeedsRules.UrinatingSeconds - .1f) return;
+            lastSeatedUrine = Time.time;
+            Toilet toilet = activeMode == 1 && activeIndex >= 0 ? host.toilets[activeIndex] : null;
+            Input.PlayerInput.ApplyUrination(movement, toilet, null, accuracy, position);
+        }
+        private float lastSeatedUrine = -999f;
         public void ReportResult(float accuracy, Vector3 position)
         {
             if (IsSpawned && IsOwner) ResultRpc(accuracy, position);

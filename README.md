@@ -11,7 +11,7 @@
 1. 安装 Unity Hub 和 **6000.3.26f1**，本人完成登录与许可。Mac/Windows 使用同一补丁版本。
 2. 克隆仓库，切换团队的 `dev` 分支；在根目录运行 `git lfs install --local`、`git lfs pull`。
 3. Hub → Add project from disk，选择包含 `Assets`、`Packages`、`ProjectSettings` 的根目录。
-4. 打开 `Assets/Scenes/DressingRoom.unity`，点击 Play。镜子前 E 换装；左侧门 E 打开联机大厅，选「单人离线测试」再选地图即可进入。地图中 WASD / 鼠标操作，Space 跳跃、准星对准物体按 E 交互（马桶冲水要对准冲水按钮）、C 拉屎（第一人称蹲下，低头瞄准后再按 C 确认，Space 站起）、V 撒尿（第一人称瞄准马桶或小便池，按 C 开始尿，Space 退出）、R 丢掷手持物、Esc 释放鼠标后点左上角「退出」返回准备房；顶部显示干净值和剩余时间，左下角的肠子和膀胱图标显示便意和尿意。完整规则见 [GLOSSARY](GLOSSARY.md) 与 [PLAYGROUND](docs/PLAYGROUND.md)。
+4. 打开 `Assets/Scenes/DressingRoom.unity`，点击 Play。镜子前 E 换装；左侧门 E 打开联机大厅，选「单人离线测试」再选地图即可进入。地图中 WASD / 鼠标操作，Space 跳跃、准星对准物体按 E 交互（马桶冲水要对准冲水按钮）、C 拉屎（第一人称蹲下，可低头看马桶，再按 C 开拉；蹲着时可直接按 V 先尿）、V 撒尿（第一人称瞄准，看向哪里就尿到哪里，再按 V 开尿，开始后要尿完）；开始之前按 Esc 退出瞄准、R 丢掷手持物、Esc 释放鼠标后点左上角「退出」返回准备房；顶部显示干净值和剩余时间，左下角的肠子和膀胱图标显示便意和尿意。完整规则见 [GLOSSARY](GLOSSARY.md) 与 [PLAYGROUND](docs/PLAYGROUND.md)。
 5. 双客户端：一端在大厅「创建房间」，另一端点「加入房间」，在「隔间大厅」点选该房间或输入房主局域网地址（同机 `127.0.0.1`）；准备后房主开始并选择地图。两台电脑、校园网注意事项与 Relay 配置见 [Playground 指南](docs/PLAYGROUND.md)。
 
 平台安装、VS Code 和命令行入口见 [development](docs/DEVELOPMENT.md)。

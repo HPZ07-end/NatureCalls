@@ -153,8 +153,7 @@ namespace NatureCalls.Tests
             Place(standing, -door.transform.forward);
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting));
-            player.SetPitch(50);
-            Assert.That(input.TryToilet(), Is.True);
+            player.SetPitch(55); input.RefreshAimPhase();
             Assert.That(toilet.Occupant, Is.SameAs(player));
             input.TickAim(.1f, Vector2.zero); input.TryToilet();
             Assert.That(toilet.IsOccupied, Is.False);
@@ -175,7 +174,7 @@ namespace NatureCalls.Tests
                 Assert.That(input.TryUrinate(), Is.True);
                 Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
                 Assert.That(urinal.Occupant, Is.SameAs(player));
-                Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
+                Assert.That(input.TryUrinate(), Is.True, "A second V starts the stream.");
                 player.LookAt(player.transform.position + player.transform.right * 2f); // aim off the urinal: the stream follows the view
                 input.TickAim(NeedsRules.UrinatingSeconds, Vector2.zero);
                 Assert.That(urinal.IsOccupied, Is.False);

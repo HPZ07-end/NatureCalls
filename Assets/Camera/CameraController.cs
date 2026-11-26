@@ -94,8 +94,17 @@ namespace NatureCalls.Camera
             // standing to urinate, hides it so the bowl / urinal below is visible instead of the torso.
             bool hidden = !posture.IsSquatting || Gaze > .3f;
             Output.cullingMask = hidden ? outputCullingMask & ~(1 << LocalBodyLayer) : outputCullingMask;
-            foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
+            // Aiming the stream: hide the whole local model (hair, hands, accessories) so nothing covers the crosshair.
+            bool urineAim = Target.Aiming && !posture.IsSquatting;
+            foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = urineAim;
+            if (urineAim)
+            {
+                foreach (var part in Target.GetComponentsInChildren<Renderer>())
+                    if (part is not LineRenderer && part.GetType().Name != "ParticleSystemRenderer" && !part.forceRenderingOff) { part.forceRenderingOff = true; extraHidden.Add(part); }
+            }
+            else if (extraHidden.Count > 0) { foreach (var part in extraHidden) if (part != null) part.forceRenderingOff = false; extraHidden.Clear(); }
         }
+        private readonly System.Collections.Generic.List<Renderer> extraHidden = new();
         public void UpdateTargets()
         {
             if (Target == null) return;

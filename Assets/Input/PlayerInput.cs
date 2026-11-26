@@ -66,7 +66,7 @@ namespace NatureCalls.Input
         private IHoldInteractable heldInteract;
         private float heldInteractSeconds;
         private bool heldInteractDone;
-        private bool urineMode;
+        private bool urineMode, seatedUrine;
         private float heldToolSeconds;
         private Mess cleaning;
         private bool Online => facilities != null && facilities.IsSpawned;
@@ -121,7 +121,8 @@ namespace NatureCalls.Input
                 if (Application.isFocused && interact.WasPressedThisFrame()) TryFlushLobbyFromPointer();
                 return;
             }
-            if (release.WasPressedThisFrame()) Unlock();
+            // Esc leaves a toileting aim that has not started; once started it does nothing. Otherwise it frees the mouse.
+            if (release.WasPressedThisFrame()) { if (!IsToileting) Unlock(); else CancelAim(); }
             if (CaptureMouse && Application.isFocused && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
                 !IsPointerOverUi())
             { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
@@ -137,7 +138,7 @@ namespace NatureCalls.Input
                     var delta = look.ReadValue<Vector2>(); movement.transform.Rotate(Vector3.up, delta.x * movement.Sensitivity, Space.World);
                     movement.SetPitch(movement.Pitch - delta.y * movement.Sensitivity);
                 }
-                if (jump.WasPressedThisFrame()) { if (Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating) CancelToileting(); else movement.Jump(); }
+                if (jump.WasPressedThisFrame() && !IsToileting) movement.Jump();
                 if (toggle.WasPressedThisFrame()) TryToilet();
                 if (urinate.WasPressedThisFrame()) TryUrinate();
                 if (interact.WasPressedThisFrame()) { RefreshFocus(); if (Focus is not IHoldInteractable) TryInteract(); }
@@ -205,9 +206,9 @@ namespace NatureCalls.Input
         public bool TryToilet()
         {
             if (needs != null && needs.Vomiting) return false;
-            if (Phase == Stage.Squatting) { if (movement.Pitch < ToiletGaze.AimPitch - 15f) return false; Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; return true; }
-            if (Phase == Stage.Aiming) { FinishToileting(); return true; }
-            if (Phase == Stage.Urinating) { if (UrineFlowing) return false; UrineFlowing = true; return true; }
+            // Second C: the stool comes out now (looking down first is optional, it only shows the bowl).
+            if (Phase == Stage.Squatting || Phase == Stage.Aiming) { FinishToileting(); return true; }
+            if (Phase == Stage.Urinating) return false; // no pooping while peeing
             movement.RefreshVentPosture();
             if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             var stall = StallDoor.Containing(movement);
@@ -229,7 +230,18 @@ namespace NatureCalls.Input
         }
         public bool TryUrinate()
         {
-            if (needs != null && needs.Vomiting || IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
+            if (needs != null && needs.Vomiting) return false;
+            // Second V: the stream starts and must run to the end.
+            if (Phase == Stage.Urinating) { if (UrineFlowing) return false; UrineFlowing = true; return true; }
+            // Peeing while squatting (on a toilet or on the floor) starts at once; afterwards the squat continues.
+            if (Phase == Stage.Squatting || Phase == Stage.Aiming)
+            {
+                urineMode = true; seatedUrine = true; Phase = Stage.Urinating; UrineFlowing = true;
+                accuracy = new Accuracy(NeedsRules.UrinatingSeconds); correction = Vector2.zero;
+                if (needs != null) needs.Aiming = true;
+                return true;
+            }
+            if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             toilet = null; urinal = null;
             var stall = StallDoor.Containing(movement);
             if (stall != null && stall.Toilet != null) toilet = stall.Toilet;
@@ -282,6 +294,14 @@ namespace NatureCalls.Input
         private void FinishToileting()
         {
             var position = movement.transform.position;
+            if (seatedUrine)
+            {
+                if (Online) facilities.ReportSeatedUrination(accuracy.Value, position);
+                else ApplyUrination(movement, toilet, null, accuracy.Value, position);
+                seatedUrine = false; urineMode = false; UrineFlowing = false;
+                accuracy = new Accuracy(9999f); Phase = Stage.Squatting; if (needs != null) needs.Aiming = false;
+                return; // still squatting: C poops, Esc stands up
+            }
             if (Online) facilities.ReportResult(accuracy.Value, position);
             else if (urineMode) ApplyUrination(movement, toilet, urinal, accuracy.Value, position);
             else ApplyResult(movement, toilet, urinal, accuracy.Value, position, ToiletIndex(toilet));
@@ -290,6 +310,12 @@ namespace NatureCalls.Input
             posture.Set(PostureState.Standing);
             movement.Immobile = false; movement.Aiming = false; if (needs != null) needs.Aiming = false; Phase = Stage.None; urineMode = false;
             toilet = null; urinal = null;
+        }
+        /// <summary>Esc: leave a squat, a look-down or a urine aim that has not started yet.</summary>
+        public bool CancelAim()
+        {
+            if (Phase == Stage.Squatting || Phase == Stage.Aiming || (Phase == Stage.Urinating && !UrineFlowing)) { CancelToileting(); return true; }
+            return false;
         }
         private void CancelToileting()
         {

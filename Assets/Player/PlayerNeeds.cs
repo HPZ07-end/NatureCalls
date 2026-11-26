@@ -73,7 +73,7 @@ namespace NatureCalls.Player
         public void SetVersusState(float bladder, float bowel) { Bladder = Mathf.Clamp(bladder, 0, 100); Bowel = Mathf.Clamp(bowel, 0, 100); Urgency = NeedsRules.Highest(Bladder, Bowel); }
         /// <summary>Authority hook used by match/facility rules when control is lost.</summary>
         public void ForceAccident(bool bowel) => TriggerAccident(bowel ? MessKind.Accident : MessKind.Puddle);
-        public void CompleteUrination() { if (Ticking) { if (MatchContext.Versus) { Bladder = 0; Urgency = NeedsRules.Highest(Bladder, Bowel); } else Urgency = NeedsRules.UrgencyAfterUrination(Urgency); Bladder = Urgency; ComfortBoostRemaining = 15; Comfort = Mathf.Clamp01(Comfort + .1f); OnRelieved?.Invoke(); } }
+        public void CompleteUrination() { if (Ticking) { if (MatchContext.Versus) { Bladder = 0; Urgency = NeedsRules.Highest(Bladder, Bowel); } else { Urgency = NeedsRules.UrgencyAfterUrination(Urgency); Bladder = Urgency; } /* versus: the bladder empties even when the bowel is fuller */ ComfortBoostRemaining = 15; Comfort = Mathf.Clamp01(Comfort + .1f); OnRelieved?.Invoke(); } }
 
 
         private void Awake() => posture = GetComponent<Posture>();
