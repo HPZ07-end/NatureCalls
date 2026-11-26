@@ -155,12 +155,10 @@ namespace NatureCalls.Input
             }
             if (IsToileting)
             {
-                var keys = move.ReadValue<Vector2>();
-                var worldMove = movement.transform.TransformDirection(new Vector3(keys.x, 0, keys.y));
-                // Squat aim: WASD shuffles the landing point. Urination aims with the view itself (see TickAim).
-                var adjustment = Phase == Stage.Urinating ? Vector2.zero :
-                    new Vector2(worldMove.x, worldMove.z) * NeedsRules.CorrectionSpeed * Time.deltaTime;
-                TickAim(Time.deltaTime, accept ? adjustment : Vector2.zero);
+                // WASD shifts the body a little (posture): the squat landing follows the buttocks, and the
+                // stream is aimed from the new spot along the view.
+                if (accept) Shuffle(move.ReadValue<Vector2>(), Time.deltaTime);
+                TickAim(Time.deltaTime, Vector2.zero);
             }
             if (Phase == Stage.Cleaning) ContinueCleaning(accept && action.IsPressed(), Time.deltaTime);
             movement.Move(accept && AcceptsWalking ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
@@ -264,6 +262,7 @@ namespace NatureCalls.Input
             if (!Online && needs != null) needs.Toileting = true;
             accuracy = new Accuracy(Phase == Stage.Urinating ? NeedsRules.UrinatingSeconds : 9999f);
             initialLanding = urinal != null ? urinal.TargetCenter : ButtLanding();
+            shuffleOrigin = movement.transform.position;
             CurrentLanding = initialLanding; correction = Vector2.zero;
             noiseSeed = new Vector2(Random.Range(0f, 100f), Random.Range(0f, 100f));
             if (needs != null) needs.Aiming = Phase == Stage.Urinating || Phase == Stage.Aiming;
@@ -286,14 +285,46 @@ namespace NatureCalls.Input
                 var aimed = Physics.Raycast(ray, out var hit, 3f, mask, QueryTriggerInteraction.Ignore) ? hit.point : ray.GetPoint(1.5f);
                 CurrentLanding = aimed + new Vector3(drift.x, 0, drift.y) * .5f;
             }
-            else CurrentLanding = initialLanding + new Vector3(offset.x, 0, offset.y);
+            else CurrentLanding = ButtLanding() + new Vector3(offset.x, 0, offset.y); // follows the shuffled body
             if (Phase == Stage.Urinating && !UrineFlowing) return; // still aiming: nothing comes out yet
             accuracy.Sample(seconds, Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
             if (accuracy.Complete) FinishToileting();
         }
+        public const float ShuffleSpeed = .6f, SquatShuffleRadius = .25f, UrineShuffleRadius = .35f;
+        private Vector3 shuffleOrigin;
+        /// <summary>WASD while toileting: a small posture shift around where the player started.</summary>
+        public void Shuffle(Vector2 keys, float seconds)
+        {
+            if (keys.sqrMagnitude < .0001f) return;
+            float radius = Phase == Stage.Urinating && !seatedUrine ? UrineShuffleRadius : SquatShuffleRadius;
+            var next = movement.transform.position + movement.transform.TransformDirection(new Vector3(keys.x, 0, keys.y)).normalized * ShuffleSpeed * seconds;
+            var offset = Vector3.ProjectOnPlane(next - shuffleOrigin, Vector3.up);
+            if (offset.magnitude > radius) next = shuffleOrigin + offset.normalized * radius + Vector3.up * (next.y - shuffleOrigin.y);
+            var controller = GetComponent<CharacterController>();
+            bool was = controller != null && controller.enabled; if (was) controller.enabled = false;
+            movement.transform.position = next;
+            if (was) controller.enabled = true;
+            Physics.SyncTransforms();
+        }
+        /// <summary>The floor under an aim point (where a puddle or a dropped stool ends up).</summary>
+        private Vector3 FloorUnder(Vector3 point)
+        {
+            var mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer) & ~(1 << NatureCalls.Camera.CameraController.LocalBodyLayer);
+            return Physics.Raycast(point + Vector3.up * .5f, Vector3.down, out var hit, 3f, mask, QueryTriggerInteraction.Ignore)
+                ? hit.point : new Vector3(point.x, movement.transform.position.y, point.z);
+        }
+        /// <summary>Squat result at the moment of release: in the opening, on the rim, or past the bowl.</summary>
+        private float ReleaseAccuracy()
+        {
+            if (toilet == null) return 0f;
+            float distance = Vector3.Distance(Vector3.ProjectOnPlane(CurrentLanding, Vector3.up), Vector3.ProjectOnPlane(TargetCenter, Vector3.up));
+            return distance <= TargetRadius ? 1f : distance <= TargetRadius * 1.6f ? (NeedsRules.PerfectAccuracy + NeedsRules.FloorAccuracy) / 2f : 0f;
+        }
         private void FinishToileting()
         {
-            var position = movement.transform.position;
+            // Messes land where the aim went (the floor under it), not at the player's feet.
+            var position = FloorUnder(CurrentLanding);
+            if (!urineMode && accuracy != null && accuracy.Duration > 1000f) accuracy = Accuracy.Fixed(ReleaseAccuracy());
             if (seatedUrine)
             {
                 if (Online) facilities.ReportSeatedUrination(accuracy.Value, position);

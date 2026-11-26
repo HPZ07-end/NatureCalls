@@ -12,6 +12,8 @@ namespace NatureCalls.Core
         public float Value => Elapsed > 0 ? Inside / Elapsed : 0;
         public bool Complete => Elapsed >= Duration;
         public Accuracy(float duration) { Duration = Math.Max(0, duration); }
+        /// <summary>A result decided in one moment (the squat release): value 0–1, already complete.</summary>
+        public static Accuracy Fixed(float value) { var result = new Accuracy(1); result.Elapsed = 1; result.Inside = Math.Clamp(value, 0, 1); return result; }
         public void Sample(float seconds, bool inside)
         {
             float used = Math.Min(Math.Max(0, seconds), Duration - Elapsed);

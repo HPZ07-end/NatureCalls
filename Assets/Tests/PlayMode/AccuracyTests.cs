@@ -53,9 +53,16 @@ namespace NatureCalls.Tests
         private void Score(float insideSeconds, float duration)
         {
             var delta = input.TargetCenter - input.CurrentLanding;
-            if (insideSeconds > 0) input.TickAim(insideSeconds, new Vector2(delta.x, delta.z));
-            if (insideSeconds < duration) input.TickAim(duration - insideSeconds, new Vector2(5, 5));
-            if (input.Phase == PlayerInput.Stage.Aiming) input.TryToilet();
+            if (input.Phase == PlayerInput.Stage.Urinating)
+            {
+                if (insideSeconds > 0) input.TickAim(insideSeconds, new Vector2(delta.x, delta.z));
+                if (insideSeconds < duration) input.TickAim(duration - insideSeconds, new Vector2(5, 5));
+                return;
+            }
+            // Squat: the result is decided where the stool lands at release — opening, rim, or past the bowl.
+            var aim = new Vector2(delta.x, delta.z);
+            input.TickAim(.01f, insideSeconds >= duration ? aim : insideSeconds > 0 ? aim + new Vector2(input.TargetRadius * 1.3f, 0) : new Vector2(5, 5));
+            if (input.Phase == PlayerInput.Stage.Aiming || input.Phase == PlayerInput.Stage.Squatting) input.TryToilet();
         }
         [TestCase(5f, MessKind.None)] [TestCase(2f, MessKind.DirtyToilet)] [TestCase(0f, MessKind.Dropping)]
         public void AlignHoldAndSettleThreeAccuracyBands(float inside, MessKind expected)
