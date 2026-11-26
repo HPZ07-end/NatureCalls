@@ -100,7 +100,7 @@ PR 正文从 GitHub 事件 JSON 读取，CI 使用实际 base/head，防止 shel
 
 ## 构建与平台记录
 
-macOS `build-macos` 使用 ARM64 Development `.app`，检查 BuildReport、成功回执及新产物，输出到 `Builds/macOS/<时间-标识>/NatureCalls.app`。这不是签名、公证或发布验收；构建成功也不等于人工启动通过。
+macOS `build-macos` 使用 ARM64 Development `.app`，检查 BuildReport、成功回执及新产物，输出到 `Builds/macOS/<时间-标识>/NatureCalls.app`。这不是签名、公证或发布验收；构建成功也不等于人工启动通过。在 `dev`/`main` 的干净工作区上，构建成功后还会自动部署课程服务器（见 DEVELOPMENT「打包后自动部署」）；只想验证构建时加 `--no-deploy`。
 
 Windows 可以在关闭同工程 GUI 后运行 `py -3 scripts/unity.py build-windows`，生成 Windows x86_64 Development Player，路径为 `Builds/Windows/<build-id>/NatureCalls.exe`，检查 BuildReport、完成回执及 Player 产物。也可在 File → Build Profiles 手动构建；需要的模块通过 Hub 安装。Windows 不运行 `build-macos`。
 
