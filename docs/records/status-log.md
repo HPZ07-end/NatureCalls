@@ -260,5 +260,12 @@ Semantic-Diff: none。沿用 Automation、Build、Player、Server 现有名称�
 - 公网端到端 `room_e2e.py --broker 49.233.132.244:8100`：两个客户端经 UI 创建并以房间号 328 加入（端口 8036），成员 2、外观同步、双方可见，均通过。脚本原先只等 60 秒，所以报“房间号未移除”；后改为远程默认等待 360 秒（`--close-timeout`）。另外等待确认：最后成员离开约 300 秒后 `naturecalls-room@8036` 记录 `No clients connected for the configured idle period; exiting.`，Result=success、退出码 0，房间号查询返回 404，broker rooms=0。Artifacts `20261125T172222Z-2730b3-room-e2e/`。
 - 未执行：真人跨公网联机、Windows 客户端、两台真实设备上的局域网发现。注意：回滚到不含 broker 的旧版本时 broker 无法重启，8000 房间不受影响。
 
+## 2026-11-26 课程服务器部署 2bca57f
+
+- 提交：dev `2bca57f`（PR #41 合并：对抗模式、粪便种类、如厕视觉、HUD 与 Map3）；部署前工作区干净，没有打开本工程的 Unity GUI；`--dry-run` 显示目标 `ubuntu@49.233.132.244`，房间 [8000]，broker 重启。
+- `python3 scripts/deploy_server.py`：通过。构建 `Builds/LinuxServer/20261126T012947Z-8d028c/`（恢复 macOS Player 通过）；输出 `ROOM_OK 8000` 和 `DEPLOYED 2bca57f-20261126T012947Z-8d028c`，未回滚；首次 broker 健康检查连接被拒，重试后通过。记录 `Artifacts/20261126T013246Z-deploy-server/`。
+- SSH 只读复核：`current` → `releases/2bca57f-20261126T012947Z-8d028c`；`naturecalls@8000` 与 `naturecalls-broker` active，NRestarts 均为 0；`0.0.0.0:8000/UDP` 与 `0.0.0.0:8100/TCP` 监听；journal 有 `Server listening on UDP 8000.`。公网 `GET http://49.233.132.244:8100/health` 返回 ok（rooms 0、max 12）。
+- 未执行：本版本的公网 `room_e2e.py` 与跨公网双设备真人对局。登录只用 SSH 密钥；没有改动 SSH、防火墙或系统配置。
+
 2026-11-25 一层装置第一批：加入 Pipe、Sink、Toilet 冲水入口、纸量规则与 CharacterProfile 骨架；堵塞/倒灌数值均标注暂定，待用户确认。
 2026-11-26 回归修复：冲水目标改为独立把手目标并避让坐下玩家；Facility 通过 IMessSink 注册点产生污物；Pipe 权威和纸量同步边界修正；Playground/Map2 完成 Unity API 场景接线。
