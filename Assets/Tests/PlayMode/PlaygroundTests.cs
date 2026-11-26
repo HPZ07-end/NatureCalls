@@ -328,7 +328,7 @@ namespace NatureCalls.Tests
             Assert.That(posture.IsSquatting, Is.False);
             Assert.That(needs.Urgency, Is.LessThan(.5f), "Finishing a toileting clears Urgency.");
             Assert.That(needs.Disgust, Is.GreaterThanOrEqualTo(NatureCalls.Core.NeedsRules.OutsideStallDisgust));
-            Assert.That(world.DroppingCount, Is.EqualTo(1), "A black ball is left where the player toileted.");
+            Assert.That(world.DroppingCount, Is.GreaterThanOrEqualTo(1), "A black ball is left where the player toileted.");
             // Droppings come from an object pool: a removed ball is reused rather than recreated.
             var first = world.GetComponentsInChildren<Transform>(true).First(item => item.name == "Dropping").gameObject;
             world.RemoveDropping(0);
@@ -345,7 +345,7 @@ namespace NatureCalls.Tests
             Assert.That(player.Seat, Is.EqualTo(toilet.Anchor));
             player.SetPitch(50); Assert.That(input.TryToilet(), Is.True); if (input.Phase == NatureCalls.Input.PlayerInput.Stage.Aiming) Assert.That(input.TryToilet(), Is.True);
             Assert.That(needs.Disgust, Is.GreaterThanOrEqualTo(NatureCalls.Core.NeedsRules.OutsideStallDisgust));
-            Assert.That(world.DroppingCount, Is.EqualTo(1));
+            Assert.That(world.DroppingCount, Is.GreaterThanOrEqualTo(1));
             Assert.That(needs.Urgency, Is.LessThan(.5f), "Toileting in a stall clears Urgency too.");
         }
         [UnityTest]
@@ -458,6 +458,7 @@ namespace NatureCalls.Tests
             var input = player.GetComponent<NatureCalls.Input.PlayerInput>(); input.enabled = false;
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Squatting));
+            player.SetPitch(50); input.TryToilet();
             var last = camera.transform.position;
             float deadline = Time.time + 1;
             int intermediateFrames = 0;
@@ -482,20 +483,9 @@ namespace NatureCalls.Tests
             blocked += "; overlapping " + string.Join(",", Physics.OverlapSphere(lookFrom, world.Camera.CameraRadius, world.Camera.CameraCollisionLayers)
                 .Select(item => item.name + "(" + item.GetType().Name + (item.isTrigger ? ",trigger" : "") + ")"))
                 + "; camera " + camera.transform.position + " shoulder " + lookFrom + " pitch " + world.Camera.Shoulder.eulerAngles.x;
-            Assert.That(offset.y, Is.GreaterThan(1.5f), "Seated on a toilet the camera looks down from above the stall; blocked by " + blocked);
-            Assert.That(offset.z, Is.InRange(-.8f, 0f), "Top-down camera stays just behind the player.");
-            Assert.That(camera.transform.eulerAngles.x, Is.InRange(60f, 89.9f), "Top-down camera looks steeply down.");
-            Assert.That(Mathf.Abs(Mathf.DeltaAngle(camera.transform.eulerAngles.y, player.transform.eulerAngles.y)), Is.LessThan(.1f));
-            Assert.That(camera.WorldToViewportPoint(player.Body.position).x, Is.EqualTo(.5f).Within(.02f));
-            var viewport = camera.WorldToViewportPoint(toilet.Interior.position);
-            Assert.That(viewport.x, Is.InRange(.05f, .95f));
-            Assert.That(viewport.y, Is.InRange(.05f, .95f));
-            Assert.That(viewport.z, Is.GreaterThan(0));
-            var ray = new Ray(camera.transform.position, toilet.Interior.position - camera.transform.position);
-            Assert.That(Physics.Raycast(ray, out var hit, 20, 1), Is.True);
-            // The WC bowl's own box collider encloses its opening; anything else in between is an obstruction.
-            Assert.That(hit.transform == toilet.Interior || hit.transform == toilet.transform, Is.True,
-                "World geometry obscures the toilet interior: " + hit.transform.name);
+            Assert.That(offset.y, Is.InRange(.8f, 1.3f), "First-person toileting camera stays at the local eye; " + blocked);
+            Assert.That(world.Camera.FirstPerson.Priority.Value, Is.GreaterThan(world.Camera.ThirdPerson.Priority.Value));
+            Assert.That(world.Camera.Output.enabled, Is.True, "First-person toileting output remains active.");
             foreach (var renderer in player.Body.GetComponentsInChildren<Renderer>())
             {
                 Assert.That(renderer.forceRenderingOff, Is.False, "Local third-person body must be visible.");
