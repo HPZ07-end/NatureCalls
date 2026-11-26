@@ -1,3 +1,5 @@
+2026-11-26 Map3（后室）接入修复：`Map3Integration` 改为结构网格非凸 `MeshCollider`，增加按 Unity 世界轴计算的地板支撑和出生点射线校正，避免走廊实心盒与出生点掉落；天花板渲染器保留并通过存在性测试。Portal 偏移从 `Room_R0` 与 `Room_R2` 世界坐标计算为 `(-40, 0, -8.8)`，Portal 支持标记本地轴判定；卷纸（含 `_Floor`）42、卷纸架 42、工具箱 4、拖把 4 均按挂点幂等实例化并关联，隔间门镜像开角/半开/锁死状态、马桶与 Pipe、PlanarMirror 最近选择和 Light_Flicker 实时点光已接线。Map3 专项 PlayMode 7/7 通过；全量 EditMode 70/70、PlayMode 97 Passed + 1 Ignored、仓库检查和 batchmode 截图均已完成。`Semantic-Diff: none`。
+
 2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
