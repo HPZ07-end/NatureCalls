@@ -12,6 +12,8 @@ namespace NatureCalls.Map
     public sealed class Portal : MonoBehaviour
     {
         public int CrossingDirectionX = 1;
+        // Marker-local axis keeps the crossing test stable when FBX axis conversion rotates the map.
+        public Vector3 CrossingAxis = Vector3.right;
         public Vector3 Offset;
         public Vector3 ZoneSize = new(4.4f, 2.6f, 6.6f);
         private readonly HashSet<int> crossed = new();
@@ -31,7 +33,8 @@ namespace NatureCalls.Map
             var id = root.GetInstanceID();
             if (crossed.Contains(id)) return;
             var local = transform.InverseTransformPoint(root.position);
-            if (CrossingDirectionX * local.x < 0f) return;
+            var axis = CrossingAxis.sqrMagnitude > .0001f ? CrossingAxis.normalized : Vector3.right;
+            if (CrossingDirectionX * Vector3.Dot(local, axis) < 0f) return;
             crossed.Add(id);
             Move(root);
         }

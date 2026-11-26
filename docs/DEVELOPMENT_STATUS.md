@@ -2,6 +2,8 @@
 
 2026-11-26 远程隔间连上课程服务器并显示房间列表（分支 `fix/lobby-server-rooms`）：此前双隔间水面大厅的远程隔间「创建房间」只走 Relay 或本机直连，从不请求课程服务器，原「创建服务器房间」按钮在水面布局中没有位置。现在远程隔间冲水创建即向 broker 创建服务器房间；选「加入房间」时水面列出 broker 上现存房间（新接口 `GET /rooms`，每 3 秒刷新，服务器不可达时显示原因），点选或输入三位房间号加入，Relay Join Code 仍可输入。查询列表不创建 Session；PlayMode 测试注入假列表，不访问课程服务器。Python 42/42、仓库检查、EditMode 70/70（`Artifacts/20261126T053548Z-a40e22-test-editmode`）、PlayMode 98 通过 + 1 Relay Ignored（`Artifacts/20261126T053615Z-10e378-test-playmode`）；水面截图 `Artifacts/20261126T053351Z-b1059e-test-playmode/toilet-lobby-server-rooms.png`。未执行：真人从水面列表加入公网房间、Windows 客户端。房间列表只显示房间号，不显示人数。已部署到课程服务器：版本目录 `/opt/naturecalls/releases/c1e547c-20261126T053958Z-83d38f`，未回滚；`ROOM_OK 8000`，8000 与 broker active；公网 `POST /rooms` 建出房间 841 后，`GET /rooms` 立即列出该房间。记录 `Artifacts/20261126T061154Z-deploy-server/`。服务器运行的是尚未合入 dev 的 `fix/lobby-server-rooms`。
 
+2026-11-26 Map3（后室）接入修复：`Map3Integration` 改为结构网格非凸 `MeshCollider`，增加按 Unity 世界轴计算的地板支撑和出生点射线校正，避免走廊实心盒与出生点掉落；天花板渲染器保留并通过存在性测试。Portal 偏移从 `Room_R0` 与 `Room_R2` 世界坐标计算为 `(-40, 0, -8.8)`，Portal 支持标记本地轴判定；卷纸（含 `_Floor`）42、卷纸架 42、工具箱 4、拖把 4 均按挂点幂等实例化并关联，隔间门镜像开角/半开/锁死状态、马桶与 Pipe、PlanarMirror 最近选择和 Light_Flicker 实时点光已接线。Map3 专项 PlayMode 7/7 通过；全量 EditMode 70/70、PlayMode 97 Passed + 1 Ignored、仓库检查和 batchmode 截图均已完成。`Semantic-Diff: none`。
+
 2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
