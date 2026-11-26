@@ -55,7 +55,8 @@ namespace NatureCalls.Tests
         private static void Capture(UnityEngine.Camera camera, string name)
         {
             var dir = System.Environment.GetEnvironmentVariable("NATURECALLS_RUN_PATH");
-            if (string.IsNullOrEmpty(dir) || camera == null) return;
+            if (string.IsNullOrEmpty(dir)) dir = "Artifacts/acceptance-screens";
+            if (camera == null) return;
             Directory.CreateDirectory(dir);
             ScreenCapture.CaptureScreenshot(Path.Combine(dir, name));
         }

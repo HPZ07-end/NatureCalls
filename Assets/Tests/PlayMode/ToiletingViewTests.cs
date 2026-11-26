@@ -159,7 +159,8 @@ namespace NatureCalls.Tests
         private void Capture(string name)
         {
             var dir = System.Environment.GetEnvironmentVariable("NATURECALLS_RUN_PATH");
-            if (!string.IsNullOrEmpty(dir)) { Directory.CreateDirectory(dir); ScreenCapture.CaptureScreenshot(Path.Combine(dir, name)); }
+            if (string.IsNullOrEmpty(dir)) dir = "Artifacts/acceptance-screens";
+            Directory.CreateDirectory(dir); ScreenCapture.CaptureScreenshot(Path.Combine(dir, name));
         }
         private sealed class Vector3Within : System.Collections.Generic.IEqualityComparer<Vector3>
         {
