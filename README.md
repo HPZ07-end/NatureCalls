@@ -4,15 +4,15 @@
 
 当前整合分支还包含已批准的正式角色与地图美术、重建换装准备房、双隔间 LAN/Relay 联机入口、实体冲水确认和离场转场；这些内容仍需完成本分支的 Unity 回归后才算验收。
 
-游戏从换装准备房（DressingRoom）启动：镜子前换装，左侧门进入联机大厅，可单人离线测试、创建或加入房间（2–4 人），开始后由房主选择地图。地图 Playground 提供第一人称移动、C 如厕（隔间内坐到该隔间马桶，隔间外原地如厕）、隔间门与卷纸交互、马桶占用、急迫值与恶心值、全体判负、全局对局计时（结束后回到准备房，联机时留在原房间），以及 NGO Host/Client 原型。仓库已关联 Unity Cloud 项目，大厅「创建房间」使用 Relay Join Code，加入时输入 IP 仍可局域网直连；Relay 真实联机尚待验收。正式玩法数值、冲水等设施规则和胜负判定尚未实现。实际验收范围见 [DEVELOPMENT_STATUS](docs/DEVELOPMENT_STATUS.md)。
+游戏从换装准备房（DressingRoom）启动：镜子前换装，左侧门进入联机大厅，可单人离线测试、创建或加入房间（2–4 人），开始后由房主选择地图。地图提供第一人称移动与 MC 式准星、C 拉屎 / V 撒尿（第一人称瞄准后按 C 确认）、对准马桶冲水按钮冲水、隔间门与卷纸交互、对抗模式（捣蛋者与保洁队、干净值、急迫值与镇定值），以及 NGO Host/Client 与专用服务器联机。仓库已关联 Unity Cloud 项目，大厅「创建房间」使用 Relay Join Code，加入时输入 IP 仍可局域网直连；Relay 真实联机尚待验收。正式玩法数值、冲水等设施规则和胜负判定尚未实现。实际验收范围见 [DEVELOPMENT_STATUS](docs/DEVELOPMENT_STATUS.md)。
 
 ## 打开工程
 
 1. 安装 Unity Hub 和 **6000.3.26f1**，本人完成登录与许可。Mac/Windows 使用同一补丁版本。
 2. 克隆仓库，切换团队的 `dev` 分支；在根目录运行 `git lfs install --local`、`git lfs pull`。
 3. Hub → Add project from disk，选择包含 `Assets`、`Packages`、`ProjectSettings` 的根目录。
-4. 打开 `Assets/Scenes/DressingRoom.unity`，点击 Play。镜子前 E 换装；左侧门 E 打开联机大厅，选「单人离线测试」再选地图即可进入。地图中 WASD / 鼠标操作，Space 跳跃、C 如厕（一次性，5 秒后自动站起；隔间外会留下黑色小球并加恶心值）、E 拾取卷纸或操作隔间门（坐在马桶上也能关门上锁）、R 丢掷卷纸、Esc 释放鼠标后点左上角「退出」返回准备房；顶部显示本局剩余时间，左上角显示自己的急迫值和恶心值，任何人任一项满了全队失败。
-5. 双客户端：一端在大厅「创建房间」，另一端点「加入房间」，在「隔间大厅」点选该房间或输入房主局域网地址（同机 `127.0.0.1`）；准备后房主开始并选择地图。两台电脑、校园网注意事项与 Relay 配置见 [Playground 指南](docs/PLAYGROUND.md)。
+4. 打开 `Assets/Scenes/DressingRoom.unity`，点击 Play。镜子前 E 换装；左侧门 E 打开联机大厅，选「单人离线测试」再选地图即可进入。地图中 WASD / 鼠标操作，Space 跳跃、准星对准物体按 E 交互（马桶冲水要对准冲水按钮）、C 拉屎（第一人称蹲下，低头瞄准后再按 C 确认，Space 站起）、V 撒尿（第一人称瞄准马桶或小便池，按 C 开始尿，Space 退出）、R 丢掷手持物、Esc 释放鼠标后点左上角「退出」返回准备房；顶部显示干净值和剩余时间，左下角的肠子和膀胱图标显示便意和尿意。完整规则见 [GLOSSARY](GLOSSARY.md) 与 [PLAYGROUND](docs/PLAYGROUND.md)。
+5. 双客户端：一端在大厅「创建房间」，另一端输入房主局域网地址（同机 `127.0.0.1`）「加入房间」；准备后房主开始并选择地图。两台电脑、校园网注意事项与 Relay 配置见 [Playground 指南](docs/PLAYGROUND.md)。
 
 平台安装、VS Code 和命令行入口见 [development](docs/DEVELOPMENT.md)。
 

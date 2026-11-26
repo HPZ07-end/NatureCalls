@@ -22,6 +22,10 @@ namespace NatureCalls.UI
             };
             VersusHudFeed.Bladder = p => Needs(p) is { } n ? n.Bladder / 100f : 0f;
             VersusHudFeed.Bowel = p => Needs(p) is { } n ? n.Bowel / 100f : 0f;
+            // PlayerNeeds publishes the pre-rolled kind once the toileting rework lands; until then the gauge shows soft.
+            var next = typeof(PlayerNeeds).GetProperty("NextStoolKind");
+            if (next != null && next.PropertyType == typeof(StoolKind))
+                VersusHudFeed.NextStool = p => Needs(p) is { } n ? (StoolKind)next.GetValue(n) : StoolKind.Soft;
             VersusHudFeed.Composure = p => Needs(p) is { } n ? n.Composure / 100f : 1f;
             VersusHudFeed.Endurance = p => Needs(p) is { } n && n.InEndurance ? Mathf.Clamp01(.55f + .45f * n.AimJitterIntensity) : 0f;
             VersusHudFeed.LostControl = p => Needs(p) is { } n && n.IsOutOfControl;

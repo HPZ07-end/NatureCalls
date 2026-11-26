@@ -61,17 +61,11 @@ namespace NatureCalls.UI
             if (phase != PlayerInput.Stage.None)
             {
                 phaseLabel.text = Prompt(phase);
-                bool timed = phase != PlayerInput.Stage.Aligning && input.Duration > 0;
+                bool timed = phase == PlayerInput.Stage.Urinating && input.Duration > 0;
                 progressFill.transform.parent.gameObject.SetActive(timed);
                 progressFill.fillAmount = phase == PlayerInput.Stage.Cleaning ? input.CleaningProgress
                     : timed ? Mathf.Clamp01(input.Elapsed / input.Duration) : 0;
-                bool scored = phase == PlayerInput.Stage.Urinating; // defecation is blind (GLOSSARY 统一如厕过程)
-                accuracyLabel.gameObject.SetActive(scored);
-                if (scored)
-                {
-                    accuracyLabel.text = $"准度 {Mathf.RoundToInt(input.CurrentAccuracy * 100)}%";
-                    accuracyLabel.color = AccuracyColor(phase, input.CurrentAccuracy);
-                }
+                accuracyLabel.gameObject.SetActive(false);
             }
 
             unwipedWarning.SetActive(input.Unwiped);
@@ -86,9 +80,9 @@ namespace NatureCalls.UI
 
         private static string Prompt(PlayerInput.Stage phase) => phase switch
         {
-            PlayerInput.Stage.Aligning => "对位：移动让落点进入圆圈，按 C 蹲下",
-            PlayerInput.Stage.Holding => "用力中：鼠标往下低头看落点（只有几秒），WASD 小幅挪动",
-            PlayerInput.Stage.Urinating => "小便：用鼠标把落点留在圆圈里",
+            PlayerInput.Stage.Squatting => "C 拉屎 · V 撒尿　低头瞄准，C 确认　Space 站起",
+            PlayerInput.Stage.Aiming => "低头瞄准，C 确认　Space 站起",
+            PlayerInput.Stage.Urinating => "撒尿：鼠标瞄准，C 开始尿　Space 退出",
             PlayerInput.Stage.Cleaning => "清理中：按住 F",
             _ => ""
         };
@@ -103,23 +97,9 @@ namespace NatureCalls.UI
         private void DrawTarget(PlayerInput input, PlayerInput.Stage phase)
         {
             // No target circle while holding: defecation is blind except for the timed look-down marker (ToiletGaze).
-            bool aiming = phase == PlayerInput.Stage.Aligning || phase == PlayerInput.Stage.Urinating;
-            var camera = world.Camera.Output;
-            overlay.gameObject.SetActive(aiming && camera != null);
-            if (!aiming || camera == null) return;
-
-            var (axisX, axisY) = input.TargetAxes;
-            var center = input.TargetCenter;
-            for (int index = 0; index < dots.Count; index++)
-            {
-                float angle = index * Mathf.PI * 2 / dots.Count;
-                var point = center + (axisX * Mathf.Cos(angle) + axisY * Mathf.Sin(angle)) * input.TargetRadius;
-                Place(dots[index].rectTransform, camera, point);
-            }
-            Place(landingMarker.rectTransform, camera, input.CurrentLanding);
-            bool inside = Vector3.Distance(input.CurrentLanding, center) <= input.TargetRadius;
-            landingMarker.color = inside ? Good : Bad;
-            foreach (var dot in dots) dot.color = inside ? Good : Color.white;
+            overlay.gameObject.SetActive(false);
+            landingMarker.gameObject.SetActive(false);
+            foreach (var dot in dots) dot.gameObject.SetActive(false);
         }
 
         private void Place(RectTransform element, UnityEngine.Camera camera, Vector3 world)

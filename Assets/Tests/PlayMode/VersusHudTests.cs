@@ -19,6 +19,8 @@ namespace NatureCalls.Tests
         private Map.Playground world;
         private Func<Movement, float> endurance, vomit, comfort, bowel, bladder, composure;
         private Func<(string, int)> latest;
+        private Func<Movement, StoolKind> nextStool;
+        private Func<Movement, float> speed;
         private Func<(bool, string, string)> outcome;
 
         [UnitySetUp] public IEnumerator Load()
@@ -26,6 +28,7 @@ namespace NatureCalls.Tests
             endurance = VersusHudFeed.Endurance; vomit = VersusHudFeed.Vomit; comfort = VersusHudFeed.Comfort;
             bowel = VersusHudFeed.Bowel; bladder = VersusHudFeed.Bladder; composure = VersusHudFeed.Composure;
             latest = VersusHudFeed.LatestEvent; outcome = VersusHudFeed.Outcome;
+            nextStool = VersusHudFeed.NextStool; speed = VersusHudFeed.Speed;
             yield return SceneManager.LoadSceneAsync("Assets/Scenes/Playground.unity", LoadSceneMode.Additive);
             yield return null;
             world = Object.FindFirstObjectByType<Map.Playground>();
@@ -36,6 +39,7 @@ namespace NatureCalls.Tests
             VersusHudFeed.Endurance = endurance; VersusHudFeed.Vomit = vomit; VersusHudFeed.Comfort = comfort;
             VersusHudFeed.Bowel = bowel; VersusHudFeed.Bladder = bladder; VersusHudFeed.Composure = composure;
             VersusHudFeed.LatestEvent = latest; VersusHudFeed.Outcome = outcome;
+            VersusHudFeed.NextStool = nextStool; VersusHudFeed.Speed = speed;
             MatchContext.Reset(); RoleRegistry.Clear();
             world.StopPractice();
             var manager = Unity.Netcode.NetworkManager.Singleton;
@@ -72,6 +76,18 @@ namespace NatureCalls.Tests
             Assert.That(rim.GetPixel(2, rim.height / 2).a, Is.GreaterThan(.8f), "The vignette darkens the rim.");
             Assert.That(Find(hud, "Toast").GetComponent<CanvasGroup>().alpha, Is.GreaterThan(.5f));
             yield return Capture("hud-playing.png");
+            var gut = Find(hud, "Intestine").GetComponent<IntestineGauge>();
+            Assert.That(gut.Fill, Is.EqualTo(.95f).Within(.01f), "The intestine fills with the bowel urge.");
+            Assert.That(Find(hud, "Waves").GetComponent<Text>().text, Is.Empty, "No wave text: urge is shown by the organs.");
+            VersusHudFeed.Endurance = _ => 0f;
+            foreach (var kind in new[] { StoolKind.Soft, StoolKind.Hard, StoolKind.Loose })
+            {
+                VersusHudFeed.NextStool = _ => kind; VersusHudFeed.Speed = _ => kind == StoolKind.Loose ? 1f : 0f;
+                VersusHudFeed.Bowel = _ => .6f;
+                for (int i = 0; i < 6; i++) yield return null;
+                Assert.That(gut.Kind, Is.EqualTo(kind));
+                yield return Capture("hud-gauge-" + kind.ToString().ToLowerInvariant() + ".png");
+            }
 
             VersusHudFeed.Endurance = _ => 0f; VersusHudFeed.Vomit = _ => .6f; VersusHudFeed.Comfort = _ => .8f;
             for (int i = 0; i < 5; i++) yield return null;

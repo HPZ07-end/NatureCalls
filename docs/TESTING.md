@@ -135,3 +135,5 @@ Actions 的 `repository` 在 Linux/macOS/Windows 运行仓库检查与 Python �
 `AccuracyTests`（EditMode）验证时间加权、最后一帧截断、阈值边界、漂移与急迫值单调关系、卷纸次数和需求数值。`ToiletingTests`（PlayMode）加载真实 Playground，验证对位→保持→三档结算、小便池占用/减半/积水、拾纸再擦拭与消耗、未擦拭门/走出两分支、工具箱容量与唯一拖把、丢掷后最近物品拾取、清洁松开/离开中断、积水距离、Host 共享拖把/污物与清洁。离线确定性准度测试直接向生产 TickAim 提供修正和时间；真实计时由启用 PlayerInput 的既有回归及服务器计时验证覆盖。无人键盘环境下不要关闭 PlayerInput 后仍等待其 Update 计时。
 
 `multiplayer.py` 额外检查 Host 与 Client 各自使用小便池生成积水、取拖把清理并归还后的双方场景；`server.py` 两次 C 对位/保持并检查污物、专用服务器下拖把取放。两者都是本机 UDP，不是 Relay、跨设备或真人手感。完整命令及实际结果追加到 [status-log](records/status-log.md)。
+
+如厕回归应覆盖 C→蹲姿→低头 `Aiming`→C 确认、V 在马桶/小便池进入 `Urinating`、小便池按 C 不启动、瞄准时急迫倍率，以及只对准 `ToiletFlushButton` 且在距离内按 E 冲水。旧的 `Aligning/Holding`、目标圈和定时自动结算断言不再适用。
