@@ -176,6 +176,11 @@ namespace NatureCalls.Input
             if (Focus == null && posture.IsSquatting && movement.Seat != null)
                 Focus = InteractionRegistry.All.Where(item => item is not ToiletFlushButton && item.CanInteract(context))
                     .OrderBy(item => Vector3.Distance(item.AimPoint, movement.transform.position)).FirstOrDefault();
+            if (Focus == null && view.HasValue)
+                Focus = FindObjectsByType<Toolbox>(FindObjectsSortMode.None)
+                    .Where(toolbox => toolbox.CanInteract(context) && toolbox.IsTargetedBy(movement))
+                    .OrderBy(toolbox => Vector3.Distance(toolbox.AimPoint, view.Value.origin))
+                    .FirstOrDefault();
             FocusPrompt = Focus == null ? "" : Focus.Prompt(context);
         }
 

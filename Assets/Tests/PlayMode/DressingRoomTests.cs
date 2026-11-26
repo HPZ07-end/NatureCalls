@@ -684,8 +684,32 @@ namespace NatureCalls.Tests
             Assert.That(appearance.OutfitIndex, Is.EqualTo(outfit), "The DressingRoom outfit is worn on the map.");
             Assert.That(appearance.BodyType, Is.EqualTo(PlayerBodyType.Tall));
 
-
-
+            if (mapIndex == 3)
+            {
+                var shaft = Object.FindObjectsByType<SewerAccess>(FindObjectsSortMode.None).Single(item => !item.Ascending);
+                var person = map.OfflinePlayer;
+                yield return Teleport(person, shaft.Top.position + Vector3.forward * 1.1f);
+                var context = new InteractionContext(person, 0, false, null);
+                Assert.That(shaft.IsOpen, Is.False, "The hatch starts closed.");
+                Assert.That(shaft.ClosedCover.enabled, Is.True);
+                Assert.That(shaft.Perform(context), Is.True);
+                Assert.That(shaft.IsOpen, Is.True);
+                Assert.That(person.IsTraversing, Is.False, "Opening the hatch does not start traversal.");
+                Assert.That(shaft.Perform(context), Is.True, "The hatch can be closed from outside.");
+                Assert.That(shaft.IsOpen, Is.False);
+                Assert.That(shaft.Perform(context), Is.True);
+                yield return Teleport(person, shaft.Top.position + Vector3.forward * .4f);
+                person.Move(Vector2.up, .01f);
+                yield return null;
+                Assert.That(person.IsTraversing, Is.True, "Walking into an open hatch starts descent.");
+                yield return new WaitForSeconds(1.2f);
+                Assert.That(person.transform.position.y, Is.LessThan(shaft.Top.position.y - 1f));
+                var ladder = Object.FindObjectsByType<SewerAccess>(FindObjectsSortMode.None).Single(item => item.Ascending);
+                yield return Teleport(person, ladder.Landing.position + ladder.ApproachDirection * ladder.ApproachDistance);
+                Assert.That(ladder.Perform(context), Is.True, "B continues to return the player via the ladder.");
+                yield return new WaitForSeconds(1.8f);
+                Assert.That(person.transform.position.y, Is.GreaterThan(ladder.Landing.position.y + 1f));
+            }
             var exit = Object.FindFirstObjectByType<MatchExit>();
             Assert.That(exit, Is.Not.Null, "The map shows the top-left exit button.");
             exit.Exit();
