@@ -271,6 +271,7 @@ namespace NatureCalls.Editor
                 world.Camera = rig.GetComponentInChildren<CameraController>(true);
                 EditorSceneManager.CloseScene(templateScene, true);
             }
+            ConfigureLighting(scene, root);
             world.Spawns = Enumerable.Range(1, 4).Select(i => root.GetComponentsInChildren<Transform>(true).First(t => t.name == $"Marker_Spawn_{i:00}")).ToArray();
             Physics.SyncTransforms();
             foreach (var spawn in world.Spawns)
@@ -289,6 +290,38 @@ namespace NatureCalls.Editor
                     position.y = hit.point.y + .8f;
                     spawn.position = position;
                 }
+            }
+        }
+
+        // Map3 has no baked lighting data. With skybox ambient the Editor shows an
+        // auto-generated probe, but a Player build gets black ambient, so the level
+        // rendered black outside the few flicker lights. Use flat ambient like Map2 and
+        // one shadowless fill light per corridor and room (buffers too, so the portal
+        // seam looks the same on both sides).
+        private static void ConfigureLighting(Scene scene, Transform root)
+        {
+            SceneManager.SetActiveScene(scene);
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.58f, 0.6f, 0.56f);
+            RenderSettings.ambientIntensity = 1f;
+            var existing = scene.GetRootGameObjects().FirstOrDefault(o => o.name == "Map3 Fill Lights");
+            if (existing != null) Object.DestroyImmediate(existing);
+            var fills = new GameObject("Map3 Fill Lights");
+            SceneManager.MoveGameObjectToScene(fills, scene);
+            foreach (var section in root.GetComponentsInChildren<Transform>(true)
+                         .Where(t => t.name.StartsWith("Corridor_", StringComparison.Ordinal) || t.name.StartsWith("Room_", StringComparison.Ordinal)))
+            {
+                var renderers = section.GetComponentsInChildren<Renderer>(true);
+                if (renderers.Length == 0) continue;
+                var bounds = renderers.Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+                var light = new GameObject($"Fill {section.name}").AddComponent<Light>();
+                light.transform.SetParent(fills.transform, false);
+                light.transform.position = new Vector3(bounds.center.x, bounds.min.y + 2.3f, bounds.center.z);
+                light.type = LightType.Point;
+                light.range = Mathf.Max(bounds.size.x, bounds.size.z) * .75f;
+                light.intensity = 1.2f;
+                light.color = new Color(1f, .97f, .88f);
+                light.shadows = LightShadows.None;
             }
         }
 
