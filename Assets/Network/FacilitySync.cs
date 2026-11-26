@@ -356,6 +356,20 @@ namespace NatureCalls.Network
         }
         [Rpc(SendTo.Owner)]
         private void UrinalGrantedRpc(int index) => GetComponent<Input.PlayerInput>().BeginGranted(null, Facilities.Current.urinals[index]);
+        /// <summary>A stream that misses wets the floor at <paramref name="point"/> as it lands.</summary>
+        public void RequestUrineSplash(Vector3 point)
+        {
+            if (IsSpawned && IsOwner) UrineSplashRpc(point);
+        }
+        [Rpc(SendTo.Server)]
+        private void UrineSplashRpc(Vector3 point, RpcParams rpc = default)
+        {
+            if (rpc.Receive.SenderClientId != OwnerClientId || activeMode == 0 || !float.IsFinite(point.x) || !float.IsFinite(point.y) || !float.IsFinite(point.z) ||
+                Vector3.Distance(point, movement.transform.position) > 3.5f || Time.time - lastUrineSplash < .15f) return;
+            lastUrineSplash = Time.time;
+            MessSinkRegistry.Current?.AddMess(MessKind.Puddle, point, -1, movement);
+        }
+        private float lastUrineSplash = -999f;
         /// <summary>Peeing while squatting (seat or floor): settled as urine; the squat reservation stays.</summary>
         public void ReportSeatedUrination(float accuracy, Vector3 position)
         {

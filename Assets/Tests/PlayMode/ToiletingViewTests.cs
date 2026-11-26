@@ -91,7 +91,7 @@ namespace NatureCalls.Tests
             bool? inBowl = null, butt = null; fx.Dropped += (bowl, splash) => { inBowl = bowl; butt = splash; };
             fx.BeginDrop();
             Assert.That(fx.Dropping, Is.True);
-            for (float t = 0; t < 2 && inBowl == null; t += Time.deltaTime) yield return null;
+            for (float t = 0; t < 5 && inBowl == null; t += Time.deltaTime) yield return null; // a soft log is squeezed out slowly
             Assert.That(inBowl, Is.True, "Seen falling into the bowl.");
             Assert.That(butt, Is.True);
             Assert.That(SplashOverlay.Current != null && SplashOverlay.Current.gameObject.activeSelf, Is.True, "The splash is obvious on screen.");

@@ -125,7 +125,7 @@ namespace NatureCalls.Input
         public event System.Action<bool, bool> Dropped; // inBowl, buttSplash
         public event System.Action<Vector3, bool> StreamHit; // point, inside target
         public event System.Action SelfSplashed;
-        public bool Dropping => drop != null;
+        public bool Dropping => pieces.Count > 0;
         public LineRenderer Stream { get; private set; }
         public Vector3 StreamOrigin { get; private set; }
         public Vector3 StreamVelocity { get; private set; }
@@ -135,8 +135,6 @@ namespace NatureCalls.Input
         private PlayerInput.Stage lastPhase;
         private bool dropped, selfSplashed;
         private float offTargetBack, nextSplash;
-        private Transform drop;
-        private Vector3 dropVelocity;
         private float dropWater, dropFloor, dropAge;
         private bool dropInBowl;
         private int seenDrop;
@@ -163,63 +161,122 @@ namespace NatureCalls.Input
         }
 
         // ---------------------------------------------------------------- defecation
+        /// <summary>Starts the stool falling from the buttocks: soft is one log, hard drops pellet by pellet, loose pours as drops.</summary>
         public void BeginDrop()
         {
             dropped = true;
+            ClearPieces();
             var art = MessArt.Current;
             if (art == null || art.SoftSwirl == null) return;
-            if (drop != null) Destroy(drop.gameObject);
-            var go = new GameObject("Falling stool", typeof(MeshFilter), typeof(MeshRenderer));
-            go.GetComponent<MeshFilter>().sharedMesh = art.SoftSwirl;
-            go.GetComponent<MeshRenderer>().sharedMaterial = art.Stool;
-            drop = go.transform;
             dropTarget = input.DropSerial > 0 ? input.LastDropPoint : input.CurrentLanding;
             dropInBowl = input.DropSerial > 0 ? input.LastDropInBowl : movement.Seat != null && Vector3.Distance(dropTarget, input.TargetCenter) <= input.TargetRadius;
-            bowlCenter = dropInBowl ? input.LastDropPoint : input.TargetCenter;
-            if (dropInBowl) dropTarget = new Vector3(dropTarget.x, bowlCenter.y, dropTarget.z);
+            bowlCenter = dropInBowl && input.DropSerial > 0 ? input.LastDropPoint : input.TargetCenter;
             dropWater = bowlCenter.y - WaterDepth;
             dropFloor = movement.transform.position.y;
-            drop.position = dropTarget + Vector3.up * .1f;
-            drop.localScale = Vector3.one * .05f;
-            dropVelocity = Vector3.zero; dropAge = 0;
+            // Out of the buttocks: seat height above the landing spot, so a bowed head sees it leave and fall.
+            var butt = new Vector3(dropTarget.x, movement.transform.position.y + .48f, dropTarget.z);
+            var kind = input.DropSerial > 0 ? input.LastDropKind : StoolKind.Soft;
+            dropKind = kind; dropAge = 0; landedAny = false;
+            // Pace the fall to the release time (harder is slower); fall from the buttocks takes about .3 s.
+            float span = Mathf.Max(.4f, (input.ReleaseDuration > 0 ? input.ReleaseDuration : StoolRules.ReleaseSeconds(kind)) - .35f);
+            squeezeSeconds = kind == StoolKind.Soft ? span * .8f : kind == StoolKind.Hard ? span / 5f * .7f : .05f;
+            switch (kind)
+            {
+                case StoolKind.Hard: // separate dry pellets, one after another
+                    for (int i = 0; i < 5; i++) AddPiece(art.HardLog, art.StoolDry, butt, .16f, i * span / 5f, new Vector3(Random.Range(-.02f, .02f), 0, Random.Range(-.02f, .02f)));
+                    break;
+                case StoolKind.Loose: // a runny pour of drops
+                    for (int i = 0; i < 22; i++)
+                    {
+                        var drip = GameObject.CreatePrimitive(PrimitiveType.Sphere); Destroy(drip.GetComponent<Collider>());
+                        drip.GetComponent<Renderer>().sharedMaterial = art.Loose; drip.name = "Loose drop";
+                        pieces.Add(new Piece { T = drip.transform, Delay = i * span / 22f, Scale = Random.Range(.035f, .06f), Origin = butt + new Vector3(Random.Range(-.015f, .015f), 0, Random.Range(-.015f, .015f)), Liquid = true });
+                        drip.SetActive(false);
+                    }
+                    break;
+                default: // one soft log, slowly squeezed out
+                    AddPiece(art.HardLog != null ? art.HardLog : art.SoftSwirl, art.Stool, butt, .5f, 0, Vector3.zero);
+                    break;
+            }
         }
+
+        private struct Piece { public Transform T; public Vector3 Origin, Velocity; public float Delay, Scale; public bool Started, Landed, Liquid; }
+        private readonly System.Collections.Generic.List<Piece> pieces = new();
+        private StoolKind dropKind;
+        private bool landedAny;
+        private float squeezeSeconds = .3f;
+
+        private void AddPiece(Mesh mesh, Material material, Vector3 origin, float scale, float delay, Vector3 offset)
+        {
+            var go = new GameObject("Falling stool", typeof(MeshFilter), typeof(MeshRenderer));
+            go.GetComponent<MeshFilter>().sharedMesh = mesh; go.GetComponent<MeshRenderer>().sharedMaterial = material;
+            go.SetActive(false);
+            pieces.Add(new Piece { T = go.transform, Delay = delay, Scale = scale, Origin = origin + offset });
+        }
+
+        private void ClearPieces() { foreach (var piece in pieces) if (piece.T != null) Destroy(piece.T.gameObject); pieces.Clear(); }
 
         private void TickDrop(float dt)
         {
-            if (drop == null) return;
+            if (pieces.Count == 0) return;
             dropAge += dt;
-            if (dropAge < .35f) { drop.localScale = Vector3.one * Mathf.Lerp(.05f, .55f, dropAge / .35f); return; } // squeezing out
             float floor = dropInBowl ? dropWater - .04f : dropFloor;
-            if (drop.position.y > floor)
+            bool alive = false;
+            for (int i = 0; i < pieces.Count; i++)
             {
-                dropVelocity += Physics.gravity * dt;
-                drop.position += dropVelocity * dt;
-                drop.Rotate(Vector3.right, 240 * dt);
-                if (drop.position.y <= floor) Land();
-                return;
+                var piece = pieces[i];
+                if (piece.T == null) continue;
+                float age = dropAge - piece.Delay;
+                if (age < 0) { alive = true; continue; }
+                if (!piece.Started)
+                {
+                    piece.Started = true; piece.T.gameObject.SetActive(true);
+                    piece.T.SetPositionAndRotation(piece.Origin, piece.Liquid ? Quaternion.identity : Quaternion.Euler(90, Random.Range(0, 360f), 0));
+                }
+                float squeeze = squeezeSeconds;
+                if (!piece.Landed)
+                {
+                    if (age < squeeze) piece.T.localScale = Vector3.one * Mathf.Lerp(piece.Scale * .2f, piece.Scale, age / squeeze); // squeezing out
+                    else
+                    {
+                        piece.T.localScale = Vector3.one * piece.Scale;
+                        piece.Velocity += Physics.gravity * dt;
+                        piece.T.position += piece.Velocity * dt;
+                        if (!piece.Liquid) piece.T.Rotate(Vector3.right, (dropKind == StoolKind.Soft ? 120 : 300) * dt);
+                        if (piece.T.position.y <= floor) { piece.Landed = true; Land(piece, floor); }
+                    }
+                    alive = true;
+                }
+                else if (age < 3f) alive = true;
+                else { Destroy(piece.T.gameObject); piece.T = null; }
+                pieces[i] = piece;
             }
-            if (dropAge > 4f) { Destroy(drop.gameObject); drop = null; }
+            if (!alive) ClearPieces();
         }
 
-        private void Land()
+        private void Land(Piece piece, float floor)
         {
-            drop.position = new Vector3(drop.position.x, dropInBowl ? dropWater - .04f : dropFloor, drop.position.z);
-            drop.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
-            dropAge = Mathf.Max(dropAge, 1f);
+            piece.T.position = new Vector3(piece.T.position.x, floor, piece.T.position.z);
+            if (piece.Liquid) { piece.T.localScale = new Vector3(piece.Scale * 1.8f, piece.Scale * .25f, piece.Scale * 1.8f); }
+            else piece.T.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
+            bool first = !landedAny; landedAny = true;
             bool butt = false;
             if (dropInBowl)
             {
-                var water = new Vector3(drop.position.x, dropWater, drop.position.z);
-                MessFx.Splash(water, new Color(.7f, .88f, 1f, .95f), 26);
-                butt = Random.value < ButtSplashChance;
-                if (butt)
+                var water = new Vector3(piece.T.position.x, dropWater, piece.T.position.z);
+                MessFx.Splash(water, new Color(.7f, .88f, 1f, .95f), piece.Liquid ? 6 : dropKind == StoolKind.Soft ? 26 : 12);
+                if (first)
                 {
-                    MessFx.Splash(water, new Color(.75f, .9f, 1f, 1f), 30)?.Aim(Vector3.up, 3.2f);
-                    SplashOverlay.Show(new Color(.7f, .9f, 1f, .85f), "噗通！屁股一凉", 1.4f);
+                    butt = Random.value < ButtSplashChance;
+                    if (butt)
+                    {
+                        MessFx.Splash(water, new Color(.75f, .9f, 1f, 1f), 30)?.Aim(Vector3.up, 3.2f);
+                        SplashOverlay.Show(new Color(.7f, .9f, 1f, .85f), "噗通！屁股一凉", 1.4f);
+                    }
                 }
             }
-            else MessFx.Splash(drop.position + Vector3.up * .02f, new Color(.5f, .27f, .08f, 1f), 14);
-            Dropped?.Invoke(dropInBowl, butt);
+            else MessFx.Splash(piece.T.position + Vector3.up * .02f, new Color(.5f, .27f, .08f, 1f), piece.Liquid ? 4 : 14);
+            if (first) Dropped?.Invoke(dropInBowl, butt);
         }
 
         // ---------------------------------------------------------------- urination
@@ -300,7 +357,7 @@ namespace NatureCalls.Input
         }
 
         private void HideStream() { if (Stream != null) Stream.enabled = false; }
-        private void OnDestroy() { if (Stream != null) Destroy(Stream.gameObject); if (drop != null) Destroy(drop.gameObject); }
+        private void OnDestroy() { if (Stream != null) Destroy(Stream.gameObject); ClearPieces(); }
     }
 
     /// <summary>Gold sparkles while the explicit comfort boost runs (GLOSSARY Comfort); shown on every peer.</summary>
