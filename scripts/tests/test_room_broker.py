@@ -62,6 +62,16 @@ class BrokerTests(unittest.TestCase):
         with self.assertRaisesRegex(broker_module.BrokerError, "不存在"):
             self.broker.lookup(999)
 
+    def test_lists_live_rooms_sorted(self):
+        first = self.broker.create("10.0.0.1")
+        second = self.broker.create("10.0.0.2")
+        listed = self.broker.list_rooms()
+        self.assertEqual(listed["protocol"], broker_module.PROTOCOL)
+        self.assertEqual(sorted([first["code"], second["code"]]), [room["code"] for room in listed["rooms"]])
+        self.systemctl.active.clear()
+        self.broker.cleanup()
+        self.assertEqual([], self.broker.list_rooms()["rooms"])
+
     def test_rate_limit(self):
         self.broker.max_rooms = 99
         for _ in range(5):

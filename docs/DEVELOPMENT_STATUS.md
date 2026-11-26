@@ -1,3 +1,7 @@
+2026-11-26 水面大厅分页与点击水波（分支 `feat/water-lobby-pages`，基于 #44）：去掉「✓」意图切换。首页点「创建房间」立即建房并进入房间页（房间号与玩家列表）；点「加入房间」进入标题为「隔间大厅」的加入页，上方按房间号列出现存房间可直接点选，下方输入房间号回车或冲水加入，「返回」回首页、Esc 同样返回。每次点击水面从点击处荡开三圈水波（运行时生成的环形贴图，UI Image，不新增 shader 或资源文件），文字随之轻晃。水面所有文字挂 `UnderwaterText`（BaseMeshEffect）：字形随两组交错波弯曲、带水色与漂移光斑，下方叠四层错开的淡深色倒影模拟水下模糊，点击时波动短暂加强。各页（首页、隔间大厅、房间页、选图页）以水面中心为原点重新排布，全部落在水面开口（半径约 0.14 m，面板约 269 单位）以内，文字靠近边缘时淡出，水波不超出水面；`ToiletLobbyTextStaysInsideTheWater` 逐页检查。全量 PlayMode 101 通过 + 1 Relay Ignored（`Artifacts/20261126T064726Z-b47ff0-test-playmode`）；中途一次 `HostLoadsMap1AndPublishesCrawlingPosture` 因计时超限 0.1 失败，重跑通过。加入水下文字后 DressingRoomTests 再次 27/27（`Artifacts/20261126T062824Z-d7fe3b-test-playmode`）。此前 DressingRoomTests 27/27（`Artifacts/20261126T061915Z-4b4262-test-playmode`，含首页、隔间大厅、房间页与水波截图）；全量 EditMode 70/70（`Artifacts/20261126T062156Z-9be36d-test-editmode`）、PlayMode 100 通过 + 1 Relay Ignored（`Artifacts/20261126T062220Z-2eb137-test-playmode`）。水面大厅不再提供 Relay 建房（左隔间建局域网、右隔间建服务器房间），Relay 只能在右隔间输入 Join Code 加入。未执行：真人点击手感、Windows 客户端。
+
+2026-11-26 远程隔间连上课程服务器并显示房间列表（分支 `fix/lobby-server-rooms`）：此前双隔间水面大厅的远程隔间「创建房间」只走 Relay 或本机直连，从不请求课程服务器，原「创建服务器房间」按钮在水面布局中没有位置。现在远程隔间冲水创建即向 broker 创建服务器房间；选「加入房间」时水面列出 broker 上现存房间（新接口 `GET /rooms`，每 3 秒刷新，服务器不可达时显示原因），点选或输入三位房间号加入，Relay Join Code 仍可输入。查询列表不创建 Session；PlayMode 测试注入假列表，不访问课程服务器。Python 42/42、仓库检查、EditMode 70/70（`Artifacts/20261126T053548Z-a40e22-test-editmode`）、PlayMode 98 通过 + 1 Relay Ignored（`Artifacts/20261126T053615Z-10e378-test-playmode`）；水面截图 `Artifacts/20261126T053351Z-b1059e-test-playmode/toilet-lobby-server-rooms.png`。未执行：真人从水面列表加入公网房间、Windows 客户端。房间列表只显示房间号，不显示人数。已部署到课程服务器：版本目录 `/opt/naturecalls/releases/c1e547c-20261126T053958Z-83d38f`，未回滚；`ROOM_OK 8000`，8000 与 broker active；公网 `POST /rooms` 建出房间 841 后，`GET /rooms` 立即列出该房间。记录 `Artifacts/20261126T061154Z-deploy-server/`。服务器运行的是尚未合入 dev 的 `fix/lobby-server-rooms`。
+
 2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
@@ -77,7 +81,7 @@ Map2 进入单人、联机和随机选图目录，复用设施、HUD、计时和
 | 正在推进 | 大厅两端真人联机（准备→开始→选图→同步外观）的人工验收、隔间门与卷纸的真实跨设备及 Relay 显示验收、MPPM GUI/人工键鼠手感、Relay 联机验收、Windows 与真实跨设备验收 |
 | 已规划 | 依实际需求进行 Stage 2/3、正式 Gameplay 闭环、Map 配置、共享规则的 Host 权威、跨平台联调和发布 |
 | 尚未确定 | 正式玩法数值/阈值、失败惩罚细节、事故规则、子树负责人；由人类讨论，不沿用 C3 自动补全 |
-| 尚未实现 | 胜利判定、Tidiness（干净值）、事故规则、冲水与堵塞（与水管机制有关，待定；用户倾向用 F 键）、马桶排队、排泄物生成、背包、公开房间列表/匹配、Host 迁移、正式美术/音频/动画 |
+| 尚未实现 | 胜利判定、Tidiness（干净值）、事故规则、冲水与堵塞（与水管机制有关，待定；用户倾向用 F 键）、马桶排队、排泄物生成、背包、匹配、Host 迁移、正式美术/音频/动画 |
 
 当前仍为 Stage 1。为 Editor/测试引用增加一个总运行时程序集，没有拆分各模块程序集；Core 目前包含换装选择、房间开始条件、地图选择、对局时间、需求及准度等纯 C# 规则，不代表 Stage 2 完成。后续路线与课程截止日 **2026-12-21** 见 [ROADMAP](ROADMAP.md)。游戏版本保持 `0.1.0-alpha.1`，不增加发布 Tag。
 

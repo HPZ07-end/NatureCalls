@@ -86,15 +86,18 @@ namespace NatureCalls.Network
             if (!StartServer()) { Debug.LogError(Status); Application.Quit(1); }
         }
 
-        public void ApplyBrokerArgument(string[] args)
+        public void ApplyBrokerArgument(string[] args) => (BrokerHost, BrokerPort) = ResolveBroker(BrokerHost, BrokerPort, args);
+
+        /// <summary>The broker endpoint after an optional <c>-broker host[:port]</c> override.</summary>
+        public static (string host, ushort port) ResolveBroker(string host, ushort port, string[] args)
         {
             int index = Array.IndexOf(args ?? Array.Empty<string>(), "-broker");
-            if (index < 0 || index + 1 >= args.Length) return;
+            if (index < 0 || index + 1 >= args.Length) return (host, port);
             var value = args[index + 1];
             var split = value.LastIndexOf(':');
-            if (split > 0 && ushort.TryParse(value.Substring(split + 1), out var port) && port > 0)
-            { BrokerHost = value.Substring(0, split); BrokerPort = port; }
-            else if (!string.IsNullOrWhiteSpace(value)) BrokerHost = value;
+            if (split > 0 && ushort.TryParse(value.Substring(split + 1), out var parsed) && parsed > 0)
+                return (value.Substring(0, split), parsed);
+            return string.IsNullOrWhiteSpace(value) ? (host, port) : (value, port);
         }
 
         [Serializable] private sealed class BrokerRoomResponse { public int protocol; public int code; public int port; public string error; }
@@ -130,6 +133,29 @@ namespace NatureCalls.Network
             }
             catch (Exception error) { Status = "创建服务器房间失败：" + error.Message; return false; }
             finally { Busy = false; }
+        }
+
+        [Serializable] private sealed class BrokerRoomEntry { public int code; public int port; }
+        [Serializable] private sealed class BrokerRoomList { public int protocol; public BrokerRoomEntry[] rooms; public string error; }
+
+        /// <summary>Server room codes currently alive on the broker; null with <paramref name="error"/> set when the broker is unreachable.</summary>
+        public static async Task<(int[] codes, string error)> ListServerRoomsAsync(string brokerHost, ushort brokerPort)
+        {
+            try
+            {
+                using var request = UnityWebRequest.Get($"http://{brokerHost}:{brokerPort}/rooms");
+                request.timeout = 10;
+                await SendAsync(request);
+                var response = request.downloadHandler == null ? null : JsonUtility.FromJson<BrokerRoomList>(request.downloadHandler.text ?? "");
+                if (request.result != UnityWebRequest.Result.Success || response == null)
+                    return (null, request.responseCode == 404 ? "服务器版本过旧，暂不支持房间列表。" : "无法连接课程服务器。");
+                if (response.protocol != 1) return (null, "客户端版本与服务器不一致，请更新。");
+                var rooms = response.rooms ?? Array.Empty<BrokerRoomEntry>();
+                var codes = new int[rooms.Length];
+                for (int index = 0; index < rooms.Length; index++) codes[index] = rooms[index].code;
+                return (codes, null);
+            }
+            catch (Exception error) { return (null, "无法连接课程服务器：" + error.Message); }
         }
 
         public async Task<bool> JoinServerRoomAsync(int code)
