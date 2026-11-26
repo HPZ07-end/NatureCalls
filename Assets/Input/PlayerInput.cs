@@ -13,15 +13,17 @@ namespace NatureCalls.Input
     [RequireComponent(typeof(Movement), typeof(Posture))]
     public sealed class PlayerInput : MonoBehaviour
     {
-        private InputAction move, look, jump, toggle, interact, action, throwRoll, release;
+        private InputAction move, look, jump, toggle, urinate, interact, action, throwRoll, release;
         private Movement movement;
         private Posture posture;
         private FacilitySync facilities;
         private NeedsSync needsSync;
         private PlayerNeeds needs;
-        public enum Stage { None, Aligning, Holding, Urinating, Cleaning }
+        public enum Stage { None, Squatting, Aiming, Urinating, Cleaning }
         public Stage Phase { get; private set; }
-        public bool IsToileting => Phase == Stage.Holding || Phase == Stage.Urinating;
+        /// <summary>V aims first; the stream starts only after C confirms.</summary>
+        public bool UrineFlowing { get; private set; }
+        public bool IsToileting => Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating;
         public bool Unwiped => needs != null && needs.Unwiped;
         public Item HeldItem => Item.FindCarriedBy(movement);
         public int PaperRemainingUses => HeldItem is PaperRoll roll ? roll.RemainingUses : 0;
@@ -56,6 +58,7 @@ namespace NatureCalls.Input
         private IHoldInteractable heldInteract;
         private float heldInteractSeconds;
         private bool heldInteractDone;
+        private bool urineMode;
         private float heldToolSeconds;
         private Mess cleaning;
         private bool Online => facilities != null && facilities.IsSpawned;
@@ -77,31 +80,32 @@ namespace NatureCalls.Input
             look = new InputAction("Look", InputActionType.Value, "<Mouse>/delta");
             jump = new InputAction("Jump", InputActionType.Button, "<Keyboard>/space");
             toggle = new InputAction("Posture", InputActionType.Button, "<Keyboard>/c");
+            urinate = new InputAction("Urinate", InputActionType.Button, "<Keyboard>/v");
             interact = new InputAction("Interact", InputActionType.Button, "<Keyboard>/e");
             action = new InputAction("Action", InputActionType.Button, "<Keyboard>/f");
             throwRoll = new InputAction("Throw Paper Roll", InputActionType.Button, "<Keyboard>/r");
             release = new InputAction("Release", InputActionType.Button, "<Keyboard>/escape");
         }
-        private void OnEnable() { move?.Enable(); look?.Enable(); jump?.Enable(); toggle?.Enable(); interact?.Enable(); action?.Enable(); throwRoll?.Enable(); release?.Enable(); }
+        private void OnEnable() { move?.Enable(); look?.Enable(); jump?.Enable(); toggle?.Enable(); urinate?.Enable(); interact?.Enable(); action?.Enable(); throwRoll?.Enable(); release?.Enable(); }
         private void OnDisable()
         {
-            move?.Disable(); look?.Disable(); jump?.Disable(); toggle?.Disable(); interact?.Disable(); action?.Disable(); throwRoll?.Disable(); release?.Disable();
+            move?.Disable(); look?.Disable(); jump?.Disable(); toggle?.Disable(); urinate?.Disable(); interact?.Disable(); action?.Disable(); throwRoll?.Disable(); release?.Disable();
             CancelCleaning();
             Unlock();
         }
-        private void OnDestroy() { if (needs != null) needs.AutoToiletRequested -= AutoToilet; move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); interact?.Dispose(); action?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
-        private void AutoToilet(Toilet target) { if (target != null && Phase == Stage.None) BeginGranted(target, null); }
+        private void OnDestroy() { if (needs != null) needs.AutoToiletRequested -= AutoToilet; move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); urinate?.Dispose(); interact?.Dispose(); action?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
+        private void AutoToilet(Toilet target)
+        {
+            if (target == null || Phase != Stage.None || !BeginGranted(target, null)) return;
+            // Loss-of-control uses the same authority path but confirms immediately.
+            Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; FinishToileting();
+        }
         public static void Unlock() { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
         private void OnApplicationFocus(bool focused) { if (!focused) Unlock(); }
         private void Update()
         {
             if (requested >= 0 && Time.time > requested + 2) requested = -1;
-            if (Phase == Stage.Aligning)
-            {
-                if (toilet == null || !toilet.GetComponentInParent<StallDoor>().Contains(movement))
-                { Phase = Stage.None; movement.Aiming = false; toilet = null; }
-                else CurrentLanding = ButtLanding();
-            }
+            if (Phase == Stage.Squatting && movement.Pitch >= ToiletGaze.LookPitch) Phase = Stage.Aiming;
             if (!movement.Controlled)
             {
                 // Connection-toilet water view: the player is parked and the cursor is free, so E presses the
@@ -118,8 +122,13 @@ namespace NatureCalls.Input
             {
                 RefreshFocus();
                 if (!IsToileting) movement.Look(look.ReadValue<Vector2>());
-                if (jump.WasPressedThisFrame()) movement.Jump();
+                else if (Phase == Stage.Squatting || Phase == Stage.Aiming) {
+                    var delta = look.ReadValue<Vector2>(); movement.transform.Rotate(Vector3.up, delta.x * movement.Sensitivity, Space.World);
+                    movement.SetPitch(movement.Pitch - delta.y * movement.Sensitivity);
+                }
+                if (jump.WasPressedThisFrame()) { if (Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating) CancelToileting(); else movement.Jump(); }
                 if (toggle.WasPressedThisFrame()) TryToilet();
+                if (urinate.WasPressedThisFrame()) TryUrinate();
                 if (interact.WasPressedThisFrame()) { RefreshFocus(); if (Focus is not IHoldInteractable) TryInteract(); }
                 var hold = Focus as IHoldInteractable;
                 if (interact.IsPressed() && hold != null)
@@ -136,12 +145,12 @@ namespace NatureCalls.Input
             {
                 var keys = move.ReadValue<Vector2>();
                 var worldMove = movement.transform.TransformDirection(new Vector3(keys.x, 0, keys.y));
-                var adjustment = Phase == Stage.Urinating ? look.ReadValue<Vector2>() * NeedsRules.MouseAimScale :
+                var adjustment = Phase == Stage.Urinating || Phase == Stage.Aiming ? look.ReadValue<Vector2>() * NeedsRules.MouseAimScale :
                     new Vector2(worldMove.x, worldMove.z) * NeedsRules.CorrectionSpeed * Time.deltaTime;
                 TickAim(Time.deltaTime, accept ? adjustment : Vector2.zero);
             }
             if (Phase == Stage.Cleaning) ContinueCleaning(accept && action.IsPressed(), Time.deltaTime);
-            movement.Move(accept ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
+            movement.Move(accept && Phase == Stage.Squatting ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
         }
 
         private NatureCalls.UI.ToiletLobby toiletLobby;
@@ -161,9 +170,12 @@ namespace NatureCalls.Input
             if (movement == null || movement.IsTraversing) { Focus = null; FocusPrompt = ""; return; }
             var context = Context();
             // First person: the crosshair (view ray). Seated, squatting, crawling or aiming: nearest by proximity.
-            Ray? view = posture.State == PostureState.Standing && movement.Seat == null && !movement.IsCrawling && !movement.Aiming
+            Ray? view = (posture.State == PostureState.Standing || IsToileting) && !movement.IsCrawling
                 ? movement.ViewRay : null;
             Focus = InteractionRegistry.Resolve(context, view);
+            if (Focus == null && posture.IsSquatting && movement.Seat != null)
+                Focus = InteractionRegistry.All.Where(item => item is not ToiletFlushButton && item.CanInteract(context))
+                    .OrderBy(item => Vector3.Distance(item.AimPoint, movement.transform.position)).FirstOrDefault();
             if (Focus == null && view.HasValue)
                 Focus = FindObjectsByType<Toolbox>(FindObjectsSortMode.None)
                     .Where(toolbox => toolbox.CanInteract(context) && toolbox.IsTargetedBy(movement))
@@ -181,42 +193,56 @@ namespace NatureCalls.Input
         public bool TryToilet()
         {
             if (needs != null && needs.Vomiting) return false;
+            if (Phase == Stage.Squatting) { if (movement.Pitch < ToiletGaze.LookThreshold * ToiletGaze.LookPitch) return false; Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; return true; }
+            if (Phase == Stage.Aiming) { FinishToileting(); return true; }
+            if (Phase == Stage.Urinating) { if (UrineFlowing) return false; UrineFlowing = true; return true; }
             movement.RefreshVentPosture();
             if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             var stall = StallDoor.Containing(movement);
-            if (Phase != Stage.Aligning && stall != null && stall.Toilet != null)
+            if (stall != null && stall.Toilet != null)
             {
-                toilet = stall.Toilet; Phase = Stage.Aligning; movement.Aiming = true;
-                CurrentLanding = ButtLanding(); accuracy = null; return true;
+                toilet = stall.Toilet; urinal = null; requested = Time.time;
+                bool started = Online ? facilities.RequestSeat(toilet) : BeginGranted(toilet, null);
+                if (!started) requested = -1;
+                return started;
             }
-            if (Phase == Stage.Aligning && (stall == null || stall.Toilet != toilet)) return false;
-            urinal = null;
-            if (Phase != Stage.Aligning)
-            {
-                toilet = null;
-                foreach (var candidate in FindObjectsByType<Urinal>(FindObjectsSortMode.None))
-                    if (candidate.Contains(movement) && (urinal == null || Vector3.Distance(candidate.FrontPosition, transform.position) < Vector3.Distance(urinal.FrontPosition, transform.position))) urinal = candidate;
-            }
-            requested = Time.time;
-            bool started = Online ? (toilet != null ? facilities.RequestSeat(toilet) : urinal != null ? facilities.RequestUrinal(urinal) : facilities.RequestOutside()) : BeginGranted(toilet, urinal);
+            toilet = null; urinal = null;
+            foreach (var candidate in FindObjectsByType<Urinal>(FindObjectsSortMode.None))
+                if (candidate.Contains(movement) && (urinal == null || Vector3.Distance(candidate.FrontPosition, transform.position) < Vector3.Distance(urinal.FrontPosition, transform.position))) urinal = candidate;
+            if (urinal != null) return false; // urinals only accept V
+            urineMode = false; requested = Time.time;
+            bool startedOutside = Online ? facilities.RequestOutside() : BeginGranted(null, null);
+            if (!startedOutside) requested = -1;
+            return startedOutside;
+        }
+        public bool TryUrinate()
+        {
+            if (needs != null && needs.Vomiting || IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
+            toilet = null; urinal = null;
+            var stall = StallDoor.Containing(movement);
+            if (stall != null && stall.Toilet != null) toilet = stall.Toilet;
+            else foreach (var candidate in FindObjectsByType<Urinal>(FindObjectsSortMode.None)) if (candidate.Contains(movement)) { urinal = candidate; break; }
+            requested = Time.time; urineMode = true;
+            bool started = Online ? (toilet != null ? facilities.RequestUrination(toilet) : urinal != null ? facilities.RequestUrinal(urinal) : facilities.RequestOutside()) : BeginGranted(toilet, urinal);
             if (!started) requested = -1;
             return started;
         }
         public bool BeginGranted(Toilet targetToilet, Urinal targetUrinal)
         {
             if (posture.IsCrawling) return false;
-            toilet = targetToilet; urinal = targetUrinal; requested = -1;
+            toilet = targetToilet; urinal = targetUrinal; requested = -1; UrineFlowing = false;
             if (toilet != null && !toilet.Seat(movement)) return false;
             if (urinal != null && !urinal.Occupy(movement)) return false;
-            Phase = urinal != null ? Stage.Urinating : Stage.Holding;
-            movement.Aiming = toilet != null;
-            movement.Immobile = urinal != null;
-            if (urinal == null) posture.Set(PostureState.Squatting);
+            Phase = (urineMode || targetUrinal != null) ? Stage.Urinating : Stage.Squatting;
+            movement.Aiming = Phase == Stage.Urinating;
+            movement.Immobile = false;
+            if (Phase == Stage.Squatting) posture.Set(PostureState.Squatting);
             if (!Online && needs != null) needs.Toileting = true;
-            accuracy = new Accuracy(urinal != null ? NeedsRules.UrinatingSeconds : NeedsRules.ToiletingSeconds);
+            accuracy = new Accuracy(Phase == Stage.Urinating ? NeedsRules.UrinatingSeconds : 9999f);
             initialLanding = urinal != null ? urinal.TargetCenter : ButtLanding();
             CurrentLanding = initialLanding; correction = Vector2.zero;
             noiseSeed = new Vector2(Random.Range(0f, 100f), Random.Range(0f, 100f));
+            if (needs != null) needs.Aiming = Phase == Stage.Urinating || Phase == Stage.Aiming;
             return true;
         }
         public void TickAim(float seconds, Vector2 adjustment)
@@ -235,6 +261,7 @@ namespace NatureCalls.Input
                 CurrentLanding = initialLanding + right * offset.x + Vector3.up * offset.y;
             }
             else CurrentLanding = initialLanding + new Vector3(offset.x, 0, offset.y);
+            if (Phase == Stage.Urinating && !UrineFlowing) return; // still aiming: nothing comes out yet
             accuracy.Sample(seconds, Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
             if (accuracy.Complete) FinishToileting();
         }
@@ -242,12 +269,25 @@ namespace NatureCalls.Input
         {
             var position = movement.transform.position;
             if (Online) facilities.ReportResult(accuracy.Value, position);
+            else if (urineMode) ApplyUrination(movement, toilet, urinal, accuracy.Value, position);
             else ApplyResult(movement, toilet, urinal, accuracy.Value, position, ToiletIndex(toilet));
             if (!Online) { toilet?.Release(movement); urinal?.Release(movement); if (needs != null) needs.Toileting = false; }
             // The completion RPC precedes posture replication, so the server can still validate its reservation.
             posture.Set(PostureState.Standing);
-            movement.Immobile = false; movement.Aiming = false; Phase = Stage.None;
+            movement.Immobile = false; movement.Aiming = false; if (needs != null) needs.Aiming = false; Phase = Stage.None; urineMode = false;
             toilet = null; urinal = null;
+        }
+        private void CancelToileting()
+        {
+            toilet?.Release(movement); urinal?.Release(movement);
+            if (needs != null) { needs.Toileting = false; needs.Aiming = false; }
+            posture.Set(PostureState.Standing); movement.Immobile = false; movement.Aiming = false; Phase = Stage.None; toilet = null; urinal = null; urineMode = false;
+        }
+        public static void ApplyUrination(Movement player, Toilet targetToilet, Urinal targetUrinal, float value, Vector3 position)
+        {
+            var playerNeeds = player.GetComponent<PlayerNeeds>(); if (playerNeeds == null || !playerNeeds.Ticking) return;
+            playerNeeds.CompleteUrination();
+            if (value < NeedsRules.UrinalAccuracy) MessSinkRegistry.Current?.AddMess(MessKind.Puddle, position);
         }
         public static int ToiletIndex(Toilet target)
         {

@@ -43,10 +43,11 @@ namespace NatureCalls.Tests
             var alignedPosition = toilet.Anchor.position - toilet.Anchor.forward * .15f;
             Place(alignedPosition, toilet.Anchor.forward);
             Assert.That(input.TryToilet(), Is.True);
-            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Aligning));
-            Assert.That(player.Seat, Is.Null);
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting));
+            Assert.That(player.Seat, Is.Not.Null);
+            player.SetPitch(50);
             Assert.That(input.TryToilet(), Is.True);
-            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Holding));
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Aiming));
             Assert.That(player.transform.position, Is.EqualTo(alignedPosition), "No anchor snap.");
             return toilet;
         }
@@ -55,12 +56,12 @@ namespace NatureCalls.Tests
             var delta = input.TargetCenter - input.CurrentLanding;
             if (insideSeconds > 0) input.TickAim(insideSeconds, new Vector2(delta.x, delta.z));
             if (insideSeconds < duration) input.TickAim(duration - insideSeconds, new Vector2(5, 5));
+            if (input.Phase == PlayerInput.Stage.Aiming) input.TryToilet();
         }
         [TestCase(5f, MessKind.None)] [TestCase(2f, MessKind.DirtyToilet)] [TestCase(0f, MessKind.Dropping)]
         public void AlignHoldAndSettleThreeAccuracyBands(float inside, MessKind expected)
         {
             var toilet = Align(); var before = player.transform.position;
-            Assert.That(input.TryToilet(), Is.False);
             Score(inside, 5);
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.None));
             Assert.That(player.GetComponent<Posture>().IsSquatting, Is.False);
@@ -84,10 +85,10 @@ namespace NatureCalls.Tests
             Align();
             yield return null;
             Assert.That(Find("ToiletingPanel").activeSelf, Is.True);
-            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("用力中"));
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("低头"));
             Assert.That(Find("AccuracyLabel").activeSelf, Is.False, "Defecation is blind: no live accuracy (GLOSSARY 统一如厕过程).");
             Assert.That(Find("TargetOverlay").activeSelf, Is.False, "No target circle while holding; only the timed look-down marker.");
-            Assert.That(Find("LandingMarker").activeSelf, Is.True);
+            Assert.That(Find("LandingMarker").activeSelf, Is.False);
             Score(5, 5);
             yield return null;
             Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Not.Contain("用力中"), "The toileting prompt hides when the toileting ends.");
@@ -101,7 +102,8 @@ namespace NatureCalls.Tests
             Assert.That(Object.FindObjectsByType<Urinal>(FindObjectsSortMode.None).Length, Is.EqualTo(3));
             var urinal = Object.FindFirstObjectByType<Urinal>();
             Place(urinal.FrontPosition, Vector3.forward); needs.BeginRound(1);
-            Assert.That(input.TryToilet(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            Assert.That(input.TryUrinate(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            Assert.That(input.UrineFlowing, Is.False, "V only aims."); Assert.That(input.TryToilet(), Is.True); Assert.That(input.UrineFlowing, Is.True, "C starts the stream.");
             var other = new GameObject("other").AddComponent<Movement>();
             try { other.transform.position = urinal.FrontPosition; Assert.That(urinal.Occupy(other), Is.False); }
             finally { Object.DestroyImmediate(other.gameObject); }
@@ -130,7 +132,8 @@ namespace NatureCalls.Tests
         [UnityTest] public IEnumerator UnwipedDoorAndWalkingOutChargeOnceEach()
         {
             var toilet = Align(); Score(5, 5); var stall = toilet.GetComponentInParent<StallDoor>();
-            Place(stall.DoorColliderPivot.position + stall.transform.forward * .2f, stall.transform.forward);
+            // Stand far enough inside to look at the door panel (pitch is clamped, so not from right at the hinge).
+            Place(stall.DoorColliderPivot.position + stall.transform.forward * .6f, stall.transform.forward);
             TestAim.AimAt(player, stall); Assert.That(input.TryInteract(), Is.True, "E operates the door.");
             Assert.That(needs.Disgust, Is.Zero, "E on the door while unwiped no longer charges disgust (2026-11-24 key scheme)."); Assert.That(input.Unwiped, Is.True);
             Place(world.Spawns[0].position, Vector3.forward);
@@ -196,8 +199,9 @@ namespace NatureCalls.Tests
             var toilet = Object.FindFirstObjectByType<Toilet>();
             var pipe = toilet.ConnectedPipe; Assert.That(pipe, Is.Not.Null);
             pipe.AddPaper(20); Assert.That(pipe.IsBlocked, Is.True);
-            Place(toilet.Target.position - toilet.transform.forward * .6f, toilet.transform.forward);
-            TestAim.AimAt(player, toilet.Target); input.RefreshFocus();
+            var button = toilet.GetComponentInChildren<ToiletFlushButton>(true); Assert.That(button, Is.Not.Null);
+            Place(button.transform.position - button.transform.forward * .6f, button.transform.forward);
+            TestAim.AimAt(player, button); input.RefreshFocus();
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(toilet.IsBackflow, Is.True);
             var toiletIndex = PlayerInput.ToiletIndex(toilet);
@@ -232,11 +236,11 @@ namespace NatureCalls.Tests
         }
         [Test] public void ToolboxCapacityThrowPickupAndReturn()
         {
-            var box = Object.FindFirstObjectByType<Toolbox>(); Place(box.transform.position, Vector3.forward);
+            var box = Object.FindFirstObjectByType<Toolbox>(); Place(box.transform.position + Vector3.back * .6f, Vector3.forward);
             Assert.That(StallDoor.Containing(player), Is.Null, "Toolbox must be in the public area.");
             Assert.That(Object.FindObjectsByType<Mop>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
             InteractionRegistry.Unregister(box); // Selection must still work if scene registration is missing.
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop));
+            TestAim.AimAt(player, box); Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop));
             Assert.That(box.Prompt(new InteractionContext(player, 0, false, null)), Is.EqualTo("E  放回拖把"));
             var paper = Object.FindFirstObjectByType<PaperRoll>(); paper.transform.position = player.transform.position;
             Assert.That(paper.Pickup(player), Is.False);
@@ -278,23 +282,40 @@ namespace NatureCalls.Tests
             needs = player.GetComponent<PlayerNeeds>(); needs.BeginRound(1);
             var sync = player.GetComponent<FacilitySync>(); var urinal = Object.FindFirstObjectByType<Urinal>();
             Place(urinal.FrontPosition, Vector3.forward);
-            Assert.That(input.TryToilet(), Is.True); yield return null;
+            Assert.That(input.TryUrinate(), Is.True); yield return null;
             Assert.That(urinal.Occupant, Is.SameAs(player));
             float initial = needs.Urgency;
             sync.ReportResult(0, player.transform.position); yield return null;
-            Assert.That(needs.Urgency, Is.EqualTo(initial), "Early completion is rejected.");
+            Assert.That(needs.Urgency, Is.EqualTo(initial).Within(1.5f), "Early completion is rejected while aiming urgency continues to tick.");
             yield return new WaitForSeconds(NeedsRules.UrinatingSeconds);
             sync.ReportResult(float.NaN, player.transform.position); yield return null;
-            Assert.That(needs.Urgency, Is.EqualTo(initial), "Non-finite accuracy is rejected.");
+            Assert.That(needs.Urgency, Is.EqualTo(initial).Within(10f), "Non-finite accuracy is rejected.");
             sync.ReportResult(0, player.transform.position + Vector3.right * 50); yield return null;
-            Assert.That(needs.Urgency, Is.EqualTo(initial), "Remote result position is rejected.");
+            Assert.That(needs.Urgency, Is.EqualTo(initial).Within(10f), "Remote result position is rejected.");
+            Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
             input.TickAim(3, new Vector2(5, 5)); yield return null;
             Assert.That(urinal.IsOccupied, Is.False);
-            Assert.That(needs.Urgency, Is.EqualTo(initial * .5f).Within(.2f));
+            Assert.That(needs.Urgency, Is.LessThan(initial), "Urination relieves the current urgency after aim-time growth.");
             Assert.That(Facilities.Current.SharedMesses.Count, Is.EqualTo(1));
             Assert.That(Facilities.Current.SharedMesses[0].Kind, Is.EqualTo(MessKind.Puddle));
             float after = needs.Urgency; sync.ReportResult(0, player.transform.position); yield return null;
             Assert.That(needs.Urgency, Is.GreaterThanOrEqualTo(after), "A repeated completion cannot halve twice.");
+        }
+        [UnityTest] public IEnumerator HostUrinationOnToiletUsesUrineSettlement()
+        {
+            var session = Object.FindFirstObjectByType<Session>(); Assert.That(session.StartDirect(true), Is.True);
+            float deadline = Time.time + 5;
+            while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
+            player = session.Manager.LocalClient.PlayerObject.GetComponent<Movement>(); input = player.GetComponent<PlayerInput>(); input.enabled = false;
+            needs = player.GetComponent<PlayerNeeds>(); needs.BeginRound(1);
+            var toilet = Object.FindFirstObjectByType<Toilet>(); var stall = toilet.GetComponentInParent<StallDoor>();
+            stall.ApplySharedState(StallDoorState.Open);
+            Place(toilet.Anchor.position - toilet.Anchor.forward * .2f, toilet.Anchor.forward);
+            Assert.That(input.TryUrinate(), Is.True); Assert.That(input.TryToilet(), Is.True); yield return new WaitForSeconds(NeedsRules.UrinatingSeconds + .1f);
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            input.TickAim(NeedsRules.UrinatingSeconds, Vector2.zero); yield return null;
+            Assert.That(toilet.IsOccupied, Is.False);
+            Assert.That(needs.Bowel, Is.EqualTo(0));
         }
         [UnityTest] public IEnumerator HostPublishesMopMessAndCleaning()
         {

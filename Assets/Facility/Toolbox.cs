@@ -10,7 +10,6 @@ namespace NatureCalls.Facility
         public Wrench Wrench;
         public Plunger Plunger;
         public override int Priority => 50;
-        protected override void OnEnable() { base.OnEnable(); }
         private void Start()
         {
             if (Wrench == null) Wrench = FindObjectsByType<Wrench>(FindObjectsSortMode.None).OrderBy(item => Vector3.Distance(item.transform.position, transform.position)).FirstOrDefault();
@@ -35,7 +34,7 @@ namespace NatureCalls.Facility
             if (player == null) return false;
             var ray = player.ViewRay;
             var offset = AimPoint - ray.origin;
-            if (Vector3.Dot(ray.direction, offset.normalized) >= .965f && offset.magnitude <= Distance + Interaction.ReachHeightBand)
+            if (Vector3.Dot(ray.direction, offset.normalized) >= .9945f && offset.magnitude <= Distance + Interaction.ReachHeightBand) // same ~6° as the crosshair
                 return true;
             return Physics.RaycastAll(ray, Distance + Interaction.ReachHeightBand, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
                 .Any(hit => hit.transform == transform || hit.transform.IsChildOf(transform));

@@ -49,9 +49,9 @@ namespace NatureCalls.Tests
         {
             var paper = Object.FindFirstObjectByType<PaperRoll>();
             Carry(paper, player);
-            Assert.That(toilet.Prompt(Context()), Does.Contain("冲水"));
+            Assert.That(toilet.Prompt(Context()), Does.Not.Contain("冲水"));
             var before = pipe.Accumulation;
-            Assert.That(toilet.Perform(Context()), Is.True);
+            Assert.That(toilet.Perform(Context()), Is.False);
             Assert.That(pipe.Accumulation, Is.EqualTo(before));
             Assert.That(paper.gameObject.activeSelf, Is.True);
         }

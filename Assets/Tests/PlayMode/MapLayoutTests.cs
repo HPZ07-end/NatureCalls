@@ -80,6 +80,7 @@ namespace NatureCalls.Tests
             Assert.That(panel, Is.Not.Null, "The map door needs a visible panel below its rotating hinge.");
             var closedForward = panel.forward;
             var closedDoorCenter = panel.position;
+            Physics.SyncTransforms(); TestAim.AimAt(player, door);
             Assert.That(input.TryInteract(), Is.True, "E should select the nearby stall door.");
             Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
             Assert.That(Vector3.Angle(closedForward, panel.forward), Is.GreaterThan(45f), "Opening a door must visibly rotate its panel.");
@@ -113,6 +114,7 @@ namespace NatureCalls.Tests
                 "; Controller hits: " + string.Join(", ", hitRecorder.Hits));
 
             Assert.That(StallDoor.Containing(player), Is.SameAs(door), "The player should now be inside the stall.");
+            TestAim.AimAt(player, door);
             Assert.That(input.TryInteract(), Is.True, "E should select and close the player's own door from inside the stall.");
             Assert.That(door.State, Is.EqualTo(StallDoorState.Closed));
 

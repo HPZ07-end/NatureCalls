@@ -172,10 +172,16 @@ namespace NatureCalls.Network
             SeatToiletRpc(index);
             return true;
         }
+        public bool RequestUrination(Toilet toilet)
+        {
+            if (!IsSpawned || !IsOwner || toilets == null) return false;
+            int index = Array.IndexOf(toilets, toilet); if (index < 0 || toilet.IsOccupied) return false;
+            SeatToiletRpc(index, true); return true;
+        }
 
         // The host checks the seat is free and the player stands in its stall, then lets the owner sit down.
         [Rpc(SendTo.Server)]
-        private void SeatToiletRpc(int index, RpcParams rpc = default)
+        private void SeatToiletRpc(int index, bool urine = false, RpcParams rpc = default)
         {
             var host = ServerFacilities();
             if (rpc.Receive.SenderClientId != OwnerClientId || host == null || index < 0 || index >= host.toilets.Length || host.toilets[index].IsOccupied) return;
@@ -183,7 +189,7 @@ namespace NatureCalls.Network
             var stall = toilet.GetComponentInParent<StallDoor>();
             if (stall != null && !stall.Contains(movement)) return;
             if (activeMode != 0 || posture.IsCrawling) return;
-            activeMode = 1; activeIndex = index; began = Time.time;
+            activeMode = urine ? (byte)4 : (byte)1; activeIndex = index; began = Time.time;
             GetComponent<PlayerNeeds>().Toileting = true;
             toilet.ApplySharedOccupant(movement);
             host.PublishShared();
@@ -360,13 +366,14 @@ namespace NatureCalls.Network
             var host = ServerFacilities();
             if (host == null || rpc.Receive.SenderClientId != OwnerClientId || activeMode == 0 || !float.IsFinite(accuracy) || accuracy < 0 || accuracy > 1 ||
                 !float.IsFinite(position.x) || !float.IsFinite(position.y) || !float.IsFinite(position.z)) return;
-            float duration = activeMode == 2 ? NeedsRules.UrinatingSeconds : NeedsRules.ToiletingSeconds;
+            float duration = activeMode == 1 ? .1f : NeedsRules.UrinatingSeconds;
             if (Time.time - began < duration - .1f || Vector3.Distance(position, movement.transform.position) > 2) return;
-            Toilet toilet = activeMode == 1 ? host.toilets[activeIndex] : null;
+            Toilet toilet = activeMode == 1 || activeMode == 4 ? host.toilets[activeIndex] : null;
             Urinal urinal = activeMode == 2 ? host.urinals[activeIndex] : null;
-            if (toilet != null && (!toilet.IsOccupied || toilet.Occupant != movement || !toilet.GetComponentInParent<StallDoor>().Contains(movement))) return;
+            if (toilet != null && (!toilet.IsOccupied || toilet.Occupant != movement || (activeMode == 1 && !toilet.GetComponentInParent<StallDoor>().Contains(movement)))) return;
             if (urinal != null && (!urinal.IsOccupied || urinal.Occupant != movement || !urinal.Contains(movement))) return;
-            Input.PlayerInput.ApplyResult(movement, toilet, urinal, accuracy, position, activeIndex);
+            if (activeMode == 4) Input.PlayerInput.ApplyUrination(movement, toilet, null, accuracy, position);
+            else Input.PlayerInput.ApplyResult(movement, toilet, urinal, accuracy, position, activeIndex);
             ClearUse();
         }
         private void ClearUse()

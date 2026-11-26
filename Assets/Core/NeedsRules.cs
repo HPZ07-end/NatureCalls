@@ -32,6 +32,8 @@ namespace NatureCalls.Core
         public const float UnwipedDisgust = 15f, DirtyToiletDisgust = 10f, CleaningDisgust = 5f;
         public const float PuddleRadius = 1f, PuddleDisgustPerSecond = 2f, CleaningSeconds = 3f;
         public const float TargetRadius = .25f, InteractionDistance = 1.5f, UrinalDistance = .8f, ButtOffset = .4f;
+        /// <summary>Temporary tuning value: urgency rises faster while the player is aiming.</summary>
+        public const float AimingUrgencyRate = 1.5f;
         public const float CleaningFacingCosine = .5f;
         public const float DriftMinimum = .04f, DriftMaximum = .35f, CorrectionSpeed = .3f, MouseAimScale = .003f;
         public static float DriftAmplitude(float urgency) => DriftMinimum + (DriftMaximum - DriftMinimum) * Math.Clamp(urgency / UrgencyMax, 0, 1);
