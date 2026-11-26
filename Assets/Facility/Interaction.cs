@@ -109,7 +109,8 @@ namespace NatureCalls.Facility
                     .OrderBy(value => value.distance))
                 {
                     if (self != null && value.transform.IsChildOf(self)) continue;
-                    var target = candidates.FirstOrDefault(item => value.transform == item.Target || value.transform.IsChildOf(item.Target));
+                    var target = candidates.FirstOrDefault(item => item is InteractableComponent component
+                        ? component.Owns(value.transform) : value.transform == item.Target || value.transform.IsChildOf(item.Target));
                     if (target != null) return target;
                 }
                 // Crosshair tolerance: about 6 degrees around the view ray, and only for targets already in reach
@@ -157,6 +158,8 @@ namespace NatureCalls.Facility
             }
         }
         public virtual float Distance => 1.5f;
+        /// <summary>Whether a crosshair hit on <paramref name="hit"/> means this object (its target, or extra colliders it owns).</summary>
+        public virtual bool Owns(Transform hit) => hit == Target || hit.IsChildOf(Target);
         public abstract bool CanInteract(InteractionContext context);
         public abstract string Prompt(InteractionContext context);
         public abstract bool Perform(InteractionContext context);
