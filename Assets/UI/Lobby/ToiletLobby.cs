@@ -180,6 +180,7 @@ namespace NatureCalls.UI
         {
             if (!Focused || Departing) return;
             Place(View.LobbyPanel); Place(View.MapPanel);
+            if (Time.unscaledTime >= nextSubmerge) { Submerge(View.LobbyPanel); Submerge(View.MapPanel); nextSubmerge = Time.unscaledTime + .25f; }
             bool joining = JoinPage && View.EntryGroup.activeSelf;
             View.LobbyPanel.transform.Find("Title").GetComponent<Text>().text = joining ? "隔间大厅" : Mode == 0 ? "局域网联机" : "远程房间号联机";
             View.CodeInput.placeholder.GetComponent<Text>().text = Mode == 0 ? "输入房主 IP:端口，回车加入" : "输入房间号，回车加入";
@@ -217,6 +218,14 @@ namespace NatureCalls.UI
             rect.anchoredPosition = new Vector2(x, y); rect.sizeDelta = new Vector2(width, height);
         }
 
+        // Every text on the water reads as under the water; rows cloned at runtime are picked up on the next pass.
+        private float nextSubmerge;
+        private static void Submerge(GameObject panel)
+        {
+            foreach (var text in panel.GetComponentsInChildren<Text>(true))
+                if (!text.TryGetComponent<UnderwaterText>(out _)) text.gameObject.AddComponent<UnderwaterText>();
+        }
+
         // ---- Water ripples: every click on the water surface sends rings out from the click point. ----
         private float rippleKick = -10;
         /// <summary>Spawns ripples where <paramref name="ray"/> meets the visible water panel; false when it misses.</summary>
@@ -231,6 +240,7 @@ namespace NatureCalls.UI
             Vector2 local = rect.InverseTransformPoint(ray.GetPoint(distance));
             if (!rect.rect.Contains(local)) return false;
             WaterRipple.Spawn(rect, local - rect.rect.center);
+            UnderwaterText.Kick();
             rippleKick = Time.unscaledTime;
             return true;
         }

@@ -542,6 +542,8 @@ namespace NatureCalls.Tests
             room.Enter(); room.Focus(1);
             yield return new WaitForSecondsRealtime(1);
             CaptureRoom(world.Camera.Output, "toilet-lobby-home.png");
+            foreach (var text in view.LobbyPanel.GetComponentsInChildren<Text>())
+                Assert.That(text.GetComponent<UnderwaterText>(), Is.Not.Null, $"{text.name} reads as under the water.");
             Assert.That(view.CodeInput.gameObject.activeInHierarchy, Is.False, "Home has no input field.");
             ClickFloating(view.JoinButton, world.Camera.Output);
             view.CodeInput.DeactivateInputField(); EventSystem.current.SetSelectedGameObject(null);
@@ -557,6 +559,8 @@ namespace NatureCalls.Tests
             var input = (RectTransform)view.CodeInput.transform;
             Assert.That(input.position.z, Is.LessThan(lobby.ServerRooms.position.z), "Input is below the list on the water.");
             CaptureRoom(world.Camera.Output, "toilet-lobby-hall.png");
+            foreach (var button in lobby.ServerRooms.GetComponentsInChildren<Button>())
+                Assert.That(button.GetComponentInChildren<UnderwaterText>(), Is.Not.Null, "Listed rooms are submerged too.");
             Assert.That(view.CloseButton.GetComponentInChildren<Text>().text, Is.EqualTo("返回"));
             ClickFloating(view.CloseButton, world.Camera.Output);
             yield return null;
@@ -576,7 +580,9 @@ namespace NatureCalls.Tests
             var camera = world.Camera.Output;
             Assert.That(room.RippleAt(camera.ScreenPointToRay(new Vector3(2, 2, 0))), Is.False, "Clicks off the water do nothing.");
             var point = camera.WorldToScreenPoint(panel.TransformPoint(new Vector3(60, -40, 0)));
+            float calm = UnderwaterText.Strength;
             Assert.That(room.RippleAt(camera.ScreenPointToRay(point)), Is.True);
+            Assert.That(UnderwaterText.Strength, Is.GreaterThan(calm), "The splash strengthens the underwater waves.");
             var ripples = panel.GetComponentsInChildren<WaterRipple>();
             Assert.That(ripples, Has.Length.EqualTo(3), "Three staggered rings.");
             Assert.That(ripples.All(ripple => !ripple.GetComponent<Image>().raycastTarget), Is.True, "Ripples never block clicks.");
