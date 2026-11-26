@@ -102,7 +102,13 @@ namespace NatureCalls.Input
                 { Phase = Stage.None; movement.Aiming = false; toilet = null; }
                 else CurrentLanding = ButtLanding();
             }
-            if (!movement.Controlled) return;
+            if (!movement.Controlled)
+            {
+                // Connection-toilet water view: the player is parked and the cursor is free, so E presses the
+                // flush button under the mouse pointer (the crosshair path below only runs while controlled).
+                if (Application.isFocused && interact.WasPressedThisFrame()) TryFlushLobbyFromPointer();
+                return;
+            }
             if (release.WasPressedThisFrame()) Unlock();
             if (CaptureMouse && Application.isFocused && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
                 !IsPointerOverUi())
@@ -136,6 +142,15 @@ namespace NatureCalls.Input
             }
             if (Phase == Stage.Cleaning) ContinueCleaning(accept && action.IsPressed(), Time.deltaTime);
             movement.Move(accept ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
+        }
+
+        private NatureCalls.UI.ToiletLobby toiletLobby;
+        private bool toiletLobbySearched;
+        /// <summary>E in the connection-toilet water view: flush the button under the mouse pointer.</summary>
+        public bool TryFlushLobbyFromPointer()
+        {
+            if (!toiletLobbySearched) { toiletLobby = FindFirstObjectByType<NatureCalls.UI.ToiletLobby>(); toiletLobbySearched = true; }
+            return toiletLobby != null && toiletLobby.Focused && toiletLobby.World.OfflinePlayer == movement && toiletLobby.TryFlushFromPointer();
         }
 
         private static bool IsPointerOverUi() => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();

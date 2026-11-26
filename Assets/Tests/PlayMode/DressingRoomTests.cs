@@ -452,6 +452,46 @@ namespace NatureCalls.Tests
         }
 
         [UnityTest]
+        public IEnumerator ToiletLobbyEKeyFlushesButtonUnderPointer()
+        {
+            // Regression: in the water view the player is parked (not controlled), so E must reach the flush button
+            // through the mouse pointer rather than the crosshair. Batch runs are never Application.isFocused, so this
+            // drives the method the parked-player E branch calls, with a virtual mouse that ignores focus.
+            var room = Object.FindFirstObjectByType<ToiletLobby>();
+            room.Enter(); room.Focus(0);
+            yield return new WaitForSecondsRealtime(1);
+            room.SelectCreate();
+            var player = world.OfflinePlayer;
+            Assert.That(player.Controlled, Is.False, "The water view parks the player.");
+            var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+            var settings = UnityEngine.InputSystem.InputSystem.settings;
+            var background = settings.backgroundBehavior; var editorBehavior = settings.editorInputBehaviorInPlayMode;
+            settings.backgroundBehavior = UnityEngine.InputSystem.InputSettings.BackgroundBehavior.IgnoreFocus;
+            settings.editorInputBehaviorInPlayMode = UnityEngine.InputSystem.InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
+            var mouse = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Mouse>();
+            try
+            {
+                mouse.MakeCurrent();
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new UnityEngine.InputSystem.LowLevel.MouseState { position = Vector2.zero });
+                yield return null;
+                Assert.That(input.TryFlushLobbyFromPointer(), Is.False, "Pointing away from the button does nothing.");
+                var screen = world.Camera.Output.WorldToScreenPoint(room.FlushButtons[0].Head.position);
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new UnityEngine.InputSystem.LowLevel.MouseState { position = new Vector2(screen.x, screen.y) });
+                yield return null;
+                Assert.That(input.TryFlushLobbyFromPointer(), Is.True, "E with the pointer on the flush button flushes.");
+                yield return null; yield return null;
+                Assert.That(LobbyRoom.Current, Is.Not.Null, "The flush creates the room.");
+                Assert.That(Session.Instance.Active, Is.True);
+            }
+            finally
+            {
+                UnityEngine.InputSystem.InputSystem.RemoveDevice(mouse);
+                settings.backgroundBehavior = background; settings.editorInputBehaviorInPlayMode = editorBehavior;
+            }
+            lobby.CloseLobby(); yield return new WaitForSecondsRealtime(1);
+        }
+
+        [UnityTest]
         public IEnumerator FloatingOutfitTextChecksPreviewChoicesAndReceivesMouseClicks()
         {
             var player = world.OfflinePlayer;
