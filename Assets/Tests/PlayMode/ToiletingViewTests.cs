@@ -44,7 +44,7 @@ namespace NatureCalls.Tests
             var toilet = Object.FindFirstObjectByType<Toilet>();
             Place(toilet.Anchor.position - toilet.Anchor.forward * .15f, toilet.Anchor.forward);
             Assert.That(input.TryToilet(), Is.True);
-            player.SetPitch(50); Assert.That(input.TryToilet(), Is.True);
+            player.SetPitch(55); input.RefreshAimPhase(); // looking down is the aim; a second C would poop
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Aiming));
             return toilet;
         }
@@ -61,6 +61,7 @@ namespace NatureCalls.Tests
             MatchContext.Phase = MatchPhase.Playing; needs.SetVersusState(0, 80);
             Sit();
             var gaze = player.GetComponent<ToiletGaze>();
+            player.SetPitch(0); // head up first (the view now stays wherever the mouse puts it)
             yield return null;
             Assert.That(gaze.Looking, Is.False);
             float comfort = needs.Comfort;
@@ -70,11 +71,13 @@ namespace NatureCalls.Tests
             Capture("toileting-defecation-aim.png");
             Assert.That(gaze.Marker == null || !gaze.Marker.activeSelf, Is.True, "Blind aim has no landing marker.");
             Assert.That(gaze.DriftScale, Is.EqualTo(ToiletGaze.DriftWhileLooking));
-            Assert.That(world.Camera.Gaze, Is.GreaterThan(.6f));
-            for (float t = 0; t < ToiletGaze.Budget + 1.5f; t += Time.deltaTime) { gaze.Push(1); yield return null; }
-            Assert.That(gaze.Exhausted, Is.True);
-            Assert.That(gaze.Looking, Is.False, "After about 3 s the view is pulled back up.");
-            Assert.That(gaze.Amount, Is.LessThan(.1f));
+            yield return null;
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Aiming), "Looking down far enough is the squat aim.");
+            for (float t = 0; t < ToiletGaze.Budget + 1.5f; t += Time.deltaTime) yield return null;
+            Assert.That(gaze.Looking, Is.True, "No time limit: the head stays bowed while the player keeps looking down.");
+            Assert.That(player.Pitch, Is.GreaterThan(45), "Nothing pulls the view back up.");
+            player.SetPitch(0); yield return null;
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting), "Looking back up leaves the aim.");
             Assert.That(gaze.Marker == null || !gaze.Marker.activeSelf, Is.True);
             Assert.That(needs.Comfort, Is.GreaterThan(comfort), "PlayerNeeds rewards the bowed head.");
         }
@@ -88,7 +91,7 @@ namespace NatureCalls.Tests
             bool? inBowl = null, butt = null; fx.Dropped += (bowl, splash) => { inBowl = bowl; butt = splash; };
             fx.BeginDrop();
             Assert.That(fx.Dropping, Is.True);
-            for (float t = 0; t < 2 && inBowl == null; t += Time.deltaTime) yield return null;
+            for (float t = 0; t < 5 && inBowl == null; t += Time.deltaTime) yield return null; // a soft log is squeezed out slowly
             Assert.That(inBowl, Is.True, "Seen falling into the bowl.");
             Assert.That(butt, Is.True);
             Assert.That(SplashOverlay.Current != null && SplashOverlay.Current.gameObject.activeSelf, Is.True, "The splash is obvious on screen.");
@@ -112,8 +115,14 @@ namespace NatureCalls.Tests
             var urinal = Object.FindFirstObjectByType<Urinal>();
             Place(urinal.FrontPosition, Vector3.right); needs.BeginRound(1);
             Assert.That(input.TryUrinate(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            yield return null;
+            player.LookAt(urinal.TargetCenter); input.TickAim(.02f, Vector2.zero);
+            Assert.That(Vector3.Distance(input.CurrentLanding, urinal.TargetCenter), Is.LessThan(.35f), "The stream aims where the player looks.");
+            Assert.That(input.TryUrinate(), Is.True); input.TickAim(NatureCalls.Core.NeedsRules.UrinatingSeconds * .5f, Vector2.zero);
+            Assert.That(input.CurrentAccuracy, Is.GreaterThan(.9f), "Hitting the urinal itself counts as in the target.");
+            yield return null; yield return null;
             Capture("toileting-urinal-aim.png");
-            Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
+            Assert.That(input.UrineFlowing, Is.True, "The second V started the stream.");
             yield return null;
             var toUrinal = Vector3.ProjectOnPlane(urinal.TargetCenter - player.transform.position, Vector3.up).normalized;
             Assert.That(Vector3.Dot(player.transform.forward, toUrinal), Is.GreaterThan(.95f), "The view turns to face the urinal.");
@@ -130,6 +139,31 @@ namespace NatureCalls.Tests
             fx.SplashSelf();
             Assert.That(splashed, Is.True);
             Assert.That(needs.Disgust - before, Is.EqualTo(15), "BodyEvents.Splash(OwnRebound) costs 15 Composure.");
+        }
+
+        [UnityTest] public IEnumerator SecondPressStartsEscOnlyLeavesAnUnstartedAimAndSeatedPeeKeepsTheSquat()
+        {
+            MatchContext.Phase = MatchPhase.Playing; needs.BeginRound(1); needs.SetVersusState(60, 100);
+            for (int i = 0; i < 3 && !needs.InEndurance; i++) yield return null;
+            Assert.That(needs.InEndurance, Is.True, "A full bowel turns on the red endurance state.");
+            Sit(); player.SetPitch(0); input.RefreshAimPhase();
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting));
+            Assert.That(input.CancelAim(), Is.True, "Esc stands up from an unstarted squat.");
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.None));
+            Sit(); yield return null;
+            Assert.That(input.TryUrinate(), Is.True, "V while squatting (here looking down) pees at once.");
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating)); Assert.That(input.UrineFlowing, Is.True);
+            Assert.That(input.TryToilet(), Is.False, "No pooping while peeing.");
+            Assert.That(input.CancelAim(), Is.False, "Esc does nothing once the stream has started.");
+            input.TickAim(NatureCalls.Core.NeedsRules.UrinatingSeconds + .1f, Vector2.zero); yield return null;
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting).Or.EqualTo(PlayerInput.Stage.Aiming), "After peeing the squat continues.");
+            Assert.That(needs.Bladder, Is.LessThan(60), "The pee was settled.");
+            player.SetPitch(0);
+            int drops = input.DropSerial;
+            Assert.That(input.TryToilet(), Is.True, "A second C poops even without looking down.");
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.None));
+            Assert.That(input.DropSerial, Is.EqualTo(drops + 1), "The falling stool plays even without looking down.");
+            Assert.That(needs.InEndurance, Is.False, "Relief ends the red endurance state.");
         }
 
         [UnityTest] public IEnumerator ComfortBoostSparkles()
@@ -157,11 +191,22 @@ namespace NatureCalls.Tests
         }
 
         private static System.Collections.Generic.IEqualityComparer<Vector3> Vector3EqualityComparerWithin(float tolerance) => new Vector3Within(tolerance);
+        // Batch runs have no window (ScreenCapture writes nothing), so render the player's camera directly.
         private void Capture(string name)
         {
             var dir = System.Environment.GetEnvironmentVariable("NATURECALLS_RUN_PATH");
-            if (string.IsNullOrEmpty(dir)) dir = "Artifacts/acceptance-screens";
-            Directory.CreateDirectory(dir); ScreenCapture.CaptureScreenshot(Path.Combine(dir, name));
+            if (string.IsNullOrEmpty(dir)) return;
+            var camera = world.Camera.Output;
+            world.Camera.UpdateTargets();
+            var texture = new RenderTexture(960, 540, 24); texture.Create();
+            var image = new Texture2D(960, 540, TextureFormat.RGB24, false); var previous = RenderTexture.active;
+            try
+            {
+                UnityEngine.Rendering.RenderPipeline.SubmitRenderRequest(camera, new UnityEngine.Rendering.Universal.UniversalRenderPipeline.SingleCameraRequest { destination = texture });
+                RenderTexture.active = texture; image.ReadPixels(new Rect(0, 0, 960, 540), 0, 0); image.Apply();
+                File.WriteAllBytes(Path.Combine(dir, name), image.EncodeToPNG());
+            }
+            finally { RenderTexture.active = previous; texture.Release(); Object.Destroy(texture); Object.Destroy(image); }
         }
         private sealed class Vector3Within : System.Collections.Generic.IEqualityComparer<Vector3>
         {

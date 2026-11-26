@@ -59,6 +59,7 @@ namespace NatureCalls.Editor
         public static void Map2OccupancySigns() { NatureCalls.Editor.Map2Integration.ApplyToiletOccupancySigns(); Validate(); }
         public static void Map2Stall003Sign() { NatureCalls.Editor.Map2Integration.ResizeStall003Sign(); Validate(); }
         public static void Map3Integration() { NatureCalls.Editor.Map3Integration.Apply(); Validate(); }
+        public static void Map3Screenshots() { NatureCalls.Editor.Map3Integration.CaptureCheckScreenshots(); Validate(); }
         public static void Plumbing() { NatureCalls.Editor.PlumbingIntegration.Apply(); Validate(); }
         public static void MessArt() { NatureCalls.Editor.MessArtSetup.Apply(); Validate(); }
 

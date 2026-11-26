@@ -63,7 +63,7 @@ py -3 scripts/unity.py detect
 
 ## 构建与验证边界
 
-- macOS：`python3 scripts/unity.py build-macos` 构建 ARM64 Development `.app`，适合本机 Apple Silicon 验证；不是 Windows 可执行文件。
+- macOS：`python3 scripts/unity.py build-macos` 构建 ARM64 Development `.app`，适合本机 Apple Silicon 验证；不是 Windows 可执行文件。在 `dev`/`main` 的干净工作区上打包后会自动部署课程服务器，见下文「打包后自动部署」。
 - Windows：在 Unity File → Build Profiles 中选择/添加 Windows 平台，选择 x86_64，确认 Scene List 首项为 `Assets/Scenes/DressingRoom.unity`、其后为地图 `Assets/Scenes/Playground.unity`，构建到 `Builds/Windows/`。缺少平台支持时通过 Hub 添加。当前没有自动化 Windows 构建命令，不要求 Windows 队友运行 `build-macos`。
 - 现有 EditMode/PlayMode 覆盖设置、资源、角色、镜头及 Host 生命周期；双进程验证与平台验收边界见 [TESTING](TESTING.md)。不能把本机直连成功写成 Relay 或 Windows 已通过。
 - GitHub Actions 在 Linux、macOS、Windows 上只运行仓库检查与 Python 脚本测试。绿色 CI 不等于三个系统上的 Unity 都已通过；Windows 的 Unity 导入、运行测试和 `.exe` 构建仍需 Windows 队友实测并记录。
@@ -98,12 +98,14 @@ Unity Editor 用于查看 Scene、Prefab、Inspector 引用及 Play Mode；VS Co
 
 课程部署使用 `scripts/naturecalls@.service` 模板，应用目录 `/opt/naturecalls/current`，普通 `ubuntu` 用户运行；`StateDirectory` 为每个端口建立 `/var/lib/naturecalls-<端口>`，`XDG_CONFIG_HOME` 指向该目录，并用 `ProtectHome=true` 阻止 Unity 访问用户主目录。先完成本机测试，再通过获授权的 SSH 密钥上传 Linux 构建。由管理员权限安装该 systemd 单元、daemon-reload，然后启用 `naturecalls@8000`；最多按实测资源余量增加 8001、8002，不修改 SSH、用户或防火墙配置。课程允许 UDP 8000–8100。检查命令：`systemctl status naturecalls@8000`、`journalctl -u naturecalls@8000 -n 100 --no-pager`、`ss -lunp`。
 
-**一键重新构建与部署**：改动服务器会运行的代码并提交后，关闭本工程的 Unity GUI，运行 `python3 scripts/deploy_server.py`。脚本依次：确认没有未提交的已跟踪改动（服务器版本必须对应一个提交，`--allow-dirty` 可跳过），运行 `unity.py build-server`，打包上传，解压到 `/opt/naturecalls/releases/<提交>-<build-id>`，原子切换 `current` 链接，安装并 `daemon-reload` 常驻、动态房间和 broker 模板；只重启 8000，动态房间保留到自然退出，再重启 broker 并最多重试 10 次 `/health`。随后逐个确认常驻房间 active、端口在监听、日志出现 `Server listening on UDP <端口>`；broker 或房间失败都切回上一个版本并重启 broker。成功后只保留新版本和最近 3 个旧版本（`--keep` 调整）。`--build <路径>` 部署已有构建，`--dry-run` 只打印计划和服务器端脚本。需要能用 SSH 密钥登录 `ubuntu@49.233.132.244`（`--host` 可改）；每次运行在 `Artifacts/<时间>-deploy-server/summary.json` 记录版本、房间和服务器输出。具体部署实绩以 DEVELOPMENT_STATUS 和 status-log 为准，配置模板本身不表示已经部署或公网已验收。
+**一键重新构建与部署**：改动服务器会运行的代码并提交后，关闭本工程的 Unity GUI，运行 `python3 scripts/deploy_server.py`。脚本依次：确认没有未提交的已跟踪改动（服务器版本必须对应一个提交，`--allow-dirty` 可跳过），运行 `unity.py build-server`，打包上传，解压到 `/opt/naturecalls/releases/<提交>-<build-id>`，原子切换 `current` 链接，安装并 `daemon-reload` 常驻、动态房间和 broker 模板；只重启 8000，动态房间保留到自然退出，再重启 broker 并最多重试 10 次 `/health`。随后逐个确认常驻房间 active、端口在监听、日志出现 `Server listening on UDP <端口>`；broker 或房间失败都切回上一个版本并重启 broker。成功后只保留新版本和最近 3 个旧版本（`--keep` 调整）。`--build <路径>` 部署已有构建，`--dry-run` 只打印计划和服务器端脚本。需要能用 SSH 密钥登录 `ubuntu@49.233.132.244`（`--host` 可改）；每次运行在 `Artifacts/<时间>-deploy-server/summary.json` 记录版本、房间和服务器输出。具体部署实绩以 DEVELOPMENT_STATUS 和 status-log 为准，配置模板本身不表示已经部署或公网已验收。`--skip-if-current` 在服务器 `current` 已指向当前提交时什么也不做。
+
+**打包后自动部署**（用户 2026-11-26 要求）：在 `dev` 或 `main` 上、已跟踪文件没有未提交改动时，`unity.py build-macos` / `build-windows` 成功后会自动运行 `deploy_server.py --skip-if-current`，让课程服务器与刚打出的客户端是同一个提交；服务器已在运行该提交时直接跳过。其他分支（包括 Codex 的 worktree）、有改动的工作区只打包不部署，并打印原因。单次跳过用 `--no-deploy`，整体关闭设环境变量 `NATURECALLS_AUTO_DEPLOY=0`。部署会重启 8000 常驻房间和 broker，正在 8000 房间里的玩家会断线。客户端构建成功而部署失败时命令返回非零并说明。
 
 Linux 首次构建时 Unity 自动添加官方 1.1.1 工具链依赖（linux-x86_64、linux-arm64 SDK、macos-arm64-linux toolchain 和 sysroot.base）；manifest 与 lock 一并保留，没有升级现有运行时包。
 
 ## 服务器房间开发约定
 
-本地可运行 `python3 scripts/room_broker.py --bind 127.0.0.1 --port 8100 --state /tmp/naturecalls-rooms.json` 验证 broker；接口为 `POST /rooms`、`GET /rooms/<code>` 和 `GET /health`。生产服务是 `scripts/naturecalls-broker.service`，动态模板是 `scripts/naturecalls-room@.service`。动态服务器带 `-idle-exit 300`，常驻 UDP 8000 不带该参数。部署更新 broker 和模板并检查 `/health`，只重启 8000，动态房间自然退出后才使用新版本。
+本地可运行 `python3 scripts/room_broker.py --bind 127.0.0.1 --port 8100 --state /tmp/naturecalls-rooms.json` 验证 broker；接口为 `POST /rooms`、`GET /rooms`（现存房间列表）、`GET /rooms/<code>` 和 `GET /health`。客户端查询列表时不创建 Session；PlayMode 测试通过 `LobbyController.ServerRoomSource` 注入假列表，不访问课程服务器。生产服务是 `scripts/naturecalls-broker.service`，动态模板是 `scripts/naturecalls-room@.service`。动态服务器带 `-idle-exit 300`，常驻 UDP 8000 不带该参数。部署更新 broker 和模板并检查 `/health`，只重启 8000，动态房间自然退出后才使用新版本。
 
 由于 broker 协议是 HTTP + JSON，PlayerSettings 的 `insecureHttpOption` 明确允许 HTTP 请求；这是联机接口配置，不是 Unity 运行产生的临时改动。

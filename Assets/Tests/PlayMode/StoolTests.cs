@@ -13,8 +13,8 @@ using PlayerInput = NatureCalls.Input.PlayerInput;
 [SetUpFixture]
 public sealed class StoolKindDefault
 {
-    [OneTimeSetUp] public void Force() => StoolOutput.Forced = StoolKind.Soft;
-    [OneTimeTearDown] public void Release() => StoolOutput.Forced = null;
+    [OneTimeSetUp] public void Force() { StoolOutput.Forced = StoolKind.Soft; PlayerInput.ReleaseScale = 0; } // settle the squat at once
+    [OneTimeTearDown] public void Release() { StoolOutput.Forced = null; PlayerInput.ReleaseScale = 1f; }
 }
 
 namespace NatureCalls.Tests

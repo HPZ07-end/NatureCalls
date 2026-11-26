@@ -45,8 +45,7 @@ namespace NatureCalls.Tests
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting));
             Assert.That(player.Seat, Is.Not.Null);
-            player.SetPitch(50);
-            Assert.That(input.TryToilet(), Is.True);
+            player.SetPitch(55); input.RefreshAimPhase(); // looking down aims; a second C would poop
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Aiming));
             Assert.That(player.transform.position, Is.EqualTo(alignedPosition), "No anchor snap.");
             return toilet;
@@ -54,9 +53,16 @@ namespace NatureCalls.Tests
         private void Score(float insideSeconds, float duration)
         {
             var delta = input.TargetCenter - input.CurrentLanding;
-            if (insideSeconds > 0) input.TickAim(insideSeconds, new Vector2(delta.x, delta.z));
-            if (insideSeconds < duration) input.TickAim(duration - insideSeconds, new Vector2(5, 5));
-            if (input.Phase == PlayerInput.Stage.Aiming) input.TryToilet();
+            if (input.Phase == PlayerInput.Stage.Urinating)
+            {
+                if (insideSeconds > 0) input.TickAim(insideSeconds, new Vector2(delta.x, delta.z));
+                if (insideSeconds < duration) input.TickAim(duration - insideSeconds, new Vector2(5, 5));
+                return;
+            }
+            // Squat: the result is decided where the stool lands at release — opening, rim, or past the bowl.
+            var aim = new Vector2(delta.x, delta.z);
+            input.TickAim(.01f, insideSeconds >= duration ? aim : insideSeconds > 0 ? aim + new Vector2(input.TargetRadius * 1.3f, 0) : new Vector2(5, 5));
+            if (input.Phase == PlayerInput.Stage.Aiming || input.Phase == PlayerInput.Stage.Squatting) input.TryToilet();
         }
         [TestCase(5f, MessKind.None)] [TestCase(2f, MessKind.DirtyToilet)] [TestCase(0f, MessKind.Dropping)]
         public void AlignHoldAndSettleThreeAccuracyBands(float inside, MessKind expected)
@@ -85,7 +91,7 @@ namespace NatureCalls.Tests
             Align();
             yield return null;
             Assert.That(Find("ToiletingPanel").activeSelf, Is.True);
-            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("低头"));
+            Assert.That(Find("PhaseLabel").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("开拉"));
             Assert.That(Find("AccuracyLabel").activeSelf, Is.False, "Defecation is blind: no live accuracy (GLOSSARY 统一如厕过程).");
             Assert.That(Find("TargetOverlay").activeSelf, Is.False, "No target circle while holding; only the timed look-down marker.");
             Assert.That(Find("LandingMarker").activeSelf, Is.False);
@@ -102,8 +108,10 @@ namespace NatureCalls.Tests
             Assert.That(Object.FindObjectsByType<Urinal>(FindObjectsSortMode.None).Length, Is.EqualTo(3));
             var urinal = Object.FindFirstObjectByType<Urinal>();
             Place(urinal.FrontPosition, Vector3.forward); needs.BeginRound(1);
+            Assert.That(input.AcceptsWalking, Is.True, "WASD walks outside toileting (regression: only squatting could move).");
             Assert.That(input.TryUrinate(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
-            Assert.That(input.UrineFlowing, Is.False, "V only aims."); Assert.That(input.TryToilet(), Is.True); Assert.That(input.UrineFlowing, Is.True, "C starts the stream.");
+            Assert.That(input.AcceptsWalking, Is.False, "No walking while aiming the stream.");
+            Assert.That(input.UrineFlowing, Is.False, "V only aims."); Assert.That(input.TryUrinate(), Is.True); Assert.That(input.UrineFlowing, Is.True, "A second V starts the stream.");
             var other = new GameObject("other").AddComponent<Movement>();
             try { other.transform.position = urinal.FrontPosition; Assert.That(urinal.Occupy(other), Is.False); }
             finally { Object.DestroyImmediate(other.gameObject); }
@@ -292,8 +300,8 @@ namespace NatureCalls.Tests
             Assert.That(needs.Urgency, Is.EqualTo(initial).Within(10f), "Non-finite accuracy is rejected.");
             sync.ReportResult(0, player.transform.position + Vector3.right * 50); yield return null;
             Assert.That(needs.Urgency, Is.EqualTo(initial).Within(10f), "Remote result position is rejected.");
-            Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
-            input.TickAim(3, new Vector2(5, 5)); yield return null;
+            Assert.That(input.TryUrinate(), Is.True, "A second V starts the stream.");
+            player.LookAt(player.transform.position + player.transform.right * 2f); input.TickAim(3, Vector2.zero); // looking away misses yield return null;
             Assert.That(urinal.IsOccupied, Is.False);
             Assert.That(needs.Urgency, Is.LessThan(initial), "Urination relieves the current urgency after aim-time growth.");
             Assert.That(Facilities.Current.SharedMesses.Count, Is.EqualTo(1));
@@ -311,7 +319,7 @@ namespace NatureCalls.Tests
             var toilet = Object.FindFirstObjectByType<Toilet>(); var stall = toilet.GetComponentInParent<StallDoor>();
             stall.ApplySharedState(StallDoorState.Open);
             Place(toilet.Anchor.position - toilet.Anchor.forward * .2f, toilet.Anchor.forward);
-            Assert.That(input.TryUrinate(), Is.True); Assert.That(input.TryToilet(), Is.True); yield return new WaitForSeconds(NeedsRules.UrinatingSeconds + .1f);
+            Assert.That(input.TryUrinate(), Is.True); Assert.That(input.TryUrinate(), Is.True); yield return new WaitForSeconds(NeedsRules.UrinatingSeconds + .1f);
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
             input.TickAim(NeedsRules.UrinatingSeconds, Vector2.zero); yield return null;
             Assert.That(toilet.IsOccupied, Is.False);

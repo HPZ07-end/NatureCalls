@@ -21,6 +21,14 @@ namespace NatureCalls.Input
         private PlayerNeeds needs;
         public enum Stage { None, Squatting, Aiming, Urinating, Cleaning }
         public Stage Phase { get; private set; }
+        /// <summary>Squat ↔ aim follows the head: bowed past <see cref="ToiletGaze.AimPitch"/> aims, looking back up leaves it.</summary>
+        public void RefreshAimPhase()
+        {
+            if (Phase == Stage.Squatting && movement.Pitch >= ToiletGaze.AimPitch) { Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; }
+            else if (Phase == Stage.Aiming && movement.Pitch < ToiletGaze.AimPitch - 15f) { Phase = Stage.Squatting; if (needs != null) needs.Aiming = false; }
+        }
+        /// <summary>WASD moves the player except while aiming (squat look-down or urination); squatting still shuffles.</summary>
+        public bool AcceptsWalking => Phase != Stage.Aiming && Phase != Stage.Urinating;
         /// <summary>V aims first; the stream starts only after C confirms.</summary>
         public bool UrineFlowing { get; private set; }
         public bool IsToileting => Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating;
@@ -58,7 +66,7 @@ namespace NatureCalls.Input
         private IHoldInteractable heldInteract;
         private float heldInteractSeconds;
         private bool heldInteractDone;
-        private bool urineMode;
+        private bool urineMode, seatedUrine;
         private float heldToolSeconds;
         private Mess cleaning;
         private bool Online => facilities != null && facilities.IsSpawned;
@@ -105,7 +113,8 @@ namespace NatureCalls.Input
         private void Update()
         {
             if (requested >= 0 && Time.time > requested + 2) requested = -1;
-            if (Phase == Stage.Squatting && movement.Pitch >= ToiletGaze.LookPitch) Phase = Stage.Aiming;
+            if (Releasing) { releaseRemaining -= Time.deltaTime; if (releaseRemaining <= 0) { releaseRemaining = -1; FinishToileting(); } }
+            RefreshAimPhase();
             if (!movement.Controlled)
             {
                 // Connection-toilet water view: the player is parked and the cursor is free, so E presses the
@@ -113,7 +122,8 @@ namespace NatureCalls.Input
                 if (Application.isFocused && interact.WasPressedThisFrame()) TryFlushLobbyFromPointer();
                 return;
             }
-            if (release.WasPressedThisFrame()) Unlock();
+            // Esc leaves a toileting aim that has not started; once started it does nothing. Otherwise it frees the mouse.
+            if (release.WasPressedThisFrame()) { if (!IsToileting) Unlock(); else CancelAim(); }
             if (CaptureMouse && Application.isFocused && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
                 !IsPointerOverUi())
             { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
@@ -122,11 +132,14 @@ namespace NatureCalls.Input
             {
                 RefreshFocus();
                 if (!IsToileting) movement.Look(look.ReadValue<Vector2>());
-                else if (Phase == Stage.Squatting || Phase == Stage.Aiming) {
+                else
+                {
+                    // Toileting: the mouse always moves the first-person view (squatting or seated bodies ignore
+                    // Movement.Look). Looking down far enough is the squat aim; the urine stream goes where you look.
                     var delta = look.ReadValue<Vector2>(); movement.transform.Rotate(Vector3.up, delta.x * movement.Sensitivity, Space.World);
                     movement.SetPitch(movement.Pitch - delta.y * movement.Sensitivity);
                 }
-                if (jump.WasPressedThisFrame()) { if (Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating) CancelToileting(); else movement.Jump(); }
+                if (jump.WasPressedThisFrame() && !IsToileting) movement.Jump();
                 if (toggle.WasPressedThisFrame()) TryToilet();
                 if (urinate.WasPressedThisFrame()) TryUrinate();
                 if (interact.WasPressedThisFrame()) { RefreshFocus(); if (Focus is not IHoldInteractable) TryInteract(); }
@@ -143,14 +156,13 @@ namespace NatureCalls.Input
             }
             if (IsToileting)
             {
-                var keys = move.ReadValue<Vector2>();
-                var worldMove = movement.transform.TransformDirection(new Vector3(keys.x, 0, keys.y));
-                var adjustment = Phase == Stage.Urinating || Phase == Stage.Aiming ? look.ReadValue<Vector2>() * NeedsRules.MouseAimScale :
-                    new Vector2(worldMove.x, worldMove.z) * NeedsRules.CorrectionSpeed * Time.deltaTime;
-                TickAim(Time.deltaTime, accept ? adjustment : Vector2.zero);
+                // WASD shifts the body a little (posture): the squat landing follows the buttocks, and the
+                // stream is aimed from the new spot along the view.
+                if (accept) Shuffle(move.ReadValue<Vector2>(), Time.deltaTime);
+                TickAim(Time.deltaTime, Vector2.zero);
             }
             if (Phase == Stage.Cleaning) ContinueCleaning(accept && action.IsPressed(), Time.deltaTime);
-            movement.Move(accept && Phase == Stage.Squatting ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
+            movement.Move(accept && AcceptsWalking ? move.ReadValue<Vector2>() : Vector2.zero, Time.deltaTime);
         }
 
         private NatureCalls.UI.ToiletLobby toiletLobby;
@@ -193,9 +205,9 @@ namespace NatureCalls.Input
         public bool TryToilet()
         {
             if (needs != null && needs.Vomiting) return false;
-            if (Phase == Stage.Squatting) { if (movement.Pitch < ToiletGaze.LookThreshold * ToiletGaze.LookPitch) return false; Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; return true; }
-            if (Phase == Stage.Aiming) { FinishToileting(); return true; }
-            if (Phase == Stage.Urinating) { if (UrineFlowing) return false; UrineFlowing = true; return true; }
+            // Second C: the stool comes out now (looking down first is optional, it only shows the bowl).
+            if (Phase == Stage.Squatting || Phase == Stage.Aiming) { if (Releasing) return false; BeginRelease(); return true; }
+            if (Phase == Stage.Urinating) return false; // no pooping while peeing
             movement.RefreshVentPosture();
             if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             var stall = StallDoor.Containing(movement);
@@ -217,7 +229,19 @@ namespace NatureCalls.Input
         }
         public bool TryUrinate()
         {
-            if (needs != null && needs.Vomiting || IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
+            if (needs != null && needs.Vomiting) return false;
+            // Second V: the stream starts and must run to the end.
+            if (Phase == Stage.Urinating) { if (UrineFlowing) return false; UrineFlowing = true; wetCount = 0; return true; }
+            if (Releasing) return false;
+            // Peeing while squatting (on a toilet or on the floor) starts at once; afterwards the squat continues.
+            if (Phase == Stage.Squatting || Phase == Stage.Aiming)
+            {
+                urineMode = true; seatedUrine = true; Phase = Stage.Urinating; UrineFlowing = true; wetCount = 0;
+                accuracy = new Accuracy(NeedsRules.UrinatingSeconds); correction = Vector2.zero;
+                if (needs != null) needs.Aiming = true;
+                return true;
+            }
+            if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             toilet = null; urinal = null;
             var stall = StallDoor.Containing(movement);
             if (stall != null && stall.Toilet != null) toilet = stall.Toilet;
@@ -240,6 +264,7 @@ namespace NatureCalls.Input
             if (!Online && needs != null) needs.Toileting = true;
             accuracy = new Accuracy(Phase == Stage.Urinating ? NeedsRules.UrinatingSeconds : 9999f);
             initialLanding = urinal != null ? urinal.TargetCenter : ButtLanding();
+            shuffleOrigin = movement.transform.position;
             CurrentLanding = initialLanding; correction = Vector2.zero;
             noiseSeed = new Vector2(Random.Range(0f, 100f), Random.Range(0f, 100f));
             if (needs != null) needs.Aiming = Phase == Stage.Urinating || Phase == Stage.Aiming;
@@ -254,20 +279,109 @@ namespace NatureCalls.Input
             var profile = CharacterProfile.For(appearance != null ? appearance.BodyType : LocalProfile.BodyType);
             var drift = new Vector2(Mathf.PerlinNoise(noiseSeed.x, t) * 2 - 1, Mathf.PerlinNoise(noiseSeed.y, t) * 2 - 1) * NeedsRules.DriftAmplitude(needs != null ? needs.Urgency : 0) * (1f + (needs != null ? needs.AimJitterIntensity : 0)) * (GetComponent<ToiletGaze>()?.DriftScale ?? 1f) / Mathf.Max(.01f, profile.AimSteadiness);
             var offset = correction + drift;
-            if (urinal != null)
+            if (Phase == Stage.Urinating)
             {
-                var facing = Vector3.ProjectOnPlane(urinal.TargetCenter - urinal.FrontPosition, Vector3.up).normalized;
-                var right = Vector3.Cross(Vector3.up, facing);
-                CurrentLanding = initialLanding + right * offset.x + Vector3.up * offset.y;
+                // Where you look is where it goes: the first solid surface on the view ray (not your own body).
+                var ray = movement.ViewRay;
+                var mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer) & ~(1 << NatureCalls.Camera.CameraController.LocalBodyLayer);
+                bool struck = Physics.Raycast(ray, out var hit, 3f, mask, QueryTriggerInteraction.Ignore);
+                var aimed = struck ? hit.point : ray.GetPoint(1.5f);
+                CurrentLanding = aimed + new Vector3(drift.x, 0, drift.y) * .5f;
+                // In the target when the stream strikes the toilet / urinal itself near its opening (the bowl surface,
+                // seat or porcelain), not a strict distance from the water centre.
+                // In the target when the stream lands in the bowl area: over the opening horizontally, from the rim
+                // down into the bowl (the hollow often has no collider, so the ray may reach the floor under it).
+                bool hasTarget = toilet != null || urinal != null;
+                float across = Vector3.Distance(Vector3.ProjectOnPlane(CurrentLanding, Vector3.up), Vector3.ProjectOnPlane(TargetCenter, Vector3.up));
+                float height = CurrentLanding.y - TargetCenter.y;
+                urineInside = hasTarget && across <= Mathf.Max(TargetRadius * 1.6f, .28f) && height <= .45f && height >= -.9f;
             }
-            else CurrentLanding = initialLanding + new Vector3(offset.x, 0, offset.y);
+            else CurrentLanding = ButtLanding() + new Vector3(offset.x, 0, offset.y); // follows the shuffled body
             if (Phase == Stage.Urinating && !UrineFlowing) return; // still aiming: nothing comes out yet
-            accuracy.Sample(seconds, Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
+            accuracy.Sample(seconds, Phase == Stage.Urinating ? urineInside : Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
+            if (Phase == Stage.Urinating && UrineFlowing && !urineInside) MaybeWet(FloorUnder(CurrentLanding));
             if (accuracy.Complete) FinishToileting();
+        }
+        private bool urineInside;
+        /// <summary>The latest squat release: where the stool left and whether it went into the bowl (for the falling-stool view).</summary>
+        public Vector3 LastDropPoint { get; private set; }
+        public bool LastDropInBowl { get; private set; }
+        public int DropSerial { get; private set; }
+        /// <summary>Scale on <see cref="StoolRules.ReleaseSeconds"/> (harder is slower); tests set 0 to settle at once.</summary>
+        public static float ReleaseScale = 1f;
+        /// <summary>Duration of the current / latest squat release.</summary>
+        public float ReleaseDuration { get; private set; }
+        public StoolKind LastDropKind { get; private set; }
+        public bool Releasing => releaseRemaining >= 0;
+        private float releaseRemaining = -1f;
+        private bool dropAnnounced;
+        private Vector3 lastWet;
+        private int wetCount;
+        /// <summary>Second C: decide where it lands now, show it leaving the buttocks, settle once it has fallen.</summary>
+        private void BeginRelease()
+        {
+            accuracy = Accuracy.Fixed(ReleaseAccuracy());
+            AnnounceDrop();
+            ReleaseDuration = StoolRules.ReleaseSeconds(LastDropKind) * ReleaseScale;
+            if (ReleaseDuration <= 0) FinishToileting(); else releaseRemaining = ReleaseDuration;
+        }
+        private void AnnounceDrop()
+        {
+            LastDropPoint = CurrentLanding; LastDropInBowl = toilet != null && accuracy.Value >= NeedsRules.PerfectAccuracy;
+            LastDropKind = needs != null ? needs.NextStoolKind : StoolKind.Soft; DropSerial++; dropAnnounced = true;
+        }
+        /// <summary>Urine that misses the target wets the floor where it lands, while it lands (not after).</summary>
+        private void MaybeWet(Vector3 point)
+        {
+            if (wetCount >= 8 || (wetCount > 0 && Vector3.Distance(Vector3.ProjectOnPlane(point, Vector3.up), Vector3.ProjectOnPlane(lastWet, Vector3.up)) < .45f)) return;
+            lastWet = point; wetCount++;
+            if (Online) facilities.RequestUrineSplash(point);
+            else MessSinkRegistry.Current?.AddMess(MessKind.Puddle, point, -1, movement);
+        }
+        public const float ShuffleSpeed = .6f, SquatShuffleRadius = .25f, UrineShuffleRadius = .35f;
+        private Vector3 shuffleOrigin;
+        /// <summary>WASD while toileting: a small posture shift around where the player started.</summary>
+        public void Shuffle(Vector2 keys, float seconds)
+        {
+            if (keys.sqrMagnitude < .0001f || Releasing) return;
+            float radius = Phase == Stage.Urinating && !seatedUrine ? UrineShuffleRadius : SquatShuffleRadius;
+            var next = movement.transform.position + movement.transform.TransformDirection(new Vector3(keys.x, 0, keys.y)).normalized * ShuffleSpeed * seconds;
+            var offset = Vector3.ProjectOnPlane(next - shuffleOrigin, Vector3.up);
+            if (offset.magnitude > radius) next = shuffleOrigin + offset.normalized * radius + Vector3.up * (next.y - shuffleOrigin.y);
+            var controller = GetComponent<CharacterController>();
+            bool was = controller != null && controller.enabled; if (was) controller.enabled = false;
+            movement.transform.position = next;
+            if (was) controller.enabled = true;
+            Physics.SyncTransforms();
+        }
+        /// <summary>The floor under an aim point (where a puddle or a dropped stool ends up).</summary>
+        private Vector3 FloorUnder(Vector3 point)
+        {
+            var mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer) & ~(1 << NatureCalls.Camera.CameraController.LocalBodyLayer);
+            return Physics.Raycast(point + Vector3.up * .5f, Vector3.down, out var hit, 3f, mask, QueryTriggerInteraction.Ignore)
+                ? hit.point : new Vector3(point.x, movement.transform.position.y, point.z);
+        }
+        /// <summary>Squat result at the moment of release: in the opening, on the rim, or past the bowl.</summary>
+        private float ReleaseAccuracy()
+        {
+            if (toilet == null) return 0f;
+            float distance = Vector3.Distance(Vector3.ProjectOnPlane(CurrentLanding, Vector3.up), Vector3.ProjectOnPlane(TargetCenter, Vector3.up));
+            return distance <= TargetRadius ? 1f : distance <= TargetRadius * 1.6f ? (NeedsRules.PerfectAccuracy + NeedsRules.FloorAccuracy) / 2f : 0f;
         }
         private void FinishToileting()
         {
-            var position = movement.transform.position;
+            // Messes land where the aim went (the floor under it), not at the player's feet.
+            var position = FloorUnder(CurrentLanding);
+            if (!urineMode && !dropAnnounced) { if (accuracy != null && accuracy.Duration > 1000f) accuracy = Accuracy.Fixed(ReleaseAccuracy()); AnnounceDrop(); }
+            dropAnnounced = false; releaseRemaining = -1;
+            if (seatedUrine)
+            {
+                if (Online) facilities.ReportSeatedUrination(accuracy.Value, position);
+                else ApplyUrination(movement, toilet, null, accuracy.Value, position);
+                seatedUrine = false; urineMode = false; UrineFlowing = false;
+                accuracy = new Accuracy(9999f); Phase = Stage.Squatting; if (needs != null) needs.Aiming = false;
+                return; // still squatting: C poops, Esc stands up
+            }
             if (Online) facilities.ReportResult(accuracy.Value, position);
             else if (urineMode) ApplyUrination(movement, toilet, urinal, accuracy.Value, position);
             else ApplyResult(movement, toilet, urinal, accuracy.Value, position, ToiletIndex(toilet));
@@ -277,8 +391,16 @@ namespace NatureCalls.Input
             movement.Immobile = false; movement.Aiming = false; if (needs != null) needs.Aiming = false; Phase = Stage.None; urineMode = false;
             toilet = null; urinal = null;
         }
+        /// <summary>Esc: leave a squat, a look-down or a urine aim that has not started yet.</summary>
+        public bool CancelAim()
+        {
+            if (Releasing) return false;
+            if (Phase == Stage.Squatting || Phase == Stage.Aiming || (Phase == Stage.Urinating && !UrineFlowing)) { CancelToileting(); return true; }
+            return false;
+        }
         private void CancelToileting()
         {
+            releaseRemaining = -1; dropAnnounced = false;
             toilet?.Release(movement); urinal?.Release(movement);
             if (needs != null) { needs.Toileting = false; needs.Aiming = false; }
             posture.Set(PostureState.Standing); movement.Immobile = false; movement.Aiming = false; Phase = Stage.None; toilet = null; urinal = null; urineMode = false;
@@ -287,7 +409,7 @@ namespace NatureCalls.Input
         {
             var playerNeeds = player.GetComponent<PlayerNeeds>(); if (playerNeeds == null || !playerNeeds.Ticking) return;
             playerNeeds.CompleteUrination();
-            if (value < NeedsRules.UrinalAccuracy) MessSinkRegistry.Current?.AddMess(MessKind.Puddle, position);
+            // Floor wetting happens live while the stream misses (PlayerInput.MaybeWet / FacilitySync.RequestUrineSplash).
         }
         public static int ToiletIndex(Toilet target)
         {
@@ -305,8 +427,7 @@ namespace NatureCalls.Input
             if (playerNeeds == null || !playerNeeds.Ticking) return;
             if (targetUrinal != null)
             {
-                playerNeeds.CompleteUrination();
-                world?.AddMess(NeedsRules.Urination(value), new Vector3(targetUrinal.FrontPosition.x, player.transform.position.y, targetUrinal.FrontPosition.z));
+                playerNeeds.CompleteUrination(); // floor wetting already happened live while the stream missed
                 return;
             }
             bool inStall = targetToilet != null;

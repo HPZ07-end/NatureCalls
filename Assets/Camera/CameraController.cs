@@ -90,16 +90,37 @@ namespace NatureCalls.Camera
             SetPosture(posture.State);
             UpdateTargets();
             // Hide only from the local first-person output. Mirror cameras still render this layer.
-            bool toileting = posture.IsSquatting || Target.Aiming;
-            bool hidden = !toileting;
+            // Show the local body only while squatting with the head up (knees in view). Looking down to aim, or
+            // standing to urinate, hides it so the bowl / urinal below is visible instead of the torso.
+            bool hidden = !posture.IsSquatting || Gaze > .3f;
             Output.cullingMask = hidden ? outputCullingMask & ~(1 << LocalBodyLayer) : outputCullingMask;
-            foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
+            // Aiming the stream: hide the whole local model (hair, hands, accessories) so nothing covers the crosshair.
+            bool urineAim = Target.Aiming && !posture.IsSquatting;
+            foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = urineAim;
+            if (urineAim)
+            {
+                var held = NatureCalls.Facility.Item.FindCarriedBy(Target);
+                if (held != null)
+                    foreach (var part in held.GetComponentsInChildren<Renderer>())
+                        if (!part.forceRenderingOff) { part.forceRenderingOff = true; extraHidden.Add(part); }
+                foreach (var part in Target.GetComponentsInChildren<Renderer>())
+                    if (part is not LineRenderer && part.GetType().Name != "ParticleSystemRenderer" && !part.forceRenderingOff) { part.forceRenderingOff = true; extraHidden.Add(part); }
+            }
+            else if (extraHidden.Count > 0) { foreach (var part in extraHidden) if (part != null) part.forceRenderingOff = false; extraHidden.Clear(); }
         }
+        private readonly System.Collections.Generic.List<Renderer> extraHidden = new();
         public void UpdateTargets()
         {
             if (Target == null) return;
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
-            if (posture.IsSquatting || Target.Aiming)
+            if (posture.IsSquatting && Target.Seat != null && Gaze > 0)
+            {
+                // Seated look-down: from just in front of the head, turn toward the bowl under the body.
+                var head = Target.transform.position + Vector3.up * 1.05f + Target.transform.forward * .12f;
+                var down = Quaternion.LookRotation(GazePoint - head, Target.transform.forward);
+                Eye.SetPositionAndRotation(head, Quaternion.Slerp(Target.ViewRotation, down, Mathf.SmoothStep(0, 1, Gaze)));
+            }
+            else if (posture.IsSquatting)
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * 1.05f, Target.ViewRotation);
             else
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * (Target.IsCrawling ? .63f : EyeHeight), Target.ViewRotation);

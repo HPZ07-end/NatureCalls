@@ -40,6 +40,8 @@ namespace NatureCalls.Map
         public override float Distance => 1.85f;
         public override Transform Target => HasHatch ? Lid : base.Target;
         public override Vector3 AimPoint => HasHatch ? Lid.position : Approach;
+        // Aiming anywhere at the shaft (ladder, pillar, opening) selects it, so the ladder works from below too.
+        public override bool Owns(Transform hit) => base.Owns(hit) || (Top != null && Top.parent != null && hit.IsChildOf(Top.parent));
         public override bool CanInteract(InteractionContext context) => !context.Busy &&
             (HasHatch && NearTop(context.Player) ? CanReachHatch(context.Player) : CanTraverse(context.Player));
         public override string Prompt(InteractionContext context) => HasHatch && NearTop(context.Player) ? ActionPrompt : "E  爬梯返回地面";

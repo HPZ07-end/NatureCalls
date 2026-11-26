@@ -15,6 +15,13 @@ class DeployTests(unittest.TestCase):
         self.assertIsNone(deploy.parse_build(passed.replace("passed", "failed")))
         self.assertIsNone(deploy.parse_build('{"status": "passed"}'))
 
+    def test_already_current_matches_the_commit_prefix_only(self):
+        self.assertTrue(deploy.already_current("releases/6537a3c-20261126T090000Z-abc", "6537a3c"))
+        self.assertTrue(deploy.already_current("/opt/naturecalls/releases/6537a3c-x\n", "6537a3c"))
+        self.assertFalse(deploy.already_current("releases/2bca57f-20261126T012947Z-8d028c", "6537a3c"))
+        self.assertFalse(deploy.already_current("releases/6537a3c-dirty-x", "6537a3c-dirty"))
+        self.assertFalse(deploy.already_current("", "6537a3c"))
+
     def test_release_name_joins_commit_and_build_id(self):
         build = Path("/x/Builds/LinuxServer/20261111T010000Z-abc/NatureCalls")
         self.assertEqual(deploy.release_name("c26b26b", build), "c26b26b-20261111T010000Z-abc")

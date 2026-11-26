@@ -356,6 +356,37 @@ namespace NatureCalls.Network
         }
         [Rpc(SendTo.Owner)]
         private void UrinalGrantedRpc(int index) => GetComponent<Input.PlayerInput>().BeginGranted(null, Facilities.Current.urinals[index]);
+        /// <summary>A stream that misses wets the floor at <paramref name="point"/> as it lands.</summary>
+        public void RequestUrineSplash(Vector3 point)
+        {
+            if (IsSpawned && IsOwner) UrineSplashRpc(point);
+        }
+        [Rpc(SendTo.Server)]
+        private void UrineSplashRpc(Vector3 point, RpcParams rpc = default)
+        {
+            if (rpc.Receive.SenderClientId != OwnerClientId || activeMode == 0 || !float.IsFinite(point.x) || !float.IsFinite(point.y) || !float.IsFinite(point.z) ||
+                Vector3.Distance(point, movement.transform.position) > 3.5f || Time.time - lastUrineSplash < .15f) return;
+            lastUrineSplash = Time.time;
+            MessSinkRegistry.Current?.AddMess(MessKind.Puddle, point, -1, movement);
+        }
+        private float lastUrineSplash = -999f;
+        /// <summary>Peeing while squatting (seat or floor): settled as urine; the squat reservation stays.</summary>
+        public void ReportSeatedUrination(float accuracy, Vector3 position)
+        {
+            if (IsSpawned && IsOwner) SeatedUrinationRpc(accuracy, position);
+        }
+        [Rpc(SendTo.Server)]
+        private void SeatedUrinationRpc(float accuracy, Vector3 position, RpcParams rpc = default)
+        {
+            var host = ServerFacilities();
+            if (host == null || rpc.Receive.SenderClientId != OwnerClientId || (activeMode != 1 && activeMode != 3) || !float.IsFinite(accuracy) || accuracy < 0 || accuracy > 1 ||
+                !float.IsFinite(position.x) || !float.IsFinite(position.y) || !float.IsFinite(position.z) ||
+                Vector3.Distance(position, movement.transform.position) > 3.5f || Time.time - lastSeatedUrine < NeedsRules.UrinatingSeconds - .1f) return;
+            lastSeatedUrine = Time.time;
+            Toilet toilet = activeMode == 1 && activeIndex >= 0 ? host.toilets[activeIndex] : null;
+            Input.PlayerInput.ApplyUrination(movement, toilet, null, accuracy, position);
+        }
+        private float lastSeatedUrine = -999f;
         public void ReportResult(float accuracy, Vector3 position)
         {
             if (IsSpawned && IsOwner) ResultRpc(accuracy, position);
@@ -367,7 +398,7 @@ namespace NatureCalls.Network
             if (host == null || rpc.Receive.SenderClientId != OwnerClientId || activeMode == 0 || !float.IsFinite(accuracy) || accuracy < 0 || accuracy > 1 ||
                 !float.IsFinite(position.x) || !float.IsFinite(position.y) || !float.IsFinite(position.z)) return;
             float duration = activeMode == 1 ? .1f : NeedsRules.UrinatingSeconds;
-            if (Time.time - began < duration - .1f || Vector3.Distance(position, movement.transform.position) > 2) return;
+            if (Time.time - began < duration - .1f || Vector3.Distance(position, movement.transform.position) > 3.5f) return; // the aim may land up to ~3 m away
             Toilet toilet = activeMode == 1 || activeMode == 4 ? host.toilets[activeIndex] : null;
             Urinal urinal = activeMode == 2 ? host.urinals[activeIndex] : null;
             if (toilet != null && (!toilet.IsOccupied || toilet.Occupant != movement || (activeMode == 1 && !toilet.GetComponentInParent<StallDoor>().Contains(movement)))) return;

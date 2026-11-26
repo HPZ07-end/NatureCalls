@@ -44,7 +44,7 @@ namespace NatureCalls.Facility
             Look.SetActive(isActiveAndEnabled);
             float seed = Hash(position);
             var yaw = Quaternion.Euler(0, seed * 360f, 0);
-            SlipRadius = kind is MessKind.LooseStool or MessKind.Accident ? .35f * (kind == MessKind.Accident ? 1.3f : 1f) : 0f;
+            SlipRadius = kind is MessKind.LooseStool or MessKind.Accident ? .35f * (kind == MessKind.Accident ? 1.3f : 1f) : kind == MessKind.Puddle ? .45f : 0f; // urine on the floor is a wet, slippery patch
             OdorWeight = StoolRules.Odor(kind);
             var art = MessArt.Current;
             if (extra != null) extra.SetActive(false);
@@ -67,7 +67,7 @@ namespace NatureCalls.Facility
                         Dress(art.Vomit, new[] { art.VomitBase, art.VomitChunk }, floor, yaw, 1f);
                         break;
                     case MessKind.Puddle:
-                        Dress(art.UrinePuddle, new[] { art.Urine }, floor + Vector3.up * .003f, yaw, 1f);
+                        Dress(art.UrinePuddle, new[] { art.Urine }, floor + Vector3.up * .003f, yaw, 1.8f); // a clearly visible patch
                         break;
                     case MessKind.Backflow:
                         Dress(art.LooseSplat, new[] { art.Backflow, art.BackflowBubble }, floor, yaw, 1.2f);

@@ -43,13 +43,53 @@ namespace NatureCalls.Tests
             foreach (var spawn in world.Spawns)
             {
                 Assert.That(Physics.Raycast(spawn.position + Vector3.up, Vector3.down, out var hit, 3f), Is.True, spawn.name);
-                Assert.That(spawn.position.y, Is.EqualTo(hit.point.y).Within(.12f), spawn.name);
+                Assert.That(spawn.position.y - hit.point.y, Is.EqualTo(.8f).Within(.12f), spawn.name);
             }
             Assert.That(Object.FindObjectsByType<StallDoor>(FindObjectsSortMode.None), Has.Length.EqualTo(56));
             Assert.That(Object.FindObjectsByType<Toilet>(FindObjectsSortMode.None).Length, Is.GreaterThanOrEqualTo(40));
             Assert.That(Object.FindObjectsByType<Portal>(FindObjectsSortMode.None), Has.Length.EqualTo(2));
             Assert.That(Object.FindObjectsByType<PaperRoll>(FindObjectsSortMode.None).Length, Is.GreaterThan(20));
             yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator Map3HasWalkableItemCountsCeilingsMirrorsAndLights()
+        {
+            var root = GameObject.Find("Map3_Backrooms");
+            Assert.That(root, Is.Not.Null);
+            var transforms = root.GetComponentsInChildren<Transform>(true);
+            Assert.That(transforms.Count(t => t.name == "PaperRollHolder"), Is.EqualTo(42));
+            Assert.That(Object.FindObjectsByType<Toolbox>(FindObjectsSortMode.None), Has.Length.EqualTo(4));
+            Assert.That(Object.FindObjectsByType<Mop>(FindObjectsSortMode.None), Has.Length.EqualTo(4));
+            Assert.That(transforms.Where(t => t.name.StartsWith("Ceiling_")).SelectMany(t => t.GetComponentsInChildren<Renderer>(true)).Count(), Is.GreaterThan(0));
+            Assert.That(Object.FindObjectsByType<PlanarMirror>(FindObjectsSortMode.None).Length, Is.GreaterThan(0));
+            Assert.That(Object.FindObjectsByType<Light>(FindObjectsSortMode.None).Length, Is.GreaterThanOrEqualTo(6));
+            foreach (var stall in transforms.Where(t => t.name.StartsWith("Stall_") && (t.name.Contains("PipeChase") || t.name.Contains("Janitor") || t.name.Contains("Empty"))))
+                Assert.That(stall.GetComponentInChildren<Toilet>(true), Is.Null, stall.name);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator Map3PlayersStayOnTheFloorAtEverySpawn()
+        {
+            var controller = player.GetComponent<CharacterController>();
+            var input = player.GetComponent<NatureCalls.Input.PlayerInput>();
+            input.enabled = false;
+            foreach (var spawn in world.Spawns)
+            {
+                controller.enabled = false;
+                player.transform.SetPositionAndRotation(spawn.position, spawn.rotation);
+                controller.enabled = true;
+                var startY = player.transform.position.y;
+                for (var frame = 0; frame < 12; frame++)
+                {
+                    player.Move(Vector2.zero, Time.fixedDeltaTime);
+                    yield return null;
+                }
+                Assert.That(player.transform.position.y, Is.GreaterThanOrEqualTo(startY - .05f), spawn.name);
+                Assert.That(controller.isGrounded, Is.True, spawn.name);
+            }
+            controller.enabled = false;
         }
 
         [UnityTest]

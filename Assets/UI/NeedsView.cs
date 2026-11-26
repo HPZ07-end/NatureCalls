@@ -9,6 +9,17 @@ namespace NatureCalls.UI
     /// <summary>Map HUD bars for the local player's Urgency and Disgust (layout in MatchHud.prefab).</summary>
     public sealed class NeedsView : MonoBehaviour
     {
+        /// <summary>Hides only the legacy urgency/disgust bars (the versus HUD replaces them).</summary>
+        public void SetBarsHidden(bool hidden)
+        {
+            foreach (var graphic in new Graphic[] { urgencyLabel, urgencyFill, disgustLabel, disgustFill })
+            {
+                if (graphic == null) continue;
+                graphic.enabled = !hidden;
+                var back = graphic.transform.parent;
+                if (back != null && back != transform && back.TryGetComponent<Graphic>(out var frame)) frame.enabled = !hidden;
+            }
+        }
         [SerializeField] private Text urgencyLabel;
         [SerializeField] private Image urgencyFill;
         [SerializeField] private Text disgustLabel;

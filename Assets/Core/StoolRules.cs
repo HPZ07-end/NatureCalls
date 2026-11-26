@@ -45,6 +45,8 @@ namespace NatureCalls.Core
         /// <summary>Loose stool flushed into a blocked pipe acts like an over-flush: it backflows.</summary>
         public static bool Backflows(StoolKind kind, bool pipeBlocked) => kind == StoolKind.Loose && pipeBlocked;
         /// <summary>Smell strength: scales odour particles and the Composure drain of seeing it.</summary>
+        /// <summary>How long the squat release takes (seconds, provisional): the harder the stool, the slower it comes.</summary>
+        public static float ReleaseSeconds(StoolKind kind) => kind switch { StoolKind.Hard => 4.2f, StoolKind.Soft => 2.6f, _ => 1.4f };
         public static float Odor(StoolKind kind) => kind switch { StoolKind.Soft => 1.5f, StoolKind.Hard => .4f, _ => 1f };
         /// <summary>Weight in the dirt field (before the saboteur ×0.3).</summary>
         public static float DirtWeight(StoolKind kind) => kind switch { StoolKind.Soft => 1f, StoolKind.Hard => .6f, _ => 1.2f };

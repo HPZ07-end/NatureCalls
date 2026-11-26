@@ -1,7 +1,15 @@
+2026-11-26 PR #50 冲突处理：将 dev 0b0f6da 合入 integrate/all，唯一文本冲突位于 ROADMAP 的按需建房标题；保留已实现的 broker 说明和镇定值惩罚 Proposed Change，不改代码、场景或 Glossary。PR 后续追加了 V/V 小便、蹲姿小便与按粪便硬度决定排出时长等行为，现有 PR Semantic Diff 只声明 Lobby，需人类核对新增规则与语义审批；尚缺其他成员 Review。初始修复树（基于 8945969）仓库检查通过（1736 文件、874 GUID）、Python 45/45；随后完整保留远程 3377512 的 Map3 及验收记录，新增资产检查以本次 CI 为准。本轮未运行 Unity 或双客户端验收，不能以脚本检查代替。冲突处理本身 Semantic-Diff: none；PR 整体仍为 changed。
+
+2026-11-26 水面大厅分页与点击水波（分支 `feat/water-lobby-pages`，基于 #44）：去掉「✓」意图切换。首页点「创建房间」立即建房并进入房间页（房间号与玩家列表）；点「加入房间」进入标题为「隔间大厅」的加入页，上方按房间号列出现存房间可直接点选，下方输入房间号回车或冲水加入，「返回」回首页、Esc 同样返回。每次点击水面从点击处荡开三圈水波（运行时生成的环形贴图，UI Image，不新增 shader 或资源文件），文字随之轻晃。水面所有文字挂 `UnderwaterText`（BaseMeshEffect）：字形随两组交错波弯曲、带水色与漂移光斑，下方叠四层错开的淡深色倒影模拟水下模糊，点击时波动短暂加强。各页（首页、隔间大厅、房间页、选图页）以水面中心为原点重新排布，全部落在水面开口（半径约 0.14 m，面板约 269 单位）以内，文字靠近边缘时淡出，水波不超出水面；`ToiletLobbyTextStaysInsideTheWater` 逐页检查。全量 PlayMode 101 通过 + 1 Relay Ignored（`Artifacts/20261126T064726Z-b47ff0-test-playmode`）；中途一次 `HostLoadsMap1AndPublishesCrawlingPosture` 因计时超限 0.1 失败，重跑通过。加入水下文字后 DressingRoomTests 再次 27/27（`Artifacts/20261126T062824Z-d7fe3b-test-playmode`）。此前 DressingRoomTests 27/27（`Artifacts/20261126T061915Z-4b4262-test-playmode`，含首页、隔间大厅、房间页与水波截图）；全量 EditMode 70/70（`Artifacts/20261126T062156Z-9be36d-test-editmode`）、PlayMode 100 通过 + 1 Relay Ignored（`Artifacts/20261126T062220Z-2eb137-test-playmode`）。水面大厅不再提供 Relay 建房（左隔间建局域网、右隔间建服务器房间），Relay 只能在右隔间输入 Join Code 加入。未执行：真人点击手感、Windows 客户端。
+
+2026-11-26 远程隔间连上课程服务器并显示房间列表（分支 `fix/lobby-server-rooms`）：此前双隔间水面大厅的远程隔间「创建房间」只走 Relay 或本机直连，从不请求课程服务器，原「创建服务器房间」按钮在水面布局中没有位置。现在远程隔间冲水创建即向 broker 创建服务器房间；选「加入房间」时水面列出 broker 上现存房间（新接口 `GET /rooms`，每 3 秒刷新，服务器不可达时显示原因），点选或输入三位房间号加入，Relay Join Code 仍可输入。查询列表不创建 Session；PlayMode 测试注入假列表，不访问课程服务器。Python 42/42、仓库检查、EditMode 70/70（`Artifacts/20261126T053548Z-a40e22-test-editmode`）、PlayMode 98 通过 + 1 Relay Ignored（`Artifacts/20261126T053615Z-10e378-test-playmode`）；水面截图 `Artifacts/20261126T053351Z-b1059e-test-playmode/toilet-lobby-server-rooms.png`。未执行：真人从水面列表加入公网房间、Windows 客户端。房间列表只显示房间号，不显示人数。已部署到课程服务器：版本目录 `/opt/naturecalls/releases/c1e547c-20261126T053958Z-83d38f`，未回滚；`ROOM_OK 8000`，8000 与 broker active；公网 `POST /rooms` 建出房间 841 后，`GET /rooms` 立即列出该房间。记录 `Artifacts/20261126T061154Z-deploy-server/`。服务器运行的是尚未合入 dev 的 `fix/lobby-server-rooms`。
+
+2026-11-26 Map3（后室）接入修复：`Map3Integration` 改为结构网格非凸 `MeshCollider`，增加按 Unity 世界轴计算的地板支撑和出生点射线校正，避免走廊实心盒与出生点掉落；天花板渲染器保留并通过存在性测试。Portal 偏移从 `Room_R0` 与 `Room_R2` 世界坐标计算为 `(-40, 0, -8.8)`，Portal 支持标记本地轴判定；卷纸（含 `_Floor`）42、卷纸架 42、工具箱 4、拖把 4 均按挂点幂等实例化并关联，隔间门镜像开角/半开/锁死状态、马桶与 Pipe、PlanarMirror 最近选择和 Light_Flicker 实时点光已接线。Map3 专项 PlayMode 7/7 通过；全量 EditMode 70/70、PlayMode 97 Passed + 1 Ignored、仓库检查和 batchmode 截图均已完成。`Semantic-Diff: none`。
+
 2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
-2026-11-26 Map2 003 隔间编号牌：底板和文字宽度调整至与 001 一致，保留原文字网格；Unity 场景更新和 Validate、仓库检查通过，未进行游戏画面验收。`Semantic-Diff: none`。
+2026-11-26 晚 试玩反馈修复与集成验收（PR #50，分支 `integrate/all`，合并 #44 #45 #48 #49 与 Map3 修复）：准星精确选择且隔间门整块可选；大厅水面视图鼠标指向冲水键按 E；如厕改为 V 瞄准→再按 V 开尿（必须尿完）、C 蹲下→再按 C 开拉（按粪便种类持续，越硬越慢，`StoolRules.ReleaseSeconds` 暂定 1.4/2.6/4.2 s），开始前 Esc 退出瞄准，蹲着可直接按 V 尿；鼠标始终控制视角，低头看到马桶与三种不同的下落；尿流按视线落点判定，落在马桶/小便池开口范围算尿进，未进则边尿边留湿滑尿迹；WASD 小范围挪动；憋便红色状态在排泄后解除；修正对抗模式尿完尿意被重设的问题；Map2 竖井可从井底对准梯子；打包后自动部署（dev/main）。验收（Mac，Unity 6000.3.26f1，提交 ce8fc50）：EditMode 70/70；PlayMode 112 项 110 通过、1 Relay 跳过、1 失败为既有偶发 `PuddleAddsDisgustOnlyNearby`（单独重跑通过）；build-server、`scripts/check.py`、`unittest` 44 项通过。未执行：真实窗口手感（批处理无法驱动按键）、双设备联机、Map2 井底爬梯的实机确认。数值均为暂定。
 
 2026-11-26 Map2 清洁交互排查：确认运行时 Player prefab 将 `PlayerInput.CaptureMouse` 序列化为 false，现由离线及联网本地玩家生成时启用鼠标捕获。工具箱提示显示实际取出的工具或归还动作；玩家输入新增受距离和准星约束的 Toolbox 目标兜底，并有 PlayMode 用例覆盖。仓库检查通过；Unity PlayMode 启动在许可证初始化失败，未执行用例，场景交互与真人键鼠未验收。Semantic-Diff: none。
 
@@ -83,7 +91,7 @@ Map2 进入单人、联机和随机选图目录，复用设施、HUD、计时和
 | 正在推进 | 大厅两端真人联机（准备→开始→选图→同步外观）的人工验收、隔间门与卷纸的真实跨设备及 Relay 显示验收、MPPM GUI/人工键鼠手感、Relay 联机验收、Windows 与真实跨设备验收 |
 | 已规划 | 依实际需求进行 Stage 2/3、正式 Gameplay 闭环、Map 配置、共享规则的 Host 权威、跨平台联调和发布 |
 | 尚未确定 | 正式玩法数值/阈值、失败惩罚细节、事故规则、子树负责人；由人类讨论，不沿用 C3 自动补全 |
-| 尚未实现 | 胜利判定、Tidiness（干净值）、事故规则、冲水与堵塞（与水管机制有关，待定；用户倾向用 F 键）、马桶排队、排泄物生成、背包、公开房间列表/匹配、Host 迁移、正式美术/音频/动画 |
+| 尚未实现 | 胜利判定、Tidiness（干净值）、事故规则、冲水与堵塞（与水管机制有关，待定；用户倾向用 F 键）、马桶排队、排泄物生成、背包、匹配、Host 迁移、正式美术/音频/动画 |
 
 当前仍为 Stage 1。为 Editor/测试引用增加一个总运行时程序集，没有拆分各模块程序集；Core 目前包含换装选择、房间开始条件、地图选择、对局时间、需求及准度等纯 C# 规则，不代表 Stage 2 完成。后续路线与课程截止日 **2026-12-21** 见 [ROADMAP](ROADMAP.md)。游戏版本保持 `0.1.0-alpha.1`，不增加发布 Tag。
 
