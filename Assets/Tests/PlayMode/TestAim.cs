@@ -18,7 +18,10 @@ namespace NatureCalls.Tests
         /// <summary>Turns the first-person view toward the interactable that owns <paramref name="target"/> (its aim point), so E selects it by crosshair.</summary>
         public static void AimAt(Movement player, Component target)
         {
-            var owner = InteractionRegistry.All.FirstOrDefault(item => item.Target != null && (item.Target == target.transform || target.transform.IsChildOf(item.Target) || item.Target.IsChildOf(target.transform)));
+            // Prefer the component itself (a stall door also contains its toilet), then its owner, then a child.
+            var owner = InteractionRegistry.All.FirstOrDefault(item => ReferenceEquals(item, target))
+                        ?? InteractionRegistry.All.FirstOrDefault(item => item.Target != null && (item.Target == target.transform || target.transform.IsChildOf(item.Target)))
+                        ?? InteractionRegistry.All.FirstOrDefault(item => item.Target != null && item.Target.IsChildOf(target.transform));
             player.LookAt(owner != null ? owner.AimPoint : target.transform.position);
         }
         public static IEnumerator LookAt(Movement player, Transform target)

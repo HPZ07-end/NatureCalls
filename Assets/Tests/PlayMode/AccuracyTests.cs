@@ -130,7 +130,8 @@ namespace NatureCalls.Tests
         [UnityTest] public IEnumerator UnwipedDoorAndWalkingOutChargeOnceEach()
         {
             var toilet = Align(); Score(5, 5); var stall = toilet.GetComponentInParent<StallDoor>();
-            Place(stall.DoorColliderPivot.position + stall.transform.forward * .2f, stall.transform.forward);
+            // Stand far enough inside to look at the door panel (pitch is clamped, so not from right at the hinge).
+            Place(stall.DoorColliderPivot.position + stall.transform.forward * .6f, stall.transform.forward);
             TestAim.AimAt(player, stall); Assert.That(input.TryInteract(), Is.True, "E operates the door.");
             Assert.That(needs.Disgust, Is.Zero, "E on the door while unwiped no longer charges disgust (2026-11-24 key scheme)."); Assert.That(input.Unwiped, Is.True);
             Place(world.Spawns[0].position, Vector3.forward);
@@ -232,10 +233,10 @@ namespace NatureCalls.Tests
         }
         [Test] public void ToolboxCapacityThrowPickupAndReturn()
         {
-            var box = Object.FindFirstObjectByType<Toolbox>(); Place(box.transform.position, Vector3.forward);
+            var box = Object.FindFirstObjectByType<Toolbox>(); Place(box.transform.position + Vector3.back * .6f, Vector3.forward);
             Assert.That(StallDoor.Containing(player), Is.Null, "Toolbox must be in the public area.");
             Assert.That(Object.FindObjectsByType<Mop>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
-            TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop));
+            TestAim.AimAt(player, box); Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop));
             var paper = Object.FindFirstObjectByType<PaperRoll>(); paper.transform.position = player.transform.position;
             Assert.That(paper.Pickup(player), Is.False);
             Assert.That(box.Mop.Throw(player, Vector3.forward), Is.True);
