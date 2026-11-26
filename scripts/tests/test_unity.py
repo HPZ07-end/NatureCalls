@@ -170,3 +170,15 @@ class GraphicsModeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AutoDeployTests(unittest.TestCase):
+    def test_clean_dev_and_main_builds_deploy(self):
+        self.assertTrue(unity.auto_deploy_plan("dev", False, None)[0])
+        self.assertTrue(unity.auto_deploy_plan("main", False, "1")[0])
+
+    def test_feature_branches_dirty_trees_and_opt_out_do_not_deploy(self):
+        self.assertFalse(unity.auto_deploy_plan("feat/x", False, None)[0])
+        self.assertFalse(unity.auto_deploy_plan("", False, None)[0])
+        self.assertFalse(unity.auto_deploy_plan("dev", True, None)[0])
+        self.assertFalse(unity.auto_deploy_plan("dev", False, "0")[0])

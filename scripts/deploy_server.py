@@ -48,6 +48,18 @@ def parse_build(output):
     return Path(match.group(1)) if match else None
 
 
+def already_current(link, commit):
+    """Whether the server's `current` link (e.g. `releases/6537a3c-2026...`) already points at this commit."""
+    name = link.strip().rstrip("/").rsplit("/", 1)[-1]
+    return bool(commit) and not commit.endswith("-dirty") and name.startswith(commit + "-")
+
+
+def remote_current(host):
+    result = subprocess.run(["ssh", "-o", "BatchMode=yes", host, f"readlink {REMOTE_ROOT}/current"],
+                            capture_output=True, text=True, timeout=30)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
 def release_name(commit, build):
     return f"{commit}-{build.parent.name}"
 
@@ -132,6 +144,8 @@ def main():
     parser.add_argument("--keep", type=int, default=3, help="older releases to keep for rollback (default 3)")
     parser.add_argument("--allow-dirty", action="store_true", help="deploy even if tracked files have uncommitted changes")
     parser.add_argument("--dry-run", action="store_true", help="print the plan and the server script without changing anything")
+    parser.add_argument("--skip-if-current", action="store_true",
+                        help="do nothing when the server already runs this commit (used by automatic deploys after builds)")
     args = parser.parse_args()
     if args.keep < 1:
         parser.error("--keep must be at least 1")
@@ -142,6 +156,11 @@ def main():
               + "\n  ".join(changes), file=sys.stderr)
         return 1
     commit = git("rev-parse", "--short", "HEAD") + ("-dirty" if changes else "")
+    if args.skip_if_current and not args.dry_run:
+        link = remote_current(args.host)
+        if already_current(link, commit):
+            print(f"Server already runs {commit} ({link}); nothing to deploy.")
+            return 0
 
     build = args.build.resolve() if args.build else None
     if build is None and not args.dry_run:
