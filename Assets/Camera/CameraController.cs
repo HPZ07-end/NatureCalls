@@ -79,9 +79,10 @@ namespace NatureCalls.Camera
         private void OnDestroy() { if (posture != null) posture.Changed -= SetPosture; }
         private void SetPosture(PostureState state)
         {
-            bool toileting = state == PostureState.Squatting || (Target != null && Target.Aiming);
-            FirstPerson.Priority = toileting ? 20 : 10;
-            ThirdPerson.Priority = toileting ? 10 : 20;
+            // First person throughout, including squatting and toileting aim (the player aims by feel, looking
+            // down past their own legs). The third-person rig stays as a lower-priority fallback.
+            FirstPerson.Priority = 20;
+            ThirdPerson.Priority = 10;
         }
         private void LateUpdate()
         {

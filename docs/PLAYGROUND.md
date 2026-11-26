@@ -86,7 +86,7 @@ E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取
 
 本机双开：用 Multiplayer Play Mode 启用 Player 2，或一个 Editor + 一个 Development 构建；一端创建房间，另一端加入 `127.0.0.1`。
 
-如厕操作：`C` 在马桶或隔间外进入第一人称蹲姿；低头后按 `C` 确认，`Space` 站起。`V` 在马桶或小便池进入第一人称撒尿瞄准，按 `C` 确认，`Esc` 退出；瞄准时不显示准星或落点标记。马桶冲水必须把准星对准独立冲水按钮，在约 1.5 m 内按 `E`。
+如厕操作：`C` 在马桶或隔间外进入第一人称蹲姿；低头后按 `C` 确认，`Space` 站起。`V` 在马桶或小便池进入第一人称撒尿瞄准，按 `C` 开始尿（尿流持续约数秒，期间鼠标仍可微调），`Space` 退出；按 `C` 确认拉屎时会看到粪便落下；瞄准时不显示准星或落点标记。马桶冲水必须把准星对准独立冲水按钮，在约 1.5 m 内按 `E`。
 
 ### 替换界面与美术
 
@@ -105,9 +105,9 @@ E 只作用于准星指向的设施：拾取卷纸或地上拖把、工具箱取
 
 2026-10-30 按用户反馈改为正后方居中近景：Third Person Distance **1.6**、Third Person Height **0.8**、Third Person Pitch **50°**、Shoulder Offset **0**。距离是 Cinemachine 沿观察方向的距离，高度是跟随目标高度；保留俯角以看见马桶内部。Shoulder Offset 是横向偏移参数，不表示把摄像机绑在人物肩膀上；当前默认没有左右偏移。
 
-Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance/Height/Pitch、Shoulder Offset、Transition Duration、Camera Collision Layers/Radius。当前没有墙体全局隐藏。C 在隔间外可在任意位置测试姿态；要验证马桶内部构图，请走进隔间按 C。
+Inspector 参数位于场景 `Local camera`：Eye Height、Third Person Distance/Height/Pitch、Shoulder Offset、Transition Duration、Camera Collision Layers/Radius。当前没有墙体全局隐藏。2026-11-26 起如厕全程为第一人称（第三人称机位仅作低优先级备用），蹲姿和瞄准时本地身体对屏幕相机可见，低头能看到自己的腿和下方的马桶。
 
-坐在马桶上（隔间内先 C 对位再 C 蹲下）时，隔间太窄放不下正后方镜头，第三人称改为从上方俯视：Inspector 的 Seated Distance（默认 1.9）与 Seated Pitch（默认 80°）控制距离和俯角；隔间外按 C 进入的如厕姿态仍用正后方镜头。5 秒后自动站起，回到坐下前的位置。
+（旧版的坐下俯视第三人称和 5 秒自动站起已由第一人称如厕取代；Seated Distance/Pitch 参数仅供备用机位。）
 
 旧场景需要应用上述参数时，可以运行菜单 `NatureCalls/Center Playground Camera`；关闭 Editor 后也可用 `python3 scripts/unity.py camera`（Windows 用 `py -3`）。这只保存 Playground 的四个镜头参数，不重新生成地形、Prefab 或材质。已更新的仓库场景无需再次运行。
 

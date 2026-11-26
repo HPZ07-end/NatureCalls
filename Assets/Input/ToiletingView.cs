@@ -147,12 +147,14 @@ namespace NatureCalls.Input
             var phase = input.Phase;
             if (phase != lastPhase)
             {
+                // C confirmed the squat aim: the stool leaves now, so show it falling into (or past) the bowl.
+                if (lastPhase == PlayerInput.Stage.Aiming && phase == PlayerInput.Stage.None && !dropped) BeginDrop();
                 if (phase == PlayerInput.Stage.Squatting || phase == PlayerInput.Stage.Aiming) { dropped = false; }
                 if (phase == PlayerInput.Stage.Urinating) { selfSplashed = false; offTargetBack = 0; FaceUrinal(); }
                 lastPhase = phase;
             }
             if ((phase == PlayerInput.Stage.Squatting || phase == PlayerInput.Stage.Aiming) && !dropped && input.Duration > 0 && input.Elapsed >= input.Duration - 1.2f) BeginDrop();
-            if (phase == PlayerInput.Stage.Urinating) TickStream(Time.deltaTime); else HideStream();
+            if (phase == PlayerInput.Stage.Urinating && input.UrineFlowing) TickStream(Time.deltaTime); else HideStream();
             TickDrop(Time.deltaTime);
         }
 

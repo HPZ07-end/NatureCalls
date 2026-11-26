@@ -103,6 +103,7 @@ namespace NatureCalls.Tests
             var urinal = Object.FindFirstObjectByType<Urinal>();
             Place(urinal.FrontPosition, Vector3.forward); needs.BeginRound(1);
             Assert.That(input.TryUrinate(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            Assert.That(input.UrineFlowing, Is.False, "V only aims."); Assert.That(input.TryToilet(), Is.True); Assert.That(input.UrineFlowing, Is.True, "C starts the stream.");
             var other = new GameObject("other").AddComponent<Movement>();
             try { other.transform.position = urinal.FrontPosition; Assert.That(urinal.Occupy(other), Is.False); }
             finally { Object.DestroyImmediate(other.gameObject); }
@@ -289,6 +290,7 @@ namespace NatureCalls.Tests
             Assert.That(needs.Urgency, Is.EqualTo(initial).Within(10f), "Non-finite accuracy is rejected.");
             sync.ReportResult(0, player.transform.position + Vector3.right * 50); yield return null;
             Assert.That(needs.Urgency, Is.EqualTo(initial).Within(10f), "Remote result position is rejected.");
+            Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
             input.TickAim(3, new Vector2(5, 5)); yield return null;
             Assert.That(urinal.IsOccupied, Is.False);
             Assert.That(needs.Urgency, Is.LessThan(initial), "Urination relieves the current urgency after aim-time growth.");
@@ -307,7 +309,7 @@ namespace NatureCalls.Tests
             var toilet = Object.FindFirstObjectByType<Toilet>(); var stall = toilet.GetComponentInParent<StallDoor>();
             stall.ApplySharedState(StallDoorState.Open);
             Place(toilet.Anchor.position - toilet.Anchor.forward * .2f, toilet.Anchor.forward);
-            Assert.That(input.TryUrinate(), Is.True); yield return new WaitForSeconds(NeedsRules.UrinatingSeconds + .1f);
+            Assert.That(input.TryUrinate(), Is.True); Assert.That(input.TryToilet(), Is.True); yield return new WaitForSeconds(NeedsRules.UrinatingSeconds + .1f);
             Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
             input.TickAim(NeedsRules.UrinatingSeconds, Vector2.zero); yield return null;
             Assert.That(toilet.IsOccupied, Is.False);

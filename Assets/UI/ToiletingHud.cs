@@ -82,7 +82,7 @@ namespace NatureCalls.UI
         {
             PlayerInput.Stage.Squatting => "C 拉屎 · V 撒尿　低头瞄准，C 确认　Space 站起",
             PlayerInput.Stage.Aiming => "低头瞄准，C 确认　Space 站起",
-            PlayerInput.Stage.Urinating => "撒尿：鼠标/WASD 微调，C 确认　Esc 退出",
+            PlayerInput.Stage.Urinating => "撒尿：鼠标瞄准，C 开始尿　Space 退出",
             PlayerInput.Stage.Cleaning => "清理中：按住 F",
             _ => ""
         };

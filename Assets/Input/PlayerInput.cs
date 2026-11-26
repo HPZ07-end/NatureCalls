@@ -21,6 +21,8 @@ namespace NatureCalls.Input
         private PlayerNeeds needs;
         public enum Stage { None, Squatting, Aiming, Urinating, Cleaning }
         public Stage Phase { get; private set; }
+        /// <summary>V aims first; the stream starts only after C confirms.</summary>
+        public bool UrineFlowing { get; private set; }
         public bool IsToileting => Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating;
         public bool Unwiped => needs != null && needs.Unwiped;
         public Item HeldItem => Item.FindCarriedBy(movement);
@@ -188,6 +190,7 @@ namespace NatureCalls.Input
             if (needs != null && needs.Vomiting) return false;
             if (Phase == Stage.Squatting) { if (movement.Pitch < ToiletGaze.LookThreshold * ToiletGaze.LookPitch) return false; Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; return true; }
             if (Phase == Stage.Aiming) { FinishToileting(); return true; }
+            if (Phase == Stage.Urinating) { if (UrineFlowing) return false; UrineFlowing = true; return true; }
             movement.RefreshVentPosture();
             if (IsToileting || movement.IsTraversing || posture.State != PostureState.Standing || requested >= 0 || Phase == Stage.Cleaning) return false;
             var stall = StallDoor.Containing(movement);
@@ -222,7 +225,7 @@ namespace NatureCalls.Input
         public bool BeginGranted(Toilet targetToilet, Urinal targetUrinal)
         {
             if (posture.IsCrawling) return false;
-            toilet = targetToilet; urinal = targetUrinal; requested = -1;
+            toilet = targetToilet; urinal = targetUrinal; requested = -1; UrineFlowing = false;
             if (toilet != null && !toilet.Seat(movement)) return false;
             if (urinal != null && !urinal.Occupy(movement)) return false;
             Phase = (urineMode || targetUrinal != null) ? Stage.Urinating : Stage.Squatting;
@@ -253,6 +256,7 @@ namespace NatureCalls.Input
                 CurrentLanding = initialLanding + right * offset.x + Vector3.up * offset.y;
             }
             else CurrentLanding = initialLanding + new Vector3(offset.x, 0, offset.y);
+            if (Phase == Stage.Urinating && !UrineFlowing) return; // still aiming: nothing comes out yet
             accuracy.Sample(seconds, Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
             if (accuracy.Complete) FinishToileting();
         }

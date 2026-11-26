@@ -113,6 +113,7 @@ namespace NatureCalls.Tests
             Place(urinal.FrontPosition, Vector3.right); needs.BeginRound(1);
             Assert.That(input.TryUrinate(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
             Capture("toileting-urinal-aim.png");
+            Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
             yield return null;
             var toUrinal = Vector3.ProjectOnPlane(urinal.TargetCenter - player.transform.position, Vector3.up).normalized;
             Assert.That(Vector3.Dot(player.transform.forward, toUrinal), Is.GreaterThan(.95f), "The view turns to face the urinal.");
