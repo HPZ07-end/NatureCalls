@@ -27,7 +27,7 @@ namespace NatureCalls.Map
             public int Priority => action; public Transform Target => target; public float Distance => Interaction.ReachDistance;
             public Vector3 AimPoint => target != null ? target.position : Vector3.zero;
             public bool CanInteract(InteractionContext context) => Interaction.InReach(context, target) && owner.CanUse(action);
-            public string Prompt(InteractionContext context) => owner.Prompt(action);
+            public string Prompt(InteractionContext context) => owner.Prompt(action, context);
             public bool Perform(InteractionContext context) => context.Online ? context.Requests != null && context.Requests.RequestInteract(this) : owner.Interact(action, context.Player, context.ClientId);
         }
         public int SharedEntryCount => 1;
@@ -44,17 +44,23 @@ namespace NatureCalls.Map
         }
         private void OnEnable() { foreach (var value in interactables) InteractionRegistry.Register(value); }
         private void OnDisable() { foreach (var value in interactables) InteractionRegistry.Unregister(value); }
-        public string Prompt(int action) => action switch
+        public string Prompt(int action, InteractionContext context) => action switch
         {
             Upstream => RepairProgress == SewerRepairProgress.Blocked ? "E  查看上游堵塞" : "上游观察窗",
             ValveAction => RepairProgress switch { SewerRepairProgress.Inspected => "E  关闭阀门", SewerRepairProgress.Cleared => "E  打开阀门", _ => RepairProgress == SewerRepairProgress.Blocked ? "先查看上游观察窗" : "A 支路阀门" },
-            Inspection => RepairProgress == SewerRepairProgress.Isolated ? "E  用疏通器清除堵塞" : "检修口 · 先关闭阀门",
+            Inspection => RepairProgress == SewerRepairProgress.Isolated
+                ? Item.FindCarriedBy(context.Player) is Plunger ? "E  用疏通器清除堵塞" : "需要疏通器"
+                : "检修口 · 先关闭阀门",
             Downstream => RepairProgress == SewerRepairProgress.Running ? "E  复查回流水位" : RepairProgress == SewerRepairProgress.Confirmed ? "疏通完成 · 回流正常" : "回流观察窗 · 疏通后复查",
             _ => ""
         };
         public bool CanUse(int action) => NextRepairStep(action) != RepairProgress;
         public bool Interact(int action, Movement player, ulong clientId)
-        { if (player == null || !Interaction.InReach(player, action == Upstream ? UpstreamWindow : action == ValveAction ? Valve : action == Inspection ? InspectionPort : DownstreamWindow) || !CanUse(action)) return false; ApplyRepairProgress(NextRepairStep(action)); return true; }
+        {
+            if (player == null || !Interaction.InReach(player, action == Upstream ? UpstreamWindow : action == ValveAction ? Valve : action == Inspection ? InspectionPort : DownstreamWindow) || !CanUse(action)) return false;
+            if (action == Inspection && Item.FindCarriedBy(player) is not Plunger) return false;
+            ApplyRepairProgress(NextRepairStep(action)); return true;
+        }
         private SewerRepairProgress NextRepairStep(int action) => (action, RepairProgress) switch
         {
             (Upstream, SewerRepairProgress.Blocked) => SewerRepairProgress.Inspected, (ValveAction, SewerRepairProgress.Inspected) => SewerRepairProgress.Isolated,
