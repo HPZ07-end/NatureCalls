@@ -23,6 +23,10 @@ namespace NatureCalls.UI
         public static Func<Movement, float> Bladder = player => 0f;
         public static Func<Movement, float> Bowel = player => player != null && player.TryGetComponent<PlayerNeeds>(out var needs) ? needs.Urgency / 100f : 0f;
         public static Func<Movement, float> Composure = player => 1f;
+        /// <summary>The stool kind the bowel is currently building toward (shown as the intestine fill style).</summary>
+        public static Func<Movement, NatureCalls.Core.StoolKind> NextStool = player => NatureCalls.Core.StoolKind.Soft;
+        /// <summary>0–1 how fast the player is moving, for the loose-stool slosh.</summary>
+        public static Func<Movement, float> Speed = player => player != null && player.TryGetComponent<UnityEngine.CharacterController>(out var c) ? UnityEngine.Mathf.Clamp01(c.velocity.magnitude / 5f) : 0f;
         /// <summary>Hidden endurance intensity (no remaining time is ever shown).</summary>
         public static Func<Movement, float> Endurance = player => 0f;
         /// <summary>Vomit countdown progress (0 = none, 1 = about to vomit).</summary>

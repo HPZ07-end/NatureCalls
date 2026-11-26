@@ -152,7 +152,17 @@ namespace NatureCalls.Editor
                 toilet.Interior = toiletVisual;
                 toilet.Anchor = Child(toiletVisual, "Posture anchor", Vector3.back * .65f + Vector3.up * .15f);
                 toilet.SetPipe(pipe);
-                toilet.SetFlushTarget(Child(toiletVisual, "Flush handle target", Vector3.up * .8f + Vector3.forward * .2f));
+                var flush = Child(toiletVisual, "Flush handle target", Vector3.up * .8f + Vector3.forward * .2f);
+                toilet.SetFlushTarget(flush);
+                var button = flush.GetComponent<ToiletFlushButton>();
+                if (button == null) button = Undo.AddComponent<ToiletFlushButton>(flush.gameObject);
+                button.SetToilet(toilet);
+                flush.gameObject.SetActive(true);
+                flush.gameObject.layer = 0;
+                var flushCollider = flush.GetComponent<BoxCollider>();
+                if (flushCollider == null) flushCollider = Undo.AddComponent<BoxCollider>(flush.gameObject);
+                if (flushCollider == null) throw new InvalidOperationException("Could not add flush button collider.");
+                flushCollider.size = new Vector3(.07f, .07f, .07f);
                 foreach (var socket in children.Where(t => t.name.StartsWith("Socket_PaperRoll", StringComparison.Ordinal)).ToArray())
                 {
                 var rollPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/Models/Supplies/Supplies-PaperRoll.fbx");

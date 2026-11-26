@@ -34,7 +34,9 @@ namespace NatureCalls.Network
             SharedAirborne.OnValueChanged += AirborneChanged;
             appearance.SetRemoteAirborne(SharedAirborne.Value);
             movement.SetControl(IsOwner);
-            GetComponent<PlayerInput>().enabled = IsOwner;
+            var playerInput = GetComponent<PlayerInput>();
+            playerInput.enabled = IsOwner;
+            if (IsOwner) playerInput.CaptureMouse = true;
             if (IsOwner) world.Camera.Bind(movement);
         }
 

@@ -102,24 +102,22 @@ namespace NatureCalls.Facility
             if (view.HasValue)
             {
                 var ray = view.Value;
-                var hit = Physics.RaycastAll(ray, Mathf.Max(1f, candidates.Max(value => value.Distance)), Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)
-                    .OrderBy(value => value.distance)
-                    .Select(value => candidates.FirstOrDefault(item => value.transform == item.Target || value.transform.IsChildOf(item.Target)))
-                    .FirstOrDefault(value => value != null);
-                if (hit != null) return hit;
-                const float cone = .965f; // about 15 degrees
-                var focused = candidates.Where(value => Vector3.Dot(ray.direction, (value.AimPoint - ray.origin).normalized) >= cone)
+                // Like a block-game crosshair: the first usable target along the ray wins. Reach is limited by each
+                // target's own distance check (CanInteract) and the ray length.
+                var self = context.Player != null ? context.Player.transform : null;
+                foreach (var value in Physics.RaycastAll(ray, Mathf.Max(1f, candidates.Max(item => item.Distance)), Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)
+                    .OrderBy(value => value.distance))
+                {
+                    if (self != null && value.transform.IsChildOf(self)) continue;
+                    var target = candidates.FirstOrDefault(item => value.transform == item.Target || value.transform.IsChildOf(item.Target));
+                    if (target != null) return target;
+                }
+                // Crosshair tolerance: about 6 degrees around the view ray, and only for targets already in reach
+                // (candidates passed CanInteract). Nothing off to the side or behind the player is picked any more.
+                const float cone = .9945f;
+                return candidates.Where(value => Vector3.Dot(ray.direction, (value.AimPoint - ray.origin).normalized) >= cone)
                     .OrderBy(value => Vector3.Cross(ray.direction, value.AimPoint - ray.origin).sqrMagnitude)
                     .ThenBy(value => value.Priority).FirstOrDefault();
-                if (focused != null) return focused;
-                // Automated movement can update body yaw before the camera pitch catches up. Keep E
-                // target-directed while accepting the same narrow horizontal cone at reachable height.
-                var flat = Vector3.ProjectOnPlane(ray.direction, Vector3.up).normalized;
-                var horizontal = candidates.Where(value => Mathf.Abs(value.AimPoint.y - ray.origin.y) <= 2f)
-                    .Where(value => Mathf.Abs(Vector3.Dot(flat, Vector3.ProjectOnPlane(value.AimPoint - ray.origin, Vector3.up).normalized)) >= 0f)
-                    .OrderBy(value => Vector3.Cross(flat, Vector3.ProjectOnPlane(value.AimPoint - ray.origin, Vector3.up)).sqrMagnitude)
-                    .ThenBy(value => value.Priority).FirstOrDefault();
-                return horizontal;
             }
             return candidates.OrderBy(value => Vector3.Distance(context.Player.transform.position, value.AimPoint))
                 .ThenBy(value => value.Priority).FirstOrDefault();

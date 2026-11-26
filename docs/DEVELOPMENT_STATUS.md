@@ -3,6 +3,12 @@
 2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
+2026-11-26 Map2 清洁交互排查：确认运行时 Player prefab 将 `PlayerInput.CaptureMouse` 序列化为 false，现由离线及联网本地玩家生成时启用鼠标捕获。工具箱提示显示实际取出的工具或归还动作；玩家输入新增受距离和准星约束的 Toolbox 目标兜底，并有 PlayMode 用例覆盖。仓库检查通过；Unity PlayMode 启动在许可证初始化失败，未执行用例，场景交互与真人键鼠未验收。Semantic-Diff: none。
+
+2026-11-26 Map2 双向竖井：A、B 均改为井盖开关、打开后走入下井，并支持从任一井上行；用户已手动确认两井均可上、下。地下柱体开口、梯子模型展示及其余干涉/穿模仍未完成。当前分支 Unity PlayMode 自动化因许可证初始化失败而未执行；本轮人工场景检查通过，未完成双客户端验证。`Semantic-Diff: changed`，路径 `NatureCalls/Content/Map/Map2`，用户于本会话批准。
+
+2026-11-26 Map2 井盖：A 井初始关闭，在井外按 E 开关；开盖后主动走入井口自动下滑，B 井仍按 E 爬梯返回。开关状态由服务器共享，井口附近有人时阻止关盖。Unity 6000.3.26f1 单人 Map2 PlayMode 专项 1/1 通过，覆盖初始状态、开关、自动下滑和 B 井返回；真实双客户端及公网联机未验收。Semantic Diff：`changed`，涉及 `NatureCalls/Content/Map/Map2`，用户在本会话确认交互。
+
 2026-11-26 课程服务器部署：`scripts/deploy_server.py` 将 dev `2bca57f`（PR #41，完整对抗版）部署到 `ubuntu@49.233.132.244`，版本目录 `/opt/naturecalls/releases/2bca57f-20261126T012947Z-8d028c`（`current` 已指向它）。Linux 服务器构建与构建后恢复 macOS Player 通过；脚本检查 `ROOM_OK 8000`，未触发回滚。之后 SSH 只读复核：`naturecalls@8000` 与 `naturecalls-broker` active，8000/UDP 监听，broker `/health` 返回 ok（rooms 0、max 12）。公网 broker `/health` 正常。记录 `Artifacts/20261126T013246Z-deploy-server/`，详见 [开发记录](records/status-log.md#2026-11-26-课程服务器部署-2bca57f)。未执行：本版本的公网 `room_e2e.py` 与跨公网双设备真人对局。旧版本 `9dd8172` 的客户端需更新后才能联机。
 
 2026-11-26 如厕视觉交互（第二阶段，同一分支，已合入 `feat/versus-body` 20ac426）：`Input/ToiletingView` 实现限时低头（约 3 秒额度、落点显示、镜头低头、漂移 ×0.6，与 PlayerNeeds 的低头舒爽度对接）、大便下落与水花和溅屁股画面、小便正对小便池的抛物线尿流与按入射角反弹、溅到自己扣镇定值、舒爽金色闪光；粪便种类抽取改读 PlayerNeeds 的便意、舒爽度、极限忍耐与失控。修正 PlayerNeeds 低头判断的符号（原 `Pitch < -45` 是抬头）。新 PlayMode `ToiletingViewTests` 6/6。未做：低头舒爽度在联机时只在本机有效（服务器看不到客户端的 Pitch）；尿流与下落只在本机显示；没有音效；HUD 在保持阶段仍画目标圈（盲拉需由 HUD 改成只在低头时显示落点）。
