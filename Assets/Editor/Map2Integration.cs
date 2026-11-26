@@ -52,7 +52,11 @@ namespace NatureCalls.Editor
             foreach (var camera in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<UnityEngine.Camera>(true)))
                 if (camera != world.Camera.Output) camera.enabled = false;
 
-            foreach (Transform stall in FindRoot(scene, "Street Restroom").Find("Three Offset Stalls")) ConfigureStall(stall);
+            foreach (Transform stall in FindRoot(scene, "Street Restroom").Find("Three Offset Stalls"))
+            {
+                ConfigureStall(stall);
+                ConfigureToiletOccupancySign(stall);
+            }
             var toolbox = Descendant(FindRoot(scene, "Street Restroom"), "Toolbox");
             var mop = Descendant(toolbox.parent, "Mop");
             var box = GetOrAdd<Toolbox>(toolbox.gameObject);
@@ -92,6 +96,56 @@ namespace NatureCalls.Editor
             Debug.Log("MAP2_LOBBY_INTEGRATION_OK");
         }
 
+        public static void ApplyToiletOccupancySigns()
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var stalls = FindRoot(scene, "Street Restroom").Find("Three Offset Stalls");
+            foreach (Transform stall in stalls) ConfigureToiletOccupancySign(stall);
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Could not save Map2 occupancy signs.");
+            AssetDatabase.SaveAssets();
+            Debug.Log("MAP2_TOILET_OCCUPANCY_SIGNS_OK");
+        }
+
+        [MenuItem("NatureCalls/Resize Map2 Stall 003 Sign")]
+        public static void ResizeStall003Sign()
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var stalls = FindRoot(scene, "Street Restroom").Find("Three Offset Stalls");
+            var first = stalls.Find("A - Circle/A - Circle/Painted sign plate");
+            var third = stalls.Find("C/C/Painted sign plate");
+            if (first == null || third == null) throw new InvalidOperationException("Map2 stall sign plates not found.");
+            var size = third.localScale;
+            size.x = first.localScale.x;
+            third.localScale = size;
+
+            var lettering = FindRoot(scene, "Painted Wayfinding").GetComponent<MeshFilter>();
+            var source = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/Art/Map2/SignLettering.asset");
+            if (lettering == null || source == null || source.vertexCount != 52) throw new InvalidOperationException("Unexpected Map2 lettering mesh.");
+            const string path = "Assets/Art/Map2/StallNumberLettering.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null) { mesh = Object.Instantiate(source); mesh.name = "StallNumberLettering"; AssetDatabase.CreateAsset(mesh, path); }
+            var vertices = source.vertices;
+            float targetWidth = Vector3.Distance(vertices[0], vertices[1]);
+            float oldWidth = Vector3.Distance(vertices[8], vertices[9]);
+            if (oldWidth < .001f) throw new InvalidOperationException("Invalid third stall lettering width.");
+            var center = (vertices[8] + vertices[9]) * .5f;
+            for (int i = 8; i < 12; i++)
+            {
+                var offset = vertices[i] - center;
+                vertices[i] = center + new Vector3(offset.x * targetWidth / oldWidth, offset.y, offset.z * targetWidth / oldWidth);
+            }
+            mesh.vertices = vertices;
+            mesh.RecalculateBounds();
+            lettering.sharedMesh = mesh;
+            EditorUtility.SetDirty(mesh);
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Could not save Map2 stall sign.");
+            AssetDatabase.SaveAssets();
+        }
+
         private static void ConfigureStall(Transform stall)
         {
             var door = stall.Find("Door shown open");
@@ -113,6 +167,78 @@ namespace NatureCalls.Editor
             toilet.Anchor.SetParent(bowl, false);
             toilet.Anchor.SetPositionAndRotation(toilet.TargetCenter - stall.forward * .65f
                 + Vector3.up * (stall.position.y + .15f - toilet.TargetCenter.y), stall.rotation);
+        }
+
+        private static void ConfigureToiletOccupancySign(Transform stall)
+        {
+            var toilet = stall.Find("Bowl")?.GetComponent<Toilet>();
+            var door = stall.Find("Door shown open");
+            if (toilet == null || door == null) throw new InvalidOperationException($"Map2 stall {stall.name} is missing its toilet or door.");
+
+            var sign = stall.Find("Toilet occupancy sign");
+            if (sign == null)
+            {
+                sign = new GameObject("Toilet occupancy sign").transform;
+                sign.SetParent(stall, true);
+            }
+
+            var doorBounds = BoundsIn(door);
+            var signPosition = door.TransformPoint(doorBounds.center + Vector3.up * (doorBounds.extents.y + .19f));
+            signPosition -= door.forward * .06f;
+            sign.SetPositionAndRotation(signPosition, door.rotation);
+            sign.localScale = Vector3.one;
+
+            var housing = sign.Find("Housing");
+            if (housing == null) housing = CreateSignCube(sign, "Housing", new Vector3(.28f, .23f, .045f), Vector3.zero);
+            var indicator = sign.Find("Status light");
+            if (indicator == null) indicator = CreateSignCube(sign, "Status light", new Vector3(.16f, .13f, .025f), new Vector3(0, 0, .034f));
+            var outsideIndicator = sign.Find("Status light outside");
+            if (outsideIndicator == null) outsideIndicator = CreateSignCube(sign, "Status light outside", new Vector3(.16f, .13f, .025f), new Vector3(0, 0, -.034f));
+
+            var housingRenderer = housing.GetComponent<MeshRenderer>();
+            housingRenderer.sharedMaterial = LoadOrCreateOccupancyMaterial();
+            var housingBlock = new MaterialPropertyBlock();
+            housingBlock.SetColor("_BaseColor", new Color(.055f, .07f, .075f));
+            housingRenderer.SetPropertyBlock(housingBlock);
+            var lightRenderer = indicator.GetComponent<MeshRenderer>();
+            lightRenderer.sharedMaterial = LoadOrCreateOccupancyMaterial();
+            var outsideRenderer = outsideIndicator.GetComponent<MeshRenderer>();
+            outsideRenderer.sharedMaterial = LoadOrCreateOccupancyMaterial();
+            var status = sign.GetComponent<ToiletOccupancySign>() ?? sign.gameObject.AddComponent<ToiletOccupancySign>();
+            status.Toilet = toilet;
+            status.Indicator = lightRenderer;
+            status.OutsideIndicator = outsideRenderer;
+
+            PrefabUtility.RecordPrefabInstancePropertyModifications(toilet);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(status);
+        }
+
+        private static Transform CreateSignCube(Transform parent, string name, Vector3 size, Vector3 position)
+        {
+            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.name = name;
+            cube.transform.SetParent(parent, false);
+            cube.transform.localPosition = position;
+            cube.transform.localRotation = Quaternion.identity;
+            cube.transform.localScale = size;
+            var collider = cube.GetComponent<Collider>();
+            if (collider != null) Object.DestroyImmediate(collider);
+            return cube.transform;
+        }
+
+        private static Material LoadOrCreateOccupancyMaterial()
+        {
+            const string path = "Assets/Art/Materials/Toilet-Status-Sign.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material != null) return material;
+            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) throw new InvalidOperationException("Could not find the URP/Lit shader for toilet status signs.");
+            material = new Material(shader) { name = "Toilet-Status-Sign" };
+            material.SetColor("_BaseColor", Color.white);
+            material.EnableKeyword("_EMISSION");
+            material.SetColor("_EmissionColor", Color.white);
+            AssetDatabase.CreateAsset(material, path);
+            return material;
         }
 
         private static void ConfigureShaft(Transform world, Transform shaft, Vector3 direction)

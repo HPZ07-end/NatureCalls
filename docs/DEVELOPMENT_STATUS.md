@@ -13,6 +13,10 @@
 
 2026-11-26 Map2 清洁交互排查：确认运行时 Player prefab 将 `PlayerInput.CaptureMouse` 序列化为 false，现由离线及联网本地玩家生成时启用鼠标捕获。工具箱提示显示实际取出的工具或归还动作；玩家输入新增受距离和准星约束的 Toolbox 目标兜底，并有 PlayMode 用例覆盖。仓库检查通过；Unity PlayMode 启动在许可证初始化失败，未执行用例，场景交互与真人键鼠未验收。Semantic-Diff: none。
 
+2026-11-26 Map2 厕所状态牌：三个隔间门上方设有内外双面红/绿状态灯，依据角色是否位于隔间判断颜色；无人为绿、有人为红。双面牌 Unity API 场景集成与 Validate 通过；人物进入判断尚未进行 Unity PlayMode 或联机人工验收。`Semantic-Diff: changed`，路径 `NatureCalls/Gameplay/Facility/Door`，用户于本会话批准。
+
+2026-11-26 Map2 A 支路维修：检修口仅在玩家手持疏通器时允许 E 清堵；未持有时仍显示“需要疏通器”。沿用现有五步共享维修状态，没有新增维修规则。未运行 Unity 测试；需在 Map2 人工走通完整流程并复核工具提示。Semantic-Diff: none。
+
 2026-11-26 Map2 双向竖井：A、B 均改为井盖开关、打开后走入下井，并支持从任一井上行；用户已手动确认两井均可上、下。地下柱体开口、梯子模型展示及其余干涉/穿模仍未完成。当前分支 Unity PlayMode 自动化因许可证初始化失败而未执行；本轮人工场景检查通过，未完成双客户端验证。`Semantic-Diff: changed`，路径 `NatureCalls/Content/Map/Map2`，用户于本会话批准。
 
 2026-11-26 Map2 井盖：A 井初始关闭，在井外按 E 开关；开盖后主动走入井口自动下滑，B 井仍按 E 爬梯返回。开关状态由服务器共享，井口附近有人时阻止关盖。Unity 6000.3.26f1 单人 Map2 PlayMode 专项 1/1 通过，覆盖初始状态、开关、自动下滑和 B 井返回；真实双客户端及公网联机未验收。Semantic Diff：`changed`，涉及 `NatureCalls/Content/Map/Map2`，用户在本会话确认交互。
