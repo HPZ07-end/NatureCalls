@@ -70,8 +70,8 @@ namespace NatureCalls.Editor
             PrefabUtility.RecordPrefabInstancePropertyModifications(cabinet);
             PrefabUtility.RecordPrefabInstancePropertyModifications(emergency.transform);
             var shafts = FindRoot(scene, "Shafts A and B");
-            ConfigureShaft(world.transform, shafts.Find("Shaft A"), false, Vector3.forward);
-            ConfigureShaft(world.transform, shafts.Find("Shaft B"), true, Vector3.back);
+            ConfigureShaft(world.transform, shafts.Find("Shaft A"), Vector3.forward);
+            ConfigureShaft(world.transform, shafts.Find("Shaft B"), Vector3.back);
             ConfigureSewerStairs(FindRoot(scene, "Sewer and Maintenance").Find("Platforms and Main Channel"));
             ConfigureActivities(scene, world, toolbox.parent, emergency);
             LobbyFlowBuilder.AddMatchHud();
@@ -115,7 +115,7 @@ namespace NatureCalls.Editor
                 + Vector3.up * (stall.position.y + .15f - toilet.TargetCenter.y), stall.rotation);
         }
 
-        private static void ConfigureShaft(Transform world, Transform shaft, bool ascending, Vector3 direction)
+        private static void ConfigureShaft(Transform world, Transform shaft, Vector3 direction)
         {
             var node = world.Find(shaft.name + " access");
             if (node == null)
@@ -124,7 +124,8 @@ namespace NatureCalls.Editor
                 node.SetParent(world, false);
             }
             var access = GetOrAdd<SewerAccess>(node.gameObject);
-            access.Ascending = ascending;
+            access.Ascending = direction == Vector3.back;
+            access.HasHatch = true;
             access.Top = shaft.Find("Shaft top marker");
             access.Landing = shaft.Find("Shaft landing marker");
             access.Lid = Descendant(shaft, "Cover Hinge");
@@ -132,6 +133,7 @@ namespace NatureCalls.Editor
             access.ClosedCover = FitBox(surface);
             access.ApproachDirection = direction;
             access.ApproachDistance = 1.18f;
+            PrefabUtility.RecordPrefabInstancePropertyModifications(access);
         }
 
         private static void ConfigureSewerStairs(Transform platforms)

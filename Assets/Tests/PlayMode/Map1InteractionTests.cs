@@ -53,6 +53,7 @@ namespace NatureCalls.Tests
                 center.y = .015f;
                 var outside = center - door.transform.forward * .55f;
                 Place(outside, door.transform.forward);
+                TestAim.AimAt(player, door);
                 Assert.That(input.TryInteract(), Is.True, door.transform.parent.name);
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
                 controller.Move(door.transform.forward * .95f);
@@ -64,6 +65,7 @@ namespace NatureCalls.Tests
                 Place(new Vector3(inside.x, -2.58f, inside.z), door.transform.forward);
                 Assert.That(StallDoor.Containing(player), Is.Null, "A player on another floor cannot be inside an upstairs stall.");
                 Place(inside, door.transform.forward);
+                TestAim.AimAt(player, door); // the crosshair must be on the door, not the toilet ahead
                 Assert.That(input.TryInteract(), Is.True);
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Closed));
                 Assert.That(input.TryInteract(), Is.True);
@@ -72,6 +74,7 @@ namespace NatureCalls.Tests
                 input.TryInteract();
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Locked));
                 Place(inside, door.transform.forward);
+                TestAim.AimAt(player, door);
                 Assert.That(input.TryInteract(), Is.True);
                 Assert.That(door.State, Is.EqualTo(StallDoorState.Open));
             }
@@ -149,10 +152,11 @@ namespace NatureCalls.Tests
             standing.y = .015f;
             Place(standing, -door.transform.forward);
             Assert.That(input.TryToilet(), Is.True);
-            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Aligning));
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting));
+            player.SetPitch(50);
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(toilet.Occupant, Is.SameAs(player));
-            input.TickAim(NeedsRules.ToiletingSeconds, Vector2.zero);
+            input.TickAim(.1f, Vector2.zero); input.TryToilet();
             Assert.That(toilet.IsOccupied, Is.False);
             Assert.That(input.Unwiped, Is.True);
             Assert.That(input.TryAction(), Is.True, "F wipes with the held paper roll in the unified interaction flow.");
@@ -168,9 +172,10 @@ namespace NatureCalls.Tests
             foreach (var urinal in urinals)
             {
                 Place(urinal.FrontPosition, urinal.TargetCenter - urinal.FrontPosition);
-                Assert.That(input.TryToilet(), Is.True);
+                Assert.That(input.TryUrinate(), Is.True);
                 Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
                 Assert.That(urinal.Occupant, Is.SameAs(player));
+                Assert.That(input.TryToilet(), Is.True, "C starts the stream.");
                 input.TickAim(NeedsRules.UrinatingSeconds, new Vector2(2, 2));
                 Assert.That(urinal.IsOccupied, Is.False);
             }
@@ -179,6 +184,7 @@ namespace NatureCalls.Tests
             var box = Object.FindFirstObjectByType<Toolbox>();
             Assert.That(box.Mop.Stored, Is.True);
             Place(box.transform.position + Vector3.back * .55f, Vector3.forward);
+            TestAim.AimAt(player, box);
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(input.HeldItem, Is.SameAs(box.Mop));
             Assert.That(rolls.Any(roll => roll.CanPickup(player)), Is.False);
@@ -191,6 +197,7 @@ namespace NatureCalls.Tests
             input.ContinueCleaning(true, NeedsRules.CleaningSeconds);
             Assert.That(world.Messes[puddle.Index], Is.Null);
             Place(box.transform.position + Vector3.back * .55f, Vector3.forward);
+            TestAim.AimAt(player, box);
             Assert.That(input.TryInteract(), Is.True);
             Assert.That(box.Mop.Stored, Is.True);
             yield return null;

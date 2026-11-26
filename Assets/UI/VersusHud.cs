@@ -37,7 +37,8 @@ namespace NatureCalls.UI
         private Image roleBadge;
         private GameObject revealCard, endCard;
         private Text revealTitle, revealBody, endTitle, endBody;
-        private Image bladderDot, bowelDot, composureFill;
+        private Image bladderFill, bladderRim, composureFill;
+        private IntestineGauge intestine;
         private Text bladderLabel, bowelLabel, composureLabel;
         private Graphic pulse, tunnel, nausea, glow, blackout;
         private CanvasGroup toastGroup;
@@ -204,24 +205,29 @@ namespace NatureCalls.UI
 
         private void BuildBody()
         {
-            var panel = Rect("Body", root, Vector2.zero, Vector2.zero, new Vector2(24, 24), new Vector2(330, 120));
+            // Urge is shown as body organs, not numbers or "waves": an intestine filling top-down (bowel, with the
+            // coming stool kind visible) and a bladder flask filling bottom-up.
+            var panel = Rect("Body", root, Vector2.zero, Vector2.zero, new Vector2(24, 24), new Vector2(372, 318));
             var back = Panel(panel, new Color(Ink.r, Ink.g, Ink.b, .55f), RoundSprite()); back.type = Image.Type.Sliced;
-            bladderDot = Dot(panel, new Vector2(20, -18)); bladderLabel = Label(Rect("Bladder", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(78, -18), new Vector2(90, 46)), 28, Paper, TextAnchor.MiddleLeft);
-            bowelDot = Dot(panel, new Vector2(170, -18)); bowelLabel = Label(Rect("Bowel", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(228, -18), new Vector2(90, 46)), 28, Paper, TextAnchor.MiddleLeft);
+            var gut = Rect("Intestine", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(14, -12), new Vector2(206, 222));
+            gut.gameObject.AddComponent<CanvasRenderer>(); // a code-built Graphic needs its renderer added explicitly
+            intestine = gut.gameObject.AddComponent<IntestineGauge>(); intestine.raycastTarget = false;
+            bowelLabel = Label(Rect("Bowel", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(14, -234), new Vector2(206, 30)), 22, Paper, TextAnchor.MiddleCenter, FontStyle.Normal);
+            var flask = Rect("Bladder", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(240, -60), new Vector2(112, 136));
+            bladderRim = Panel(flask, IntestineGauge.WallEdge, RoundSprite()); bladderRim.type = Image.Type.Simple;
+            var wall = Stretch("Wall", flask); wall.offsetMin = new Vector2(4, 4); wall.offsetMax = new Vector2(-4, -4);
+            Panel(wall, new Color(1f, .93f, .80f, .9f), RoundSprite()).type = Image.Type.Simple;
+            var urine = Stretch("Urine", flask); urine.offsetMin = new Vector2(9, 9); urine.offsetMax = new Vector2(-9, -9);
+            bladderFill = Panel(urine, new Color(.98f, .82f, .18f), RoundSprite());
+            bladderFill.type = Image.Type.Filled; bladderFill.fillMethod = Image.FillMethod.Vertical; bladderFill.fillOrigin = (int)Image.OriginVertical.Bottom;
+            bladderLabel = Label(Rect("Bladder label", panel, new Vector2(0, 1), new Vector2(0, 1), new Vector2(240, -200), new Vector2(112, 30)), 22, Paper, TextAnchor.MiddleCenter, FontStyle.Normal);
             bladderLabel.text = "尿意"; bowelLabel.text = "便意";
-            var compBack = Rect("Composure", panel, new Vector2(0, 0), new Vector2(0, 0), new Vector2(16, 14), new Vector2(298, 34));
+            var compBack = Rect("Composure", panel, new Vector2(0, 0), new Vector2(0, 0), new Vector2(16, 14), new Vector2(340, 34));
             var cb = Panel(compBack, new Color(0, 0, 0, .55f), RoundSprite()); cb.type = Image.Type.Sliced;
             var compFill = Stretch("Fill", compBack); compFill.offsetMin = new Vector2(4, 4); compFill.offsetMax = new Vector2(-4, -4);
             composureFill = Panel(compFill, new Color(.40f, .85f, .45f), RoundSprite());
             composureFill.type = Image.Type.Filled; composureFill.fillMethod = Image.FillMethod.Horizontal;
             composureLabel = Label(Stretch("Label", compBack), 22, Paper, TextAnchor.MiddleCenter);
-        }
-
-        private Image Dot(RectTransform parent, Vector2 position)
-        {
-            var image = Panel(Rect("Dot", parent, new Vector2(0, 1), new Vector2(0, 1), position, new Vector2(46, 46)), StageColors[0], RoundSprite());
-            image.type = Image.Type.Sliced;
-            return image;
         }
 
         private GameObject Card(string name, out Text title, out Text body, Vector2 size)
@@ -290,7 +296,7 @@ namespace NatureCalls.UI
 
             var remaining = VersusHudFeed.TimeRemaining();
             timerLabel.text = remaining >= 0 ? RoundClock.Format(remaining) : "";
-            wavesLabel.text = WaveText();
+            wavesLabel.text = ""; // urge waves are felt through the organ gauges, never announced as text
 
             var saboteur = RoleRegistry.IsSaboteur(me);
             roleBadge.color = saboteur ? SaboteurPurple : KeeperBlue;
@@ -302,47 +308,27 @@ namespace NatureCalls.UI
             toastGroup.alpha = Mathf.Clamp01((toastUntil - Time.unscaledTime) / .5f);
         }
 
-        private static string WaveText()
-        {
-            var schedule = MatchContext.Schedule;
-            if (schedule.Centers == null || schedule.Centers.Length == 0) return "";
-            var now = MatchContext.Elapsed;
-            var parts = new List<string>();
-            for (int i = 0; i < schedule.Centers.Length; i++)
-            {
-                var c = schedule.Centers[i];
-                var mark = now > c + schedule.Width * 1.5 ? "●" : now > c - schedule.Width * 2 ? "◉" : "○";
-                parts.Add(mark);
-            }
-            int next = -1;
-            for (int i = 0; i < schedule.Centers.Length; i++) if (schedule.Centers[i] - schedule.Width * 2 > now) { next = i; break; }
-            var hint = next >= 0 ? $"   下一波高峰约 {RoundClock.Format(schedule.Centers[next] - schedule.Width * 2 - now)} 后" : "   最后关头！";
-            for (int i = 0; i < schedule.Centers.Length; i++)
-                if (now > schedule.Centers[i] - schedule.Width * 2 && now < schedule.Centers[i] + schedule.Width * 1.5) hint = $"   第 {i + 1} 波便意高峰！";
-            return "便意高峰  " + string.Join(" ", parts) + hint;
-        }
-
         private static int Stage(float value01) => value01 >= .9f ? 3 : value01 >= .7f ? 2 : value01 >= .4f ? 1 : 0;
 
         private void UpdateBody(Movement me)
         {
-            SetDot(bladderDot, VersusHudFeed.Bladder(me));
-            SetDot(bowelDot, VersusHudFeed.Bowel(me));
+            var bladder = Mathf.Clamp01(VersusHudFeed.Bladder(me));
+            var bowel = Mathf.Clamp01(VersusHudFeed.Bowel(me));
+            var endurance = Mathf.Clamp01(VersusHudFeed.Endurance(me));
+            var alarm = Mathf.Max(endurance, Stage(bowel) == 3 ? .6f : 0f, VersusHudFeed.LostControl(me) ? 1f : 0f);
+            intestine.Set(bowel, VersusHudFeed.NextStool(me), VersusHudFeed.Speed(me), alarm);
+            bladderFill.fillAmount = Mathf.Lerp(bladderFill.fillAmount, bladder, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 8f));
+            var bladderAlarm = Stage(bladder) == 3 || (endurance > 0 && bladder >= bowel) ? .5f + .5f * Mathf.Sin(Time.unscaledTime * 10f) : 0f;
+            bladderRim.color = Color.Lerp(IntestineGauge.WallEdge, IntestineGauge.AlarmColor, bladderAlarm);
+            var shake = bladderAlarm > 0 ? 1f + .06f * Mathf.Sin(Time.unscaledTime * 10f) : 1f;
+            bladderRim.rectTransform.localScale = new Vector3(shake, shake, 1);
+            bowelLabel.text = bowel >= .9f ? "便意！" : "便意";
+            bladderLabel.text = bladder >= .9f ? "尿意！" : "尿意";
             var composure = Mathf.Clamp01(VersusHudFeed.Composure(me));
             composureFill.fillAmount = composure;
             composureFill.color = Color.Lerp(new Color(.55f, .75f, .20f), new Color(.40f, .85f, .45f), composure);
             var vomit = VersusHudFeed.Vomit(me);
             composureLabel.text = vomit > 0 ? "要吐了……" : $"镇定值  {Mathf.CeilToInt(composure * 100)}";
-        }
-
-        private void SetDot(Image dot, float value01)
-        {
-            var stage = Stage(value01);
-            var color = StageColors[stage];
-            if (stage == 3) color = Color.Lerp(color, Color.white, .35f + .35f * Mathf.Sin(Time.unscaledTime * 10f));
-            dot.color = color;
-            var scale = 1f + (stage == 3 ? .12f * Mathf.Sin(Time.unscaledTime * 10f) : 0f);
-            dot.rectTransform.localScale = new Vector3(scale, scale, 1);
         }
 
         private void UpdateSignals(Movement me)
