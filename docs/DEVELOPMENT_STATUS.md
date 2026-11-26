@@ -7,6 +7,8 @@
 2026-11-26：对抗模式任务 A 第二轮完成；旧 PlayMode 断言已迁移，随机事件效果、结算快照、8 秒结算停留和离线主流程测试已接入。EditMode 48/48、PlayMode 53/54（1 Relay Ignored、0 Failed）、Server 构建及恢复通过。
 # 实际开发状态
 
+2026-11-26 晚 试玩反馈修复与集成验收（PR #50，分支 `integrate/all`，合并 #44 #45 #48 #49 与 Map3 修复）：准星精确选择且隔间门整块可选；大厅水面视图鼠标指向冲水键按 E；如厕改为 V 瞄准→再按 V 开尿（必须尿完）、C 蹲下→再按 C 开拉（按粪便种类持续，越硬越慢，`StoolRules.ReleaseSeconds` 暂定 1.4/2.6/4.2 s），开始前 Esc 退出瞄准，蹲着可直接按 V 尿；鼠标始终控制视角，低头看到马桶与三种不同的下落；尿流按视线落点判定，落在马桶/小便池开口范围算尿进，未进则边尿边留湿滑尿迹；WASD 小范围挪动；憋便红色状态在排泄后解除；修正对抗模式尿完尿意被重设的问题；Map2 竖井可从井底对准梯子；打包后自动部署（dev/main）。验收（Mac，Unity 6000.3.26f1，提交 ce8fc50）：EditMode 70/70；PlayMode 112 项 110 通过、1 Relay 跳过、1 失败为既有偶发 `PuddleAddsDisgustOnlyNearby`（单独重跑通过）；build-server、`scripts/check.py`、`unittest` 44 项通过。未执行：真实窗口手感（批处理无法驱动按键）、双设备联机、Map2 井底爬梯的实机确认。数值均为暂定。
+
 2026-11-26 Map2 清洁交互排查：确认运行时 Player prefab 将 `PlayerInput.CaptureMouse` 序列化为 false，现由离线及联网本地玩家生成时启用鼠标捕获。工具箱提示显示实际取出的工具或归还动作；玩家输入新增受距离和准星约束的 Toolbox 目标兜底，并有 PlayMode 用例覆盖。仓库检查通过；Unity PlayMode 启动在许可证初始化失败，未执行用例，场景交互与真人键鼠未验收。Semantic-Diff: none。
 
 2026-11-26 Map2 双向竖井：A、B 均改为井盖开关、打开后走入下井，并支持从任一井上行；用户已手动确认两井均可上、下。地下柱体开口、梯子模型展示及其余干涉/穿模仍未完成。当前分支 Unity PlayMode 自动化因许可证初始化失败而未执行；本轮人工场景检查通过，未完成双客户端验证。`Semantic-Diff: changed`，路径 `NatureCalls/Content/Map/Map2`，用户于本会话批准。
