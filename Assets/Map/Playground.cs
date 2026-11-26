@@ -134,7 +134,9 @@ namespace NatureCalls.Map
             instance.name = "Local practice player";
             OfflinePlayer = instance.GetComponent<Movement>();
             OfflinePlayer.SetControl(true);
-            instance.GetComponent<PlayerInput>().enabled = true;
+            var playerInput = instance.GetComponent<PlayerInput>();
+            playerInput.CaptureMouse = true;
+            playerInput.enabled = true;
             var appearance = instance.GetComponent<PlayerAppearance>();
             appearance.SetBodyType(LocalProfile.BodyType);
             if (appearance.Catalog != null) appearance.ApplyOutfit(appearance.Catalog.Clamp(LocalProfile.OutfitIndex));

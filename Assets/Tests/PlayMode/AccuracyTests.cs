@@ -235,7 +235,9 @@ namespace NatureCalls.Tests
             var box = Object.FindFirstObjectByType<Toolbox>(); Place(box.transform.position, Vector3.forward);
             Assert.That(StallDoor.Containing(player), Is.Null, "Toolbox must be in the public area.");
             Assert.That(Object.FindObjectsByType<Mop>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+            InteractionRegistry.Unregister(box); // Selection must still work if scene registration is missing.
             TestAim.LookAtNearest(input); Assert.That(input.TryInteract(), Is.True); Assert.That(input.HeldItem, Is.SameAs(box.Mop));
+            Assert.That(box.Prompt(new InteractionContext(player, 0, false, null)), Is.EqualTo("E  放回拖把"));
             var paper = Object.FindFirstObjectByType<PaperRoll>(); paper.transform.position = player.transform.position;
             Assert.That(paper.Pickup(player), Is.False);
             Assert.That(box.Mop.Throw(player, Vector3.forward), Is.True);

@@ -82,6 +82,9 @@ namespace NatureCalls.Network
             var host = ServerFacilities();
             if (host == null || index < 0 || index >= host.TraversalSources.Length || Time.time < nextTraversal ||
                 activeMode != 0 || !host.TraversalSources[index].CanTraverse(movement)) return;
+            if (host.TraversalSources[index] is Map.SewerAccess shaft &&
+                Mathf.Abs(movement.transform.position.y - shaft.Top.position.y) < .75f && shaft.HasHatch &&
+                (!shaft.IsOpen || Vector3.ProjectOnPlane(movement.transform.position - shaft.Top.position, Vector3.up).sqrMagnitude > .65f * .65f)) return;
             nextTraversal = Time.time + 1.7f;
             host.TraversalSources[index].SetOpen(true);
             host.PublishShared();

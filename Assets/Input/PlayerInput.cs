@@ -164,6 +164,11 @@ namespace NatureCalls.Input
             Ray? view = posture.State == PostureState.Standing && movement.Seat == null && !movement.IsCrawling && !movement.Aiming
                 ? movement.ViewRay : null;
             Focus = InteractionRegistry.Resolve(context, view);
+            if (Focus == null && view.HasValue)
+                Focus = FindObjectsByType<Toolbox>(FindObjectsSortMode.None)
+                    .Where(toolbox => toolbox.CanInteract(context) && toolbox.IsTargetedBy(movement))
+                    .OrderBy(toolbox => Vector3.Distance(toolbox.AimPoint, view.Value.origin))
+                    .FirstOrDefault();
             FocusPrompt = Focus == null ? "" : Focus.Prompt(context);
         }
 
