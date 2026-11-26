@@ -83,9 +83,10 @@ namespace NatureCalls.UI
             var player = world != null && world.Camera != null ? world.Camera.Target : null;
             var input = player != null ? player.GetComponent<PlayerInput>() : null;
             var posture = player != null ? player.GetComponent<Posture>() : null;
-            bool show = input != null && player.Controlled && !player.IsTraversing && !player.Aiming && player.Seat == null &&
-                        !input.IsToileting && (posture == null || posture.State == PostureState.Standing) &&
-                        (input.Captured || !input.CaptureMouse);
+            bool urineAim = input != null && input.Phase == PlayerInput.Stage.Urinating; // the stream goes where you look
+            bool show = input != null && player.Controlled && !player.IsTraversing && (input.Captured || !input.CaptureMouse) &&
+                        (urineAim || (!player.Aiming && player.Seat == null && !input.IsToileting &&
+                                      (posture == null || posture.State == PostureState.Standing)));
             canvas.enabled = show;
             if (!show) { OnTarget = false; return; }
             OnTarget = input.Focus != null;

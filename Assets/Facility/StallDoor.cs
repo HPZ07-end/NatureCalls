@@ -109,6 +109,8 @@ namespace NatureCalls.Facility
 
         // The crosshair selects the door by its leaf, not by the whole stall (partitions, toilet, occupancy volume).
         public override Transform Target => DoorLeaf != null ? DoorLeaf : transform;
+        // The solid blocker lives on DoorColliderPivot, outside the leaf: aiming anywhere on the door must count.
+        public override bool Owns(Transform hit) => base.Owns(hit) || (DoorColliderPivot != null && (hit == DoorColliderPivot || hit.IsChildOf(DoorColliderPivot)));
         public override float Distance => InteractionDistance;
         public override Vector3 AimPoint => DoorLeaf != null ? DoorLeaf.GetComponentInChildren<Collider>()?.bounds.center ?? DoorLeaf.position : transform.position;
         public override bool CanInteract(InteractionContext context) => CanInteract(context.Player);

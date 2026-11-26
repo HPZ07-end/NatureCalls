@@ -59,6 +59,19 @@ namespace NatureCalls.Tests
             yield return null; input.RefreshFocus(); yield return null;
             Assert.That(input.Focus, Is.Not.SameAs(roll), "Looking well away no longer selects the roll.");
 
+            // Regression: aiming at the door away from its centre still opens it (the blocker collider counts).
+            var door = Object.FindFirstObjectByType<StallDoor>();
+            var blocker = door.DoorColliderPivot.GetComponent<Collider>();
+            controller.enabled = false;
+            var front = blocker.bounds.center - door.transform.forward * 1.0f; front.y = player.transform.position.y;
+            player.transform.position = front; controller.enabled = true; Physics.SyncTransforms();
+            var edge = blocker.bounds.center + door.transform.right * .22f + Vector3.up * .3f; // well off the centre, still on the panel
+            player.LookAt(edge);
+            yield return null; input.RefreshFocus();
+            Assert.That(input.Focus, Is.SameAs(door), "Looking at the door off-centre still selects it.");
+            yield return null; input.RefreshFocus(); yield return null;
+            Assert.That(crosshair.OnTarget, Is.True);
+
             player.GetComponent<Posture>().Set(PostureState.Squatting);
             yield return null; yield return null;
             Assert.That(crosshair.Visible, Is.False, "No crosshair while squatting: toileting aim is by feel.");

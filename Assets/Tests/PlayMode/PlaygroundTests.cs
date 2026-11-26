@@ -247,8 +247,8 @@ namespace NatureCalls.Tests
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(posture.State, Is.EqualTo(PostureState.Squatting));
             Assert.That(player.Seat, Is.Null, "Squatting outside a stall uses no toilet.");
-            player.SetPitch(50); Assert.That(input.TryToilet(), Is.True);
-            Assert.That(input.Phase, Is.EqualTo(NatureCalls.Input.PlayerInput.Stage.Aiming));
+            player.SetPitch(55); input.RefreshAimPhase();
+            Assert.That(input.Phase, Is.EqualTo(NatureCalls.Input.PlayerInput.Stage.Aiming), "Looking down is the aim.");
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(posture.State, Is.EqualTo(PostureState.Standing), "C confirms and stands the player up.");
             Assert.That(input.TryInteract(), Is.False, "E no longer squats or sits.");
@@ -275,7 +275,7 @@ namespace NatureCalls.Tests
                 var before = player.transform.position;
                 Assert.That(input.TryToilet(), Is.True);
                 Assert.That(input.Phase, Is.EqualTo(NatureCalls.Input.PlayerInput.Stage.Squatting));
-                player.SetPitch(50); Assert.That(input.TryToilet(), Is.True);
+                player.SetPitch(55); input.RefreshAimPhase();
                 Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "C sits on the toilet of the stall the player is in.");
                 Assert.That(toilet.Occupant, Is.EqualTo(player));
                 yield return null;
@@ -378,7 +378,7 @@ namespace NatureCalls.Tests
             yield return OpenStallAndStandAt(player, toilet);
             yield return Teleport(player, toilet.Anchor.position - toilet.Anchor.forward * .25f);
             Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryToilet(), Is.True);
-            player.SetPitch(50); Assert.That(player.GetComponent<NatureCalls.Input.PlayerInput>().TryToilet(), Is.True);
+            player.SetPitch(55);
             deadline = Time.time + 2;
             while (player.Seat == null && Time.time < deadline) yield return null;
             Assert.That(player.Seat, Is.EqualTo(toilet.Anchor), "The host grants the free seat.");
@@ -458,7 +458,7 @@ namespace NatureCalls.Tests
             var input = player.GetComponent<NatureCalls.Input.PlayerInput>(); input.enabled = false;
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(player.GetComponent<Posture>().State, Is.EqualTo(PostureState.Squatting));
-            player.SetPitch(50); input.TryToilet();
+            player.SetPitch(55); input.RefreshAimPhase();
             var last = camera.transform.position;
             float deadline = Time.time + 1;
             int intermediateFrames = 0;
@@ -487,8 +487,9 @@ namespace NatureCalls.Tests
             Assert.That(world.Camera.FirstPerson.Priority.Value, Is.GreaterThan(world.Camera.ThirdPerson.Priority.Value));
             Assert.That(world.Camera.Output.enabled, Is.True, "First-person toileting output remains active.");
             // First-person toileting: the local body layer is rendered so the player can see their own legs.
-            Assert.That((camera.cullingMask & (1 << NatureCalls.Camera.CameraController.LocalBodyLayer)) != 0, Is.True,
-                "Squatting in first person shows the local body (legs).");
+            // Head up the knees are visible; bowed to aim, the torso is hidden so the bowl shows.
+            Assert.That((camera.cullingMask & (1 << NatureCalls.Camera.CameraController.LocalBodyLayer)) != 0, Is.EqualTo(world.Camera.Gaze <= .3f),
+                "Squatting shows the local body only while the head is up.");
             foreach (var renderer in player.Body.GetComponentsInChildren<Renderer>())
                 Assert.That(renderer.forceRenderingOff, Is.False, "Local body renderers stay on.");
             Capture(camera, "squatting.png");

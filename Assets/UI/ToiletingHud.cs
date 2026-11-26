@@ -60,7 +60,7 @@ namespace NatureCalls.UI
             }
             if (phase != PlayerInput.Stage.None)
             {
-                phaseLabel.text = Prompt(phase);
+                phaseLabel.text = phase == PlayerInput.Stage.Urinating && input.UrineFlowing ? "尿中……（要尿完）" : Prompt(phase);
                 bool timed = phase == PlayerInput.Stage.Urinating && input.Duration > 0;
                 progressFill.transform.parent.gameObject.SetActive(timed);
                 progressFill.fillAmount = phase == PlayerInput.Stage.Cleaning ? input.CleaningProgress
@@ -80,9 +80,9 @@ namespace NatureCalls.UI
 
         private static string Prompt(PlayerInput.Stage phase) => phase switch
         {
-            PlayerInput.Stage.Squatting => "C 拉屎 · V 撒尿　低头瞄准，C 确认　Space 站起",
-            PlayerInput.Stage.Aiming => "低头瞄准，C 确认　Space 站起",
-            PlayerInput.Stage.Urinating => "撒尿：鼠标瞄准，C 开始尿　Space 退出",
+            PlayerInput.Stage.Squatting => "再按 C 开拉（可低头看马桶）· V 先尿　Esc 站起",
+            PlayerInput.Stage.Aiming => "再按 C 开拉 · V 先尿　Esc 站起",
+            PlayerInput.Stage.Urinating => "看准位置，再按 V 开尿（开始后要尿完）　Esc 退出",
             PlayerInput.Stage.Cleaning => "清理中：按住 F",
             _ => ""
         };

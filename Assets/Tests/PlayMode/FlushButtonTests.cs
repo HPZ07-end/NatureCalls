@@ -33,6 +33,9 @@ namespace NatureCalls.Tests
             var button = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<ToiletFlushButton>(true)).FirstOrDefault();
             Assert.That(button, Is.Not.Null, path + " has a flush button");
             var controller = player.GetComponent<CharacterController>(); controller.enabled = false;
+            // Open the stall door first: a closed door now blocks the crosshair, as it should.
+            var stall = button.GetComponentInParent<Toilet>().GetComponentInParent<StallDoor>();
+            if (stall != null) stall.ApplySharedState(StallDoorState.Open);
             var approach = Vector3.ProjectOnPlane(world.Spawns[0].position - button.transform.position, Vector3.up).normalized;
             if (approach.sqrMagnitude < .01f) approach = -button.transform.forward;
             player.transform.SetPositionAndRotation(button.transform.position + approach * .95f, Quaternion.LookRotation(-approach));
@@ -43,7 +46,7 @@ namespace NatureCalls.Tests
             Capture(world.Camera.Output, screenshot);
             Assert.That(input.TryInteract(), Is.True, path + " flush button performs");
 
-            TestAim.AimAt(player, button.GetComponentInParent<Toilet>()); input.RefreshFocus();
+            player.LookAt(button.GetComponentInParent<Toilet>().TargetCenter); input.RefreshFocus(); // the bowl, away from the button
             Assert.That(input.Focus, Is.Not.SameAs(button), path + " toilet body is not flush target");
             controller.enabled = false; player.transform.position = button.transform.position - button.transform.forward * 3f; controller.enabled = true;
             TestAim.AimAt(player, button); input.RefreshFocus();
