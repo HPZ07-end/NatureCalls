@@ -19,8 +19,9 @@ namespace NatureCalls.Tests
         public static void AimAt(Movement player, Component target)
         {
             // Prefer the component itself (a stall door also contains its toilet), then its owner, then a child.
-            var owner = InteractionRegistry.All.FirstOrDefault(item => ReferenceEquals(item, target))
-                        ?? InteractionRegistry.All.FirstOrDefault(item => item.Target != null && (item.Target == target.transform || target.transform.IsChildOf(item.Target)))
+            var owner = InteractionRegistry.All.FirstOrDefault(item => item is Component component && component == target)
+                        ?? InteractionRegistry.All.FirstOrDefault(item => item.Target != null && item.Target == target.transform)
+                        ?? InteractionRegistry.All.FirstOrDefault(item => item.Target != null && target.transform.IsChildOf(item.Target))
                         ?? InteractionRegistry.All.FirstOrDefault(item => item.Target != null && item.Target.IsChildOf(target.transform));
             player.LookAt(owner != null ? owner.AimPoint : target.transform.position);
         }

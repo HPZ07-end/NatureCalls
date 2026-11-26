@@ -19,9 +19,9 @@ namespace NatureCalls.Input
         private FacilitySync facilities;
         private NeedsSync needsSync;
         private PlayerNeeds needs;
-        public enum Stage { None, Squatting, Aiming, Urinating, Cleaning, Aligning, Holding }
+        public enum Stage { None, Squatting, Aiming, Urinating, Cleaning }
         public Stage Phase { get; private set; }
-        public bool IsToileting => Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating || Phase == Stage.Holding;
+        public bool IsToileting => Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating;
         public bool Unwiped => needs != null && needs.Unwiped;
         public Item HeldItem => Item.FindCarriedBy(movement);
         public int PaperRemainingUses => HeldItem is PaperRoll roll ? roll.RemainingUses : 0;
@@ -92,7 +92,12 @@ namespace NatureCalls.Input
             Unlock();
         }
         private void OnDestroy() { if (needs != null) needs.AutoToiletRequested -= AutoToilet; move?.Dispose(); look?.Dispose(); jump?.Dispose(); toggle?.Dispose(); urinate?.Dispose(); interact?.Dispose(); action?.Dispose(); throwRoll?.Dispose(); release?.Dispose(); }
-        private void AutoToilet(Toilet target) { if (target != null && Phase == Stage.None) BeginGranted(target, null); }
+        private void AutoToilet(Toilet target)
+        {
+            if (target == null || Phase != Stage.None || !BeginGranted(target, null)) return;
+            // Loss-of-control uses the same authority path but confirms immediately.
+            Phase = Stage.Aiming; if (needs != null) needs.Aiming = true; FinishToileting();
+        }
         public static void Unlock() { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
         private void OnApplicationFocus(bool focused) { if (!focused) Unlock(); }
         private void Update()
@@ -163,9 +168,12 @@ namespace NatureCalls.Input
             if (movement == null || movement.IsTraversing) { Focus = null; FocusPrompt = ""; return; }
             var context = Context();
             // First person: the crosshair (view ray). Seated, squatting, crawling or aiming: nearest by proximity.
-            Ray? view = posture.State == PostureState.Standing && movement.Seat == null && !movement.IsCrawling && !movement.Aiming
+            Ray? view = (posture.State == PostureState.Standing || IsToileting) && !movement.IsCrawling
                 ? movement.ViewRay : null;
             Focus = InteractionRegistry.Resolve(context, view);
+            if (Focus == null && posture.IsSquatting && movement.Seat != null)
+                Focus = InteractionRegistry.All.Where(item => item is not ToiletFlushButton && item.CanInteract(context))
+                    .OrderBy(item => Vector3.Distance(item.AimPoint, movement.transform.position)).FirstOrDefault();
             FocusPrompt = Focus == null ? "" : Focus.Prompt(context);
         }
 

@@ -14,8 +14,18 @@ namespace NatureCalls.Editor
         public static void Apply()
         {
             ApplyScene("Assets/Scenes/Playground.unity", false);
+            ApplyScene("Assets/Scenes/Map1.unity", false);
             ApplyScene("Assets/Scenes/Map2.unity", true);
+            if (System.IO.File.Exists("Assets/Scenes/Map3.unity")) ApplySceneIfWorld("Assets/Scenes/Map3.unity", false);
             AssetDatabase.SaveAssets();
+        }
+
+        private static void ApplySceneIfWorld(string path, bool map2)
+        {
+            var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+            var world = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<NatureCalls.Map.Playground>(true)).SingleOrDefault();
+            if (world == null) return;
+            ApplyScene(path, map2);
         }
 
         private static void ApplyScene(string path, bool map2)
@@ -46,7 +56,7 @@ namespace NatureCalls.Editor
             pipe.SetFixtures(fixtures);
             foreach (var fixture in fixtures)
             {
-                if (fixture is Toilet toilet) { toilet.SetPipe(pipe); var target = toilet.transform.Find("Flush handle target"); if (target == null) { target = new GameObject("Flush handle target").transform; target.SetParent(toilet.transform, false); target.localPosition = new Vector3(0, .8f, .65f); } var button = target.GetComponent<ToiletFlushButton>() ?? target.gameObject.AddComponent<ToiletFlushButton>(); button.SetToilet(toilet); var box = target.GetComponent<BoxCollider>() ?? target.gameObject.AddComponent<BoxCollider>(); box.size = new Vector3(.07f, .07f, .07f); PrefabUtility.RecordPrefabInstancePropertyModifications(toilet); PrefabUtility.RecordPrefabInstancePropertyModifications(button); }
+                if (fixture is Toilet toilet) { toilet.SetPipe(pipe); var target = toilet.transform.Find("Flush handle target"); if (target == null) { target = new GameObject("Flush handle target").transform; target.SetParent(toilet.transform, false); target.localPosition = new Vector3(0, .8f, .65f); } var button = target.GetComponent<ToiletFlushButton>(); if (button == null) button = target.gameObject.AddComponent<ToiletFlushButton>(); button.SetToilet(toilet); target.gameObject.layer = 0; var box = target.GetComponent<BoxCollider>(); if (box == null) box = target.gameObject.AddComponent<BoxCollider>(); box.size = new Vector3(.07f, .07f, .07f); PrefabUtility.RecordPrefabInstancePropertyModifications(toilet); PrefabUtility.RecordPrefabInstancePropertyModifications(button); }
                 else if (fixture is Urinal urinal) urinal.SetPipe(pipe);
                 else if (fixture is Sink sink) sink.SetPipe(pipe);
             }

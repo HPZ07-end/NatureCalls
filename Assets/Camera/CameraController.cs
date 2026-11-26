@@ -89,7 +89,8 @@ namespace NatureCalls.Camera
             SetPosture(posture.State);
             UpdateTargets();
             // Hide only from the local first-person output. Mirror cameras still render this layer.
-            bool hidden = (!posture.IsSquatting && !Target.Aiming) || Gaze > .3f || Vector3.Distance(Output.transform.position, Eye.position) < .65f;
+            bool toileting = posture.IsSquatting || Target.Aiming;
+            bool hidden = !toileting;
             Output.cullingMask = hidden ? outputCullingMask & ~(1 << LocalBodyLayer) : outputCullingMask;
             foreach (var renderer in body) if (renderer != null) renderer.forceRenderingOff = false;
         }
@@ -97,7 +98,9 @@ namespace NatureCalls.Camera
         {
             if (Target == null) return;
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
-            if (!posture.IsSquatting || Target.Aiming)
+            if (posture.IsSquatting || Target.Aiming)
+                Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * 1.05f, Target.ViewRotation);
+            else
                 Eye.SetPositionAndRotation(Target.transform.position + Vector3.up * (Target.IsCrawling ? .63f : EyeHeight), Target.ViewRotation);
             bool seated = Target.Aiming || (posture.IsSquatting && Target.Seat != null);
             if (posture.IsSquatting || Target.Aiming)

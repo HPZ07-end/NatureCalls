@@ -152,10 +152,11 @@ namespace NatureCalls.Tests
             standing.y = .015f;
             Place(standing, -door.transform.forward);
             Assert.That(input.TryToilet(), Is.True);
-            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Aligning));
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting));
+            player.SetPitch(50);
             Assert.That(input.TryToilet(), Is.True);
             Assert.That(toilet.Occupant, Is.SameAs(player));
-            input.TickAim(NeedsRules.ToiletingSeconds, Vector2.zero);
+            input.TickAim(.1f, Vector2.zero); input.TryToilet();
             Assert.That(toilet.IsOccupied, Is.False);
             Assert.That(input.Unwiped, Is.True);
             Assert.That(input.TryAction(), Is.True, "F wipes with the held paper roll in the unified interaction flow.");
@@ -171,7 +172,7 @@ namespace NatureCalls.Tests
             foreach (var urinal in urinals)
             {
                 Place(urinal.FrontPosition, urinal.TargetCenter - urinal.FrontPosition);
-                Assert.That(input.TryToilet(), Is.True);
+                Assert.That(input.TryUrinate(), Is.True);
                 Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
                 Assert.That(urinal.Occupant, Is.SameAs(player));
                 input.TickAim(NeedsRules.UrinatingSeconds, new Vector2(2, 2));

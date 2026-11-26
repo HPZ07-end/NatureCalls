@@ -98,6 +98,8 @@ namespace NatureCalls.UI
         {
             // No target circle while holding: defecation is blind except for the timed look-down marker (ToiletGaze).
             overlay.gameObject.SetActive(false);
+            landingMarker.gameObject.SetActive(false);
+            foreach (var dot in dots) dot.gameObject.SetActive(false);
         }
 
         private void Place(RectTransform element, UnityEngine.Camera camera, Vector3 world)

@@ -10,7 +10,8 @@ namespace NatureCalls.Facility
         public Toilet Toilet => toilet != null ? toilet : GetComponentInParent<Toilet>();
         public override int Priority => 110;
         public override float Distance => 1.5f;
-        public override bool CanInteract(InteractionContext context) => Toilet != null && Interaction.InReach(context, transform) &&
+        public override Vector3 AimPoint => transform.position;
+        public override bool CanInteract(InteractionContext context) => Toilet != null && context.Player != null && Vector3.Distance(context.Player.transform.position, transform.position) <= Distance &&
             !Toilet.IsBroken && (!Toilet.IsOccupied || Toilet.Occupant == context.Player);
         public override string Prompt(InteractionContext context) => "E  冲水";
         public override bool Perform(InteractionContext context)
