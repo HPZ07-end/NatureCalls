@@ -162,6 +162,30 @@ namespace NatureCalls.Input
             if (input.DropSerial != seenDrop) { seenDrop = input.DropSerial; BeginDrop(); }
             if (phase == PlayerInput.Stage.Urinating && input.UrineFlowing) TickStream(Time.deltaTime); else HideStream();
             TickDrop(Time.deltaTime);
+            FadeBlockers(phase == PlayerInput.Stage.Urinating && movement.Seat == null ? input.CurrentToilet : null);
+        }
+
+        private readonly System.Collections.Generic.List<Renderer> faded = new();
+        /// <summary>
+        /// Standing close to a toilet, its tank or lid can sit between the eye and the bowl. While aiming the stream,
+        /// parts of that toilet which cover the line of sight to the opening (and do not contain it) are hidden.
+        /// </summary>
+        private void FadeBlockers(Toilet target)
+        {
+            foreach (var renderer in faded) if (renderer != null) renderer.forceRenderingOff = false;
+            faded.Clear();
+            var eye = UnityEngine.Camera.main;
+            if (target == null || eye == null) return;
+            var from = eye.transform.position; var to = input.TargetCenter;
+            var ray = new Ray(from, (to - from).normalized); float length = Vector3.Distance(from, to);
+            var root = target.transform.parent != null && target.transform.parent.GetComponent<StallDoor>() == null ? target.transform.parent : target.transform;
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>())
+            {
+                if (renderer is LineRenderer || renderer.forceRenderingOff) continue;
+                var bounds = renderer.bounds;
+                if (bounds.Contains(to) || Vector3.Distance(bounds.center, to) > 1.2f) continue; // keep the bowl itself; only nearby parts
+                if (bounds.IntersectRay(ray, out var distance) && distance < length - .2f) { renderer.forceRenderingOff = true; faded.Add(renderer); }
+            }
         }
 
         // ---------------------------------------------------------------- defecation
@@ -384,7 +408,7 @@ namespace NatureCalls.Input
         }
 
         private void HideStream() { if (Stream != null) Stream.enabled = false; }
-        private void OnDestroy() { if (Stream != null) Destroy(Stream.gameObject); ClearPieces(); }
+        private void OnDestroy() { if (Stream != null) Destroy(Stream.gameObject); ClearPieces(); FadeBlockers(null); }
     }
 
     /// <summary>Gold sparkles while the explicit comfort boost runs (GLOSSARY Comfort); shown on every peer.</summary>

@@ -182,6 +182,33 @@ namespace NatureCalls.Tests
             Assert.That(needs.InEndurance, Is.False, "Relief ends the red endurance state.");
         }
 
+        [UnityTest] public IEnumerator CrosshairOnTheBowlPeesIntoTheToilet()
+        {
+            // Regression: the toilet's box collider tops out above the water, so aiming at the bowl counted as a miss.
+            var toilet = Object.FindFirstObjectByType<Toilet>(); needs.BeginRound(1);
+            var front = toilet.Anchor.position + Vector3.ProjectOnPlane(toilet.Anchor.forward, Vector3.up).normalized * .5f;
+            Place(front, -toilet.Anchor.forward);
+            Assert.That(input.TryUrinate(), Is.True); Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            yield return null;
+            player.LookAt(toilet.TargetCenter);
+            Assert.That(input.TryUrinate(), Is.True, "Second V starts the stream.");
+            input.TickAim(NatureCalls.Core.NeedsRules.UrinatingSeconds * .5f, Vector2.zero);
+            Assert.That(input.CurrentAccuracy, Is.GreaterThan(.9f), "The crosshair on the bowl counts as in.");
+            player.LookAt(toilet.TargetCenter + player.transform.right * 1.2f);
+            input.TickAim(NatureCalls.Core.NeedsRules.UrinatingSeconds * .5f, Vector2.zero);
+            Assert.That(input.CurrentAccuracy, Is.LessThan(.6f), "Looking well beside the toilet misses.");
+        }
+
+        [UnityTest] public IEnumerator SquattingOnTheFloorLooksBetweenTheLegsLikeOnTheToilet()
+        {
+            Place(player.transform.position, player.transform.forward);
+            Assert.That(input.TryToilet(), Is.True); Assert.That(player.Seat, Is.Null, "Outside a stall: floor squat.");
+            var eyeBefore = world.Camera.Eye.position;
+            player.SetPitch(70); yield return null; yield return null;
+            Assert.That(world.Camera.Gaze, Is.GreaterThan(.3f), "The bowed head drives the look-down on the floor too.");
+            Assert.That(Vector3.Dot(world.Camera.Eye.position - eyeBefore, player.transform.forward), Is.GreaterThan(.05f), "Leans forward over the knees.");
+        }
+
         [UnityTest] public IEnumerator ComfortBoostSparkles()
         {
             var sparkle = player.GetComponent<ComfortSparkle>();
