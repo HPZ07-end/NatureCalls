@@ -102,6 +102,8 @@ Unity Editor 用于查看 Scene、Prefab、Inspector 引用及 Play Mode；VS Co
 
 **打包后自动部署**（用户 2026-11-26 要求）：在 `dev` 或 `main` 上、已跟踪文件没有未提交改动时，`unity.py build-macos` / `build-windows` 成功后会自动运行 `deploy_server.py --skip-if-current`，让课程服务器与刚打出的客户端是同一个提交；服务器已在运行该提交时直接跳过。其他分支（包括 Codex 的 worktree）、有改动的工作区只打包不部署，并打印原因。单次跳过用 `--no-deploy`，整体关闭设环境变量 `NATURECALLS_AUTO_DEPLOY=0`。部署会重启 8000 常驻房间和 broker，正在 8000 房间里的玩家会断线。客户端构建成功而部署失败时命令返回非零并说明。
 
+**本地构建自动清理**（用户 2026-11-28 要求）：`unity.py build-macos` / `build-windows` / `build-server` 成功后，`Builds/<平台>/` 下只保留最新的 3 个构建（按目录名中的时间排序），其余自动删除。
+
 Linux 首次构建时 Unity 自动添加官方 1.1.1 工具链依赖（linux-x86_64、linux-arm64 SDK、macos-arm64-linux toolchain 和 sysroot.base）；manifest 与 lock 一并保留，没有升级现有运行时包。
 
 ## 服务器房间开发约定

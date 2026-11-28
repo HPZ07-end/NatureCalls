@@ -182,3 +182,19 @@ class AutoDeployTests(unittest.TestCase):
         self.assertFalse(unity.auto_deploy_plan("", False, None)[0])
         self.assertFalse(unity.auto_deploy_plan("dev", True, None)[0])
         self.assertFalse(unity.auto_deploy_plan("dev", False, "0")[0])
+
+
+class PruneBuildsTests(unittest.TestCase):
+    def test_keeps_the_newest_three_by_stamp(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            names = ["20261126T090000Z-a", "20261128T091015Z-b", "20261120T010000Z-c", "20261127T120000Z-d", "20261125T000000Z-e"]
+            for name in names:
+                (root / name).mkdir()
+            removed = unity.prune_builds(root)
+            self.assertEqual(sorted(item.name for item in root.iterdir()),
+                             ["20261126T090000Z-a", "20261127T120000Z-d", "20261128T091015Z-b"])
+            self.assertEqual(len(removed), 2)
+
+    def test_missing_folder_is_fine(self):
+        self.assertEqual(unity.prune_builds(Path("/nonexistent/naturecalls-builds")), [])
