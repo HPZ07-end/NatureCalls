@@ -343,7 +343,7 @@ namespace NatureCalls.Input
         /// <summary>Urine that misses the target wets the floor where it lands, while it lands (not after).</summary>
         private void MaybeWet(Vector3 point)
         {
-            if (wetCount >= 8 || (wetCount > 0 && Vector3.Distance(Vector3.ProjectOnPlane(point, Vector3.up), Vector3.ProjectOnPlane(lastWet, Vector3.up)) < .45f)) return;
+            if (wetCount >= 12 || (wetCount > 0 && Vector3.Distance(Vector3.ProjectOnPlane(point, Vector3.up), Vector3.ProjectOnPlane(lastWet, Vector3.up)) < .3f)) return; // close enough to join into one trail (UrineTrails)
             lastWet = point; wetCount++;
             if (Online) facilities.RequestUrineSplash(point);
             else MessSinkRegistry.Current?.AddMess(MessKind.Puddle, point, -1, movement);
