@@ -326,18 +326,19 @@ namespace NatureCalls.Network
             if (index < 0) return false;
             BeginUrinalRpc(index); return true;
         }
-        public bool RequestOutside()
+        /// <summary>Toileting away from any fixture: <paramref name="urine"/> pees (mode 5), otherwise squats (mode 3).</summary>
+        public bool RequestOutside(bool urine = false)
         {
             if (!IsSpawned || !IsOwner) return false;
-            BeginOutsideRpc(); return true;
+            BeginOutsideRpc(urine); return true;
         }
         [Rpc(SendTo.Server)]
-        private void BeginOutsideRpc(RpcParams rpc = default)
+        private void BeginOutsideRpc(bool urine, RpcParams rpc = default)
         {
             if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || activeMode != 0 || posture.IsCrawling ||
                 StallDoor.Containing(movement) != null) return;
             if (Facilities.Current == null || Facilities.Current.urinals.Any(u => u.Contains(movement))) return;
-            activeMode = 3; began = Time.time; GetComponent<PlayerNeeds>().Toileting = true;
+            activeMode = urine ? (byte)5 : (byte)3; began = Time.time; GetComponent<PlayerNeeds>().Toileting = true;
             OutsideGrantedRpc();
         }
         [Rpc(SendTo.Owner)]
@@ -397,13 +398,14 @@ namespace NatureCalls.Network
             var host = ServerFacilities();
             if (host == null || rpc.Receive.SenderClientId != OwnerClientId || activeMode == 0 || !float.IsFinite(accuracy) || accuracy < 0 || accuracy > 1 ||
                 !float.IsFinite(position.x) || !float.IsFinite(position.y) || !float.IsFinite(position.z)) return;
-            float duration = activeMode == 1 ? .1f : NeedsRules.UrinatingSeconds;
+            // Squats (1 seat, 3 floor) settle at release; streams (2 urinal, 4 toilet, 5 floor) last UrinatingSeconds.
+            float duration = activeMode == 1 || activeMode == 3 ? .1f : NeedsRules.UrinatingSeconds;
             if (Time.time - began < duration - .1f || Vector3.Distance(position, movement.transform.position) > 3.5f) return; // the aim may land up to ~3 m away
             Toilet toilet = activeMode == 1 || activeMode == 4 ? host.toilets[activeIndex] : null;
             Urinal urinal = activeMode == 2 ? host.urinals[activeIndex] : null;
             if (toilet != null && (!toilet.IsOccupied || toilet.Occupant != movement || (activeMode == 1 && !toilet.GetComponentInParent<StallDoor>().Contains(movement)))) return;
             if (urinal != null && (!urinal.IsOccupied || urinal.Occupant != movement || !urinal.Contains(movement))) return;
-            if (activeMode == 4) Input.PlayerInput.ApplyUrination(movement, toilet, null, accuracy, position);
+            if (activeMode == 4 || activeMode == 5) Input.PlayerInput.ApplyUrination(movement, toilet, null, accuracy, position);
             else Input.PlayerInput.ApplyResult(movement, toilet, urinal, accuracy, position, activeIndex);
             ClearUse();
         }

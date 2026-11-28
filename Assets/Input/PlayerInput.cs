@@ -223,7 +223,7 @@ namespace NatureCalls.Input
                 if (candidate.Contains(movement) && (urinal == null || Vector3.Distance(candidate.FrontPosition, transform.position) < Vector3.Distance(urinal.FrontPosition, transform.position))) urinal = candidate;
             if (urinal != null) return false; // urinals only accept V
             urineMode = false; requested = Time.time;
-            bool startedOutside = Online ? facilities.RequestOutside() : BeginGranted(null, null);
+            bool startedOutside = Online ? facilities.RequestOutside(false) : BeginGranted(null, null);
             if (!startedOutside) requested = -1;
             return startedOutside;
         }
@@ -232,6 +232,8 @@ namespace NatureCalls.Input
             if (needs != null && needs.Vomiting) return false;
             // Second V: the stream starts and must run to the end.
             if (Phase == Stage.Urinating) { if (UrineFlowing) return false; UrineFlowing = true; wetCount = 0; return true; }
+            // Second V while the server is still granting the first: start the stream as soon as it is granted.
+            if (requested >= 0 && urineMode && Phase == Stage.None) { flowOnGrant = true; return true; }
             if (Releasing) return false;
             // Peeing while squatting (on a toilet or on the floor) starts at once; afterwards the squat continues.
             if (Phase == Stage.Squatting || Phase == Stage.Aiming)
@@ -247,14 +249,14 @@ namespace NatureCalls.Input
             if (stall != null && stall.Toilet != null) toilet = stall.Toilet;
             else foreach (var candidate in FindObjectsByType<Urinal>(FindObjectsSortMode.None)) if (candidate.Contains(movement)) { urinal = candidate; break; }
             requested = Time.time; urineMode = true;
-            bool started = Online ? (toilet != null ? facilities.RequestUrination(toilet) : urinal != null ? facilities.RequestUrinal(urinal) : facilities.RequestOutside()) : BeginGranted(toilet, urinal);
+            bool started = Online ? (toilet != null ? facilities.RequestUrination(toilet) : urinal != null ? facilities.RequestUrinal(urinal) : facilities.RequestOutside(true)) : BeginGranted(toilet, urinal);
             if (!started) requested = -1;
             return started;
         }
         public bool BeginGranted(Toilet targetToilet, Urinal targetUrinal)
         {
             if (posture.IsCrawling) return false;
-            toilet = targetToilet; urinal = targetUrinal; requested = -1; UrineFlowing = false;
+            toilet = targetToilet; urinal = targetUrinal; requested = -1; UrineFlowing = false; wetCount = 0;
             if (toilet != null && !toilet.Seat(movement)) return false;
             if (urinal != null && !urinal.Occupy(movement)) return false;
             Phase = (urineMode || targetUrinal != null) ? Stage.Urinating : Stage.Squatting;
@@ -268,6 +270,8 @@ namespace NatureCalls.Input
             CurrentLanding = initialLanding; correction = Vector2.zero;
             noiseSeed = new Vector2(Random.Range(0f, 100f), Random.Range(0f, 100f));
             if (needs != null) needs.Aiming = Phase == Stage.Urinating || Phase == Stage.Aiming;
+            if (flowOnGrant && Phase == Stage.Urinating) UrineFlowing = true;
+            flowOnGrant = false;
             return true;
         }
         public void TickAim(float seconds, Vector2 adjustment)
@@ -302,7 +306,7 @@ namespace NatureCalls.Input
             if (Phase == Stage.Urinating && UrineFlowing && !urineInside) MaybeWet(FloorUnder(CurrentLanding));
             if (accuracy.Complete) FinishToileting();
         }
-        private bool urineInside;
+        private bool urineInside, flowOnGrant;
         /// <summary>The latest squat release: where the stool left and whether it went into the bowl (for the falling-stool view).</summary>
         public Vector3 LastDropPoint { get; private set; }
         public bool LastDropInBowl { get; private set; }

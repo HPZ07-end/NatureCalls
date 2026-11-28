@@ -280,6 +280,31 @@ namespace NatureCalls.Tests
             Place(player.transform.position + Vector3.right * 3, Vector3.forward); before = needs.Composure;
             yield return new WaitForSeconds(.3f); Assert.That(needs.Composure, Is.GreaterThanOrEqualTo(before), "Outside the puddle there is no puddle deduction.");
         }
+        [UnityTest] public IEnumerator HostOutsidePeeIsUrineAndASecondVDuringTheGrantStartsTheStream()
+        {
+            // Regression: online V in the open used the squat request, so the host settled it as a stool on the floor.
+            var session = Object.FindFirstObjectByType<Session>(); Assert.That(session.StartDirect(true), Is.True);
+            float deadline = Time.time + 5;
+            while (session.Manager.LocalClient.PlayerObject == null && Time.time < deadline) yield return null;
+            player = session.Manager.LocalClient.PlayerObject.GetComponent<Movement>();
+            input = player.GetComponent<PlayerInput>(); input.enabled = false;
+            needs = player.GetComponent<PlayerNeeds>(); needs.BeginRound(1); needs.SetVersusState(80, 80);
+            Assert.That(StallDoor.Containing(player), Is.Null, "The host spawns in the open.");
+            Assert.That(input.TryUrinate(), Is.True, "First V asks the host.");
+            Assert.That(input.TryUrinate(), Is.True, "Second V before the grant is remembered.");
+            deadline = Time.time + 2;
+            while (input.Phase != PlayerInput.Stage.Urinating && Time.time < deadline) yield return null;
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Urinating));
+            Assert.That(input.UrineFlowing, Is.True, "The remembered second V starts the stream on grant.");
+            yield return new WaitForSeconds(NeedsRules.UrinatingSeconds);
+            input.TickAim(NeedsRules.UrinatingSeconds, Vector2.zero);
+            deadline = Time.time + 2;
+            while (needs.Bladder > 60 && Time.time < deadline) yield return null;
+            Assert.That(needs.Bladder, Is.LessThan(60), "Settled as urine (outside versus a pee halves the urge).");
+            Assert.That(needs.Bowel, Is.GreaterThan(50), "The bowel is untouched.");
+            bool stool = false; foreach (var m in Facilities.Current.SharedMesses) stool |= m.Kind == MessKind.Dropping || m.Kind == MessKind.LooseStool;
+            Assert.That(stool, Is.False, "No stool on the floor.");
+        }
         [UnityTest] public IEnumerator HostValidatesUrinalResultBeforeApplyingIt()
         {
             var session = Object.FindFirstObjectByType<Session>(); Assert.That(session.StartDirect(true), Is.True);
