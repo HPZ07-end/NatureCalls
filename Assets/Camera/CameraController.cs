@@ -113,10 +113,11 @@ namespace NatureCalls.Camera
         {
             if (Target == null) return;
             Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, TransitionDuration);
-            if (posture.IsSquatting && Target.Seat != null && Gaze > 0)
+            if (posture.IsSquatting && Gaze > 0) // seated on a toilet or squatting on the floor: same look-down
             {
                 // Seated look-down: from just in front of the head, turn toward the bowl under the body.
-                var head = Target.transform.position + Vector3.up * 1.05f + Target.transform.forward * .12f;
+                // Lean forward over the knees and look down between the legs at the buttocks.
+                var head = Target.transform.position + Vector3.up * (1.05f - .1f * Gaze) + Target.transform.forward * (.12f + .14f * Gaze);
                 var down = Quaternion.LookRotation(GazePoint - head, Target.transform.forward);
                 Eye.SetPositionAndRotation(head, Quaternion.Slerp(Target.ViewRotation, down, Mathf.SmoothStep(0, 1, Gaze)));
             }

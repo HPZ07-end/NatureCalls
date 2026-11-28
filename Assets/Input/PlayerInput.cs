@@ -31,6 +31,8 @@ namespace NatureCalls.Input
         public bool AcceptsWalking => Phase != Stage.Aiming && Phase != Stage.Urinating;
         /// <summary>V aims first; the stream starts only after C confirms.</summary>
         public bool UrineFlowing { get; private set; }
+        /// <summary>The toilet being used (seat, or the bowl aimed at while peeing), or null.</summary>
+        public Toilet CurrentToilet => toilet;
         public bool IsToileting => Phase == Stage.Squatting || Phase == Stage.Aiming || Phase == Stage.Urinating;
         public bool Unwiped => needs != null && needs.Unwiped;
         public Item HeldItem => Item.FindCarriedBy(movement);
@@ -113,7 +115,6 @@ namespace NatureCalls.Input
         private void Update()
         {
             if (requested >= 0 && Time.time > requested + 2) requested = -1;
-            if (Releasing) { releaseRemaining -= Time.deltaTime; if (releaseRemaining <= 0) { releaseRemaining = -1; FinishToileting(); } }
             RefreshAimPhase();
             if (!movement.Controlled)
             {
@@ -285,26 +286,42 @@ namespace NatureCalls.Input
             var offset = correction + drift;
             if (Phase == Stage.Urinating)
             {
-                // Where you look is where it goes: the first solid surface on the view ray (not your own body).
                 var ray = movement.ViewRay;
-                var mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer) & ~(1 << NatureCalls.Camera.CameraController.LocalBodyLayer);
-                bool struck = Physics.Raycast(ray, out var hit, 3f, mask, QueryTriggerInteraction.Ignore);
-                var aimed = struck ? hit.point : ray.GetPoint(1.5f);
-                CurrentLanding = aimed + new Vector3(drift.x, 0, drift.y) * .5f;
-                // In the target when the stream strikes the toilet / urinal itself near its opening (the bowl surface,
-                // seat or porcelain), not a strict distance from the water centre.
-                // In the target when the stream lands in the bowl area: over the opening horizontally, from the rim
-                // down into the bowl (the hollow often has no collider, so the ray may reach the floor under it).
+                var spread = new Vector3(drift.x, 0, drift.y) * .5f;
                 bool hasTarget = toilet != null || urinal != null;
-                float across = Vector3.Distance(Vector3.ProjectOnPlane(CurrentLanding, Vector3.up), Vector3.ProjectOnPlane(TargetCenter, Vector3.up));
-                float height = CurrentLanding.y - TargetCenter.y;
-                urineInside = hasTarget && across <= Mathf.Max(TargetRadius * 1.6f, .28f) && height <= .45f && height >= -.9f;
+                float reach = Mathf.Max(NeedsRules.TargetRadius, .25f) * 1.2f;
+                if (seatedUrine && toilet != null)
+                {
+                    // Sitting on the toilet: it goes into the bowl.
+                    CurrentLanding = TargetCenter + spread * .3f; urineInside = true;
+                }
+                else
+                {
+                    // In the target when the crosshair points at the opening: the view ray passes close to it. Colliders
+                    // are ignored here — a toilet's box usually covers the lid and tank above the water.
+                    float along = Vector3.Dot(TargetCenter - ray.origin, ray.direction);
+                    var closest = ray.origin + ray.direction * Mathf.Max(0f, along);
+                    bool onTarget = hasTarget && along > 0f && along < 3f && Vector3.Distance(closest, TargetCenter) <= reach;
+                    if (onTarget)
+                    {
+                        var at = toilet != null ? new Vector3(closest.x, TargetCenter.y, closest.z) : closest;
+                        CurrentLanding = at + spread;
+                        urineInside = Vector3.Distance(CurrentLanding, TargetCenter) <= reach;
+                    }
+                    else
+                    {
+                        // Elsewhere: the first solid surface on the view ray (not your own body).
+                        var mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer) & ~(1 << NatureCalls.Camera.CameraController.LocalBodyLayer);
+                        CurrentLanding = (Physics.Raycast(ray, out var hit, 3f, mask, QueryTriggerInteraction.Ignore) ? hit.point : ray.GetPoint(1.5f)) + spread;
+                        urineInside = false;
+                    }
+                }
             }
             else CurrentLanding = ButtLanding() + new Vector3(offset.x, 0, offset.y); // follows the shuffled body
             if (Phase == Stage.Urinating && !UrineFlowing) return; // still aiming: nothing comes out yet
             accuracy.Sample(seconds, Phase == Stage.Urinating ? urineInside : Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
             if (Phase == Stage.Urinating && UrineFlowing && !urineInside) MaybeWet(FloorUnder(CurrentLanding));
-            if (accuracy.Complete) FinishToileting();
+            if (accuracy.Complete && !Releasing) FinishToileting(); // a release settles on its own timer, never early
         }
         private bool urineInside, flowOnGrant;
         /// <summary>The latest squat release: where the stool left and whether it went into the bowl (for the falling-stool view).</summary>
@@ -322,6 +339,13 @@ namespace NatureCalls.Input
         private Vector3 lastWet;
         private int wetCount;
         /// <summary>Second C: decide where it lands now, show it leaving the buttocks, settle once it has fallen.</summary>
+        /// <summary>Advances the release timer (driven by ToiletGaze every frame while squatting).</summary>
+        public void TickRelease(float seconds)
+        {
+            if (!Releasing) return;
+            releaseRemaining -= seconds;
+            if (releaseRemaining <= 0) { releaseRemaining = -1; FinishToileting(); }
+        }
         private void BeginRelease()
         {
             accuracy = Accuracy.Fixed(ReleaseAccuracy());
@@ -337,7 +361,7 @@ namespace NatureCalls.Input
         /// <summary>Urine that misses the target wets the floor where it lands, while it lands (not after).</summary>
         private void MaybeWet(Vector3 point)
         {
-            if (wetCount >= 8 || (wetCount > 0 && Vector3.Distance(Vector3.ProjectOnPlane(point, Vector3.up), Vector3.ProjectOnPlane(lastWet, Vector3.up)) < .45f)) return;
+            if (wetCount >= 12 || (wetCount > 0 && Vector3.Distance(Vector3.ProjectOnPlane(point, Vector3.up), Vector3.ProjectOnPlane(lastWet, Vector3.up)) < .3f)) return; // close enough to join into one trail (UrineTrails)
             lastWet = point; wetCount++;
             if (Online) facilities.RequestUrineSplash(point);
             else MessSinkRegistry.Current?.AddMess(MessKind.Puddle, point, -1, movement);
