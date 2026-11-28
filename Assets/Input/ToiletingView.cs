@@ -29,7 +29,7 @@ namespace NatureCalls.Input
     {
         public const float Budget = 3f, LookThreshold = .6f, LookPitch = 70f, DriftWhileLooking = .6f;
         /// <summary>Head pitch (degrees down) at which a squat becomes the aim; looking back up leaves it.</summary>
-        public const float AimPitch = 50f;
+        public const float AimPitch = 35f;
         /// <summary>0 = head up, 1 = fully bowed.</summary>
         public float Amount { get; private set; }
         public float Remaining { get; private set; } = Budget;
@@ -69,8 +69,10 @@ namespace NatureCalls.Input
             if (push != 0) { SetPitch(movement.Pitch + push * LookPitch); push = 0; }
             Amount = Mathf.Clamp01(movement.Pitch / LookPitch);
             input.RefreshAimPhase();
+            input.TickRelease(Time.deltaTime);
             if (Looking) Remaining = Mathf.Max(0, Remaining - Time.deltaTime);
-            Camera(Mathf.InverseLerp(LookThreshold * .6f, 1f, Amount)); // bowed head turns the view toward the bowl
+            // A bowed head turns the view gently toward the spot between the legs (never straight down).
+            Camera(.8f * Mathf.InverseLerp(.3f, .9f, Amount));
             ShowMarker(false); // blind aim: no reticle or landing marker
         }
 
@@ -82,7 +84,9 @@ namespace NatureCalls.Input
             var rig = world != null ? world.Camera : null;
             if (rig == null || rig.Target != movement) return;
             rig.Gaze = amount;
-            rig.GazePoint = input.TargetCenter; // the bowl itself; the landing point stays hidden (blind aim)
+            // Between the legs, just under the buttocks: where the stool comes out (the landing itself stays unmarked).
+            var under = input.Releasing ? input.LastDropPoint : input.CurrentLanding;
+            rig.GazePoint = under + movement.transform.forward * .1f;
         }
 
         private void ShowMarker(bool visible)
@@ -177,41 +181,51 @@ namespace NatureCalls.Input
             var butt = new Vector3(dropTarget.x, movement.transform.position.y + .48f, dropTarget.z);
             var kind = input.DropSerial > 0 ? input.LastDropKind : StoolKind.Soft;
             dropKind = kind; dropAge = 0; landedAny = false;
-            // Pace the fall to the release time (harder is slower); fall from the buttocks takes about .3 s.
-            float span = Mathf.Max(.4f, (input.ReleaseDuration > 0 ? input.ReleaseDuration : StoolRules.ReleaseSeconds(kind)) - .35f);
-            squeezeSeconds = kind == StoolKind.Soft ? span * .8f : kind == StoolKind.Hard ? span / 5f * .7f : .05f;
+            // Pace to the release time (harder is slower). Stage 1: the stool emerges from the buttocks (animated);
+            // stage 2: it detaches and the physics engine drops it.
+            float span = Mathf.Max(.4f, (input.ReleaseDuration > 0 ? input.ReleaseDuration : StoolRules.ReleaseSeconds(kind)) - .4f);
+            float yaw = movement.transform.eulerAngles.y;
             switch (kind)
             {
-                case StoolKind.Hard: // separate dry pellets, one after another
-                    for (int i = 0; i < 5; i++) AddPiece(art.HardLog, art.StoolDry, butt, .16f, i * span / 5f, new Vector3(Random.Range(-.02f, .02f), 0, Random.Range(-.02f, .02f)));
+                case StoolKind.Hard: // pellets pushed out one at a time, each dropping before the next
+                    for (int i = 0; i < 5; i++)
+                        AddPiece(art.HardLog, art.StoolDry, butt, .16f, i * span / 5f, Mathf.Min(.45f, span / 5f * .8f), .03f, yaw,
+                                 new Vector3(Random.Range(-.015f, .015f), 0, Random.Range(-.015f, .015f)));
                     break;
-                case StoolKind.Loose: // a runny pour of drops
+                case StoolKind.Loose: // a runny pour: short drips that stretch and let go
                     for (int i = 0; i < 22; i++)
                     {
                         var drip = GameObject.CreatePrimitive(PrimitiveType.Sphere); Destroy(drip.GetComponent<Collider>());
-                        drip.GetComponent<Renderer>().sharedMaterial = art.Loose; drip.name = "Loose drop";
-                        pieces.Add(new Piece { T = drip.transform, Delay = i * span / 22f, Scale = Random.Range(.035f, .06f), Origin = butt + new Vector3(Random.Range(-.015f, .015f), 0, Random.Range(-.015f, .015f)), Liquid = true });
-                        drip.SetActive(false);
+                        drip.GetComponent<Renderer>().sharedMaterial = art.Loose; drip.name = "Loose drop"; drip.SetActive(false);
+                        pieces.Add(new Piece { T = drip.transform, Delay = i * span / 22f, Emerge = .08f, Hang = .02f, Scale = Random.Range(.035f, .06f),
+                            Origin = butt + new Vector3(Random.Range(-.015f, .015f), 0, Random.Range(-.015f, .015f)), Liquid = true });
                     }
                     break;
-                default: // one soft log, slowly squeezed out
-                    AddPiece(art.HardLog != null ? art.HardLog : art.SoftSwirl, art.Stool, butt, .5f, 0, Vector3.zero);
+                default: // one soft log that slowly hangs down before it lets go
+                    AddPiece(art.HardLog != null ? art.HardLog : art.SoftSwirl, art.Stool, butt, .5f, 0, span * .85f, .12f, yaw, Vector3.zero);
                     break;
             }
         }
 
-        private struct Piece { public Transform T; public Vector3 Origin, Velocity; public float Delay, Scale; public bool Started, Landed, Liquid; }
+        private struct Piece
+        {
+            public Transform T; public Rigidbody Body; public Vector3 Origin;
+            public float Delay, Emerge, Hang, Scale, Yaw; public bool Started, Falling, Landed, Liquid;
+        }
         private readonly System.Collections.Generic.List<Piece> pieces = new();
         private StoolKind dropKind;
         private bool landedAny;
-        private float squeezeSeconds = .3f;
+        /// <summary>Pieces still coming out of the buttocks (stage 1).</summary>
+        public int EmergingPieces { get { int n = 0; foreach (var p in pieces) if (p.Started && !p.Falling && !p.Landed) n++; return n; } }
+        /// <summary>Pieces the physics engine is dropping (stage 2).</summary>
+        public int FallingPieces { get { int n = 0; foreach (var p in pieces) if (p.Falling && !p.Landed) n++; return n; } }
 
-        private void AddPiece(Mesh mesh, Material material, Vector3 origin, float scale, float delay, Vector3 offset)
+        private void AddPiece(Mesh mesh, Material material, Vector3 origin, float scale, float delay, float emerge, float hang, float yaw, Vector3 offset)
         {
             var go = new GameObject("Falling stool", typeof(MeshFilter), typeof(MeshRenderer));
             go.GetComponent<MeshFilter>().sharedMesh = mesh; go.GetComponent<MeshRenderer>().sharedMaterial = material;
             go.SetActive(false);
-            pieces.Add(new Piece { T = go.transform, Delay = delay, Scale = scale, Origin = origin + offset });
+            pieces.Add(new Piece { T = go.transform, Delay = delay, Emerge = emerge, Hang = hang, Scale = scale, Yaw = yaw, Origin = origin + offset });
         }
 
         private void ClearPieces() { foreach (var piece in pieces) if (piece.T != null) Destroy(piece.T.gameObject); pieces.Clear(); }
@@ -231,23 +245,36 @@ namespace NatureCalls.Input
                 if (!piece.Started)
                 {
                     piece.Started = true; piece.T.gameObject.SetActive(true);
-                    piece.T.SetPositionAndRotation(piece.Origin, piece.Liquid ? Quaternion.identity : Quaternion.Euler(90, Random.Range(0, 360f), 0));
+                    piece.T.SetPositionAndRotation(piece.Origin, piece.Liquid ? Quaternion.identity : Quaternion.Euler(90, piece.Yaw, 0));
                 }
-                float squeeze = squeezeSeconds;
-                if (!piece.Landed)
+                if (!piece.Falling && !piece.Landed)
                 {
-                    if (age < squeeze) piece.T.localScale = Vector3.one * Mathf.Lerp(piece.Scale * .2f, piece.Scale, age / squeeze); // squeezing out
-                    else
+                    // Stage 1: coming out. It grows and sinks below the buttocks (a soft log hangs and sways).
+                    float t = Mathf.Clamp01(age / Mathf.Max(.01f, piece.Emerge));
+                    float eased = Mathf.SmoothStep(0, 1, t);
+                    var scale = Vector3.one * Mathf.Lerp(piece.Scale * .15f, piece.Scale, eased);
+                    if (piece.Liquid) scale.y *= Mathf.Lerp(1f, 2.2f, eased); // a drip stretching before it lets go
+                    piece.T.localScale = scale;
+                    var sway = dropKind == StoolKind.Soft ? new Vector3(Mathf.Sin(age * 2.3f), 0, Mathf.Cos(age * 1.7f)) * .006f * eased : Vector3.zero;
+                    piece.T.position = piece.Origin + Vector3.down * piece.Hang * eased + sway;
+                    if (t >= 1f)
                     {
-                        piece.T.localScale = Vector3.one * piece.Scale;
-                        piece.Velocity += Physics.gravity * dt;
-                        piece.T.position += piece.Velocity * dt;
-                        if (!piece.Liquid) piece.T.Rotate(Vector3.right, (dropKind == StoolKind.Soft ? 120 : 300) * dt);
-                        if (piece.T.position.y <= floor) { piece.Landed = true; Land(piece, floor); }
+                        // Stage 2: let go; gravity and momentum are the physics engine's.
+                        piece.Falling = true;
+                        piece.Body = piece.T.gameObject.AddComponent<Rigidbody>();
+                        piece.Body.useGravity = true; piece.Body.interpolation = RigidbodyInterpolation.Interpolate;
+                        piece.Body.linearVelocity = Vector3.down * (piece.Liquid ? .6f : .15f);
+                        if (!piece.Liquid) piece.Body.angularVelocity = new Vector3(Random.Range(-2f, 2f), 0, Random.Range(-2f, 2f)) * (dropKind == StoolKind.Soft ? .6f : 2f);
                     }
                     alive = true;
                 }
-                else if (age < 3f) alive = true;
+                else if (piece.Falling && !piece.Landed)
+                {
+                    if (piece.T.position.y <= floor) { piece.Landed = true; if (piece.Body != null) Destroy(piece.Body); piece.Body = null; Land(piece, floor); }
+                    else if (age > piece.Emerge + 4f) { piece.Landed = true; }
+                    alive = true;
+                }
+                else if (age < piece.Emerge + 3.5f) alive = true;
                 else { Destroy(piece.T.gameObject); piece.T = null; }
                 pieces[i] = piece;
             }

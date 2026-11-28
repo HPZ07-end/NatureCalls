@@ -160,8 +160,24 @@ namespace NatureCalls.Tests
             Assert.That(needs.Bladder, Is.LessThan(60), "The pee was settled.");
             player.SetPitch(0);
             int drops = input.DropSerial;
-            Assert.That(input.TryToilet(), Is.True, "A second C poops even without looking down.");
-            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.None));
+            PlayerInput.ReleaseScale = 1f; // real timing for this check
+            try
+            {
+                Assert.That(input.TryToilet(), Is.True, "A second C poops even without looking down.");
+                for (int i = 0; i < 5; i++) yield return null;
+                Assert.That(input.Releasing, Is.True, "Pooping takes time.");
+                Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.Squatting).Or.EqualTo(PlayerInput.Stage.Aiming), "Regression: the release no longer stands the player up at once.");
+                Assert.That(input.CancelAim(), Is.False, "Esc does nothing once pooping has started.");
+                var fx = player.GetComponent<ToiletingFx>();
+                Assert.That(fx.EmergingPieces, Is.GreaterThan(0), "Stage 1: the stool is coming out of the buttocks.");
+                float deadline = Time.time + 6;
+                while (fx.FallingPieces == 0 && Time.time < deadline) yield return null;
+                Assert.That(fx.FallingPieces, Is.GreaterThan(0), "Stage 2: it lets go and the physics engine drops it.");
+                deadline = Time.time + 6;
+                while (input.Phase != PlayerInput.Stage.None && Time.time < deadline) yield return null;
+            }
+            finally { PlayerInput.ReleaseScale = 0f; }
+            Assert.That(input.Phase, Is.EqualTo(PlayerInput.Stage.None), "Settled when the release time is over.");
             Assert.That(input.DropSerial, Is.EqualTo(drops + 1), "The falling stool plays even without looking down.");
             Assert.That(needs.InEndurance, Is.False, "Relief ends the red endurance state.");
         }

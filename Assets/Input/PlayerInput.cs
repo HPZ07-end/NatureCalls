@@ -113,7 +113,6 @@ namespace NatureCalls.Input
         private void Update()
         {
             if (requested >= 0 && Time.time > requested + 2) requested = -1;
-            if (Releasing) { releaseRemaining -= Time.deltaTime; if (releaseRemaining <= 0) { releaseRemaining = -1; FinishToileting(); } }
             RefreshAimPhase();
             if (!movement.Controlled)
             {
@@ -304,7 +303,7 @@ namespace NatureCalls.Input
             if (Phase == Stage.Urinating && !UrineFlowing) return; // still aiming: nothing comes out yet
             accuracy.Sample(seconds, Phase == Stage.Urinating ? urineInside : Vector3.Distance(CurrentLanding, TargetCenter) <= TargetRadius);
             if (Phase == Stage.Urinating && UrineFlowing && !urineInside) MaybeWet(FloorUnder(CurrentLanding));
-            if (accuracy.Complete) FinishToileting();
+            if (accuracy.Complete && !Releasing) FinishToileting(); // a release settles on its own timer, never early
         }
         private bool urineInside, flowOnGrant;
         /// <summary>The latest squat release: where the stool left and whether it went into the bowl (for the falling-stool view).</summary>
@@ -322,6 +321,13 @@ namespace NatureCalls.Input
         private Vector3 lastWet;
         private int wetCount;
         /// <summary>Second C: decide where it lands now, show it leaving the buttocks, settle once it has fallen.</summary>
+        /// <summary>Advances the release timer (driven by ToiletGaze every frame while squatting).</summary>
+        public void TickRelease(float seconds)
+        {
+            if (!Releasing) return;
+            releaseRemaining -= seconds;
+            if (releaseRemaining <= 0) { releaseRemaining = -1; FinishToileting(); }
+        }
         private void BeginRelease()
         {
             accuracy = Accuracy.Fixed(ReleaseAccuracy());
