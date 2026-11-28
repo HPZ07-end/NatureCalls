@@ -151,6 +151,20 @@ def use_nographics(platform=None, environment=None):
     return platform != "win32"
 
 
+KEEP_BUILDS = 3
+
+
+def prune_builds(directory, keep=KEEP_BUILDS):
+    """Delete all but the newest `keep` build folders (named <UTC stamp>-<id>, so names sort by time). User 2026-11-28."""
+    if not directory.is_dir():
+        return []
+    builds = sorted((item for item in directory.iterdir() if item.is_dir()), key=lambda item: item.name, reverse=True)
+    removed = builds[keep:]
+    for item in removed:
+        shutil.rmtree(item)
+    return removed
+
+
 AUTO_DEPLOY_BRANCHES = ("dev", "main")
 
 
@@ -259,6 +273,10 @@ def run(action, timeout, test_filter=None):
         finally:
             (directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
         print(json.dumps(summary, indent=2))
+        if summary["status"] == "passed" and action.startswith("build-"):
+            removed = prune_builds(build.parent.parent)  # Builds/<platform>/<stamp>/<player>
+            if removed:
+                print(f"Removed {len(removed)} older build(s) from {build.parent.parent.relative_to(ROOT)}; kept the newest {KEEP_BUILDS}.")
 
 
 def main():
